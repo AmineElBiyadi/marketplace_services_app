@@ -1,1 +1,1 @@
-# Application-Mobile-Marketplace-des-Services-Locaux-GI2-
+# Application-Mobile-Marketplace-des-Services-Locaux
