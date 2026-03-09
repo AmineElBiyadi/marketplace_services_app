@@ -1,72 +1,106 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/expert.dart';
+import '../services/firestore_service.dart';
 import '../widgets/category_card.dart';
 import '../widgets/nearby_provider_card.dart';
 import '../widgets/top_rated_card.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final FirestoreService _firestoreService = FirestoreService();
+  final TextEditingController _searchController = TextEditingController();
+
+  List<Expert> _experts = [];
+  List<Expert> _filteredExperts = [];
+  bool _isLoading = true;
+  String _clientNom = 'Client';
+  String? _selectedCategory;
+
+  final List<Map<String, dynamic>> categories = [
+    {'label': 'Plomberie', 'icon': Icons.plumbing},
+    {'label': 'Électricité', 'icon': Icons.electrical_services},
+    {'label': 'Nettoyage', 'icon': Icons.cleaning_services},
+    {'label': 'Jardinage', 'icon': Icons.yard},
+    {'label': 'Coiffure', 'icon': Icons.content_cut},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+
+    // Récupérer nom du client connecté
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('utilisateurs')
+          .doc(user.uid)
+          .get();
+      setState(() {
+        _clientNom = userDoc.data()?['nom'] ??
+            userDoc.data()?['email'] ??
+            'Client';
+      });
+    }
+
+    // Récupérer les experts
+    final experts = await _firestoreService.getExperts();
+    setState(() {
+      _experts = experts;
+      _filteredExperts = experts;
+      _isLoading = false;
+    });
+  }
+
+  // Filtre combiné : texte + catégorie
+  void _applyFilters() {
+    final query = _searchController.text.toLowerCase();
+    print('🔍 Catégorie sélectionnée: $_selectedCategory');
+    print('👷 Experts: ${_experts.map((e) => '${e.nom}: ${e.services}').toList()}');
+
+    setState(() {
+      _filteredExperts = _experts.where((expert) {
+        final matchCategory = _selectedCategory == null ||
+            expert.services.any((s) =>
+                s.toLowerCase().contains(
+                    _selectedCategory!.toLowerCase()));
+        final matchQuery = query.isEmpty ||
+            expert.nom.toLowerCase().contains(query) ||
+            expert.services.any(
+                    (s) => s.toLowerCase().contains(query));
+        return matchCategory && matchQuery;
+      }).toList();
+    });
+  }
+
+  // Sélectionner ou désélectionner une catégorie
+  void _selectCategory(String label) {
+    setState(() {
+      _selectedCategory = _selectedCategory == label ? null : label;
+    });
+    _applyFilters();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> categories = [
-      {'label': 'Plumbing', 'icon': Icons.plumbing},
-      {'label': 'Electricity', 'icon': Icons.electrical_services},
-      {'label': 'Cleaning', 'icon': Icons.cleaning_services},
-      {'label': 'Gardening', 'icon': Icons.yard},
-      {'label': 'Hair', 'icon': Icons.content_cut},
-    ];
-
-    final List<Map<String, dynamic>> nearbyProviders = [
-      {
-        'name': 'Ahmed K.',
-        'service': 'Plumbing',
-        'rating': 4.8,
-        'distance': 1.2,
-        'imageUrl': 'https://i.pravatar.cc/150?img=1',
-        'isPremium': false,
-      },
-      {
-        'name': 'Sarah M.',
-        'service': 'Cleaning',
-        'rating': 4.9,
-        'distance': 0.8,
-        'imageUrl': 'https://i.pravatar.cc/150?img=2',
-        'isPremium': true,
-      },
-      {
-        'name': 'Youssef B.',
-        'service': 'Electricity',
-        'rating': 4.7,
-        'distance': 2.1,
-        'imageUrl': 'https://i.pravatar.cc/150?img=3',
-        'isPremium': false,
-      },
-    ];
-
-    final List<Map<String, dynamic>> topRated = [
-      {
-        'name': 'Omar H.',
-        'services': 'Plumbing, Heating',
-        'rating': 5.0,
-        'imageUrl': 'https://i.pravatar.cc/150?img=4',
-        'isPremium': true,
-      },
-      {
-        'name': 'Leila A.',
-        'services': 'Deep Cleaning',
-        'rating': 4.9,
-        'imageUrl': 'https://i.pravatar.cc/150?img=5',
-        'isPremium': false,
-      },
-      {
-        'name': 'Karim D.',
-        'services': 'IT Support, Networking',
-        'rating': 4.8,
-        'imageUrl': 'https://i.pravatar.cc/150?img=6',
-        'isPremium': false,
-      },
-    ];
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F0),
       body: SafeArea(
@@ -139,23 +173,29 @@ class HomeScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Text('Hi John,',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold)),
+                    Text(
+                      'Hi $_clientNom,',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold),
+                    ),
                     const Text('What service are you looking for?',
-                        style: TextStyle(color: Colors.white70, fontSize: 14)),
+                        style: TextStyle(
+                            color: Colors.white70, fontSize: 14)),
                     const SizedBox(height: 16),
+                    // Barre de recherche
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const TextField(
-                        style: TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (value) => _applyFilters(),
+                        style: const TextStyle(color: Colors.white),
+                        decoration: const InputDecoration(
                           hintText: 'Search here',
                           hintStyle: TextStyle(color: Colors.white60),
                           border: InputBorder.none,
@@ -188,62 +228,15 @@ class HomeScreen extends StatelessWidget {
                         const SizedBox(width: 16),
                         itemBuilder: (context, index) {
                           final cat = categories[index];
+                          final isSelected =
+                              _selectedCategory == cat['label'];
                           return CategoryCard(
                             label: cat['label'],
                             icon: cat['icon'],
-                            onTap: () {},
+                            isSelected: isSelected,
+                            onTap: () => _selectCategory(cat['label']),
                           );
                         },
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ── BANNIERE PROMO ──
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.grey.shade200,
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Get 40% on Ironing',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14)),
-                                const Text('CODE: IRON40',
-                                    style: TextStyle(
-                                        color: Colors.grey, fontSize: 12)),
-                                const SizedBox(height: 8),
-                                ElevatedButton(
-                                  onPressed: () {},
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF3D5A99),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                  child: const Text('BOOK NOW',
-                                      style: TextStyle(color: Colors.white)),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.iron,
-                              size: 60, color: Color(0xFF3D5A99)),
-                        ],
                       ),
                     ),
 
@@ -255,29 +248,41 @@ class HomeScreen extends StatelessWidget {
                       children: [
                         const Text('Nearby Providers',
                             style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold)),
                         TextButton(
                           onPressed: () {},
                           child: const Text('Map >',
-                              style: TextStyle(color: Color(0xFF3D5A99))),
+                              style: TextStyle(
+                                  color: Color(0xFF3D5A99))),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    SizedBox(
+
+                    _isLoading
+                        ? const Center(
+                        child: CircularProgressIndicator())
+                        : _filteredExperts.isEmpty
+                        ? const Center(
+                        child: Text('Aucun prestataire trouvé'))
+                        : SizedBox(
                       height: 210,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
-                        itemCount: nearbyProviders.length,
+                        itemCount: _filteredExperts.length,
                         itemBuilder: (context, index) {
-                          final p = nearbyProviders[index];
+                          final expert =
+                          _filteredExperts[index];
                           return NearbyProviderCard(
-                            name: p['name'],
-                            service: p['service'],
-                            rating: p['rating'],
-                            distance: p['distance'],
-                            imageUrl: p['imageUrl'],
-                            isPremium: p['isPremium'],
+                            name: expert.nom,
+                            service: expert.services.isNotEmpty
+                                ? expert.services.first
+                                : '',
+                            rating: expert.noteMoyenne,
+                            distance: 0.0,
+                            imageUrl: expert.photo,
+                            isPremium: expert.isPremium,
                             onTap: () {},
                           );
                         },
@@ -291,18 +296,26 @@ class HomeScreen extends StatelessWidget {
                         style: TextStyle(
                             fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
-                    ListView.builder(
+
+                    _isLoading
+                        ? const Center(
+                        child: CircularProgressIndicator())
+                        : _filteredExperts.isEmpty
+                        ? const Center(
+                        child: Text('Aucun prestataire trouvé'))
+                        : ListView.builder(
                       shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: topRated.length,
+                      physics:
+                      const NeverScrollableScrollPhysics(),
+                      itemCount: _filteredExperts.length,
                       itemBuilder: (context, index) {
-                        final e = topRated[index];
+                        final expert = _filteredExperts[index];
                         return TopRatedCard(
-                          name: e['name'],
-                          services: e['services'],
-                          rating: e['rating'],
-                          imageUrl: e['imageUrl'],
-                          isPremium: e['isPremium'],
+                          name: expert.nom,
+                          services: expert.services.join(', '),
+                          rating: expert.noteMoyenne,
+                          imageUrl: expert.photo,
+                          isPremium: expert.isPremium,
                           onChat: () {},
                           onTap: () {},
                         );
