@@ -9,7 +9,8 @@ import '../../models/booking.dart';
 import '../../models/expert.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
-  const ProviderDashboardScreen({Key? key}) : super(key: key);
+  final String expertId;
+  const ProviderDashboardScreen({Key? key, required this.expertId}) : super(key: key);
 
   @override
   State<ProviderDashboardScreen> createState() =>
@@ -18,7 +19,7 @@ class ProviderDashboardScreen extends StatefulWidget {
 
 class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   final FirestoreService _firestoreService = FirestoreService();
-  final String _expertId = "expert_001"; // TODO: Get from Auth provider
+  String get _expertId => widget.expertId;
 
   bool _isOnline = true;
   String _pack = "Gratuit";
