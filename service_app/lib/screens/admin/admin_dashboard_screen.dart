@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import '../../services/admin_dashboard_service.dart';
+import '../../layouts/admin_layout.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -35,7 +36,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<Map<String, dynamic>> _dailyInscriptions = [];
   List<Map<String, dynamic>> _monthlyRevenue = [];
 
-  bool _sidebarOpen = true;
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -85,29 +86,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 1024;
 
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: _bg,
-      drawer: isMobile ? _buildSidebar(isMobile: true) : null,
-      body: Row(
+    return AdminLayout(
+      activeRoute: '/admin',
+      child: Column(
         children: [
-          if (!isMobile) _buildSidebar(isMobile: false),
+          _buildTopBar(isMobile),
           Expanded(
-            child: Column(
-              children: [
-                _buildTopBar(isMobile),
-                Expanded(
-                  child: _loading
-                      ? const Center(child: CircularProgressIndicator(color: _primary))
-                      : _error != null
-                          ? _buildError()
-                          : RefreshIndicator(
-                              onRefresh: _loadData,
-                              child: _buildMainContent(),
-                            ),
-                ),
-              ],
-            ),
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: _primary))
+                : _error != null
+                    ? _buildError()
+                    : RefreshIndicator(
+                        onRefresh: _loadData,
+                        child: _buildMainContent(),
+                      ),
           ),
         ],
       ),
@@ -115,123 +107,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   // ─── Sidebar ───────────────────────────────────────────────────────────────
-  Widget _buildSidebar({required bool isMobile}) {
-    final double width = _sidebarOpen || isMobile ? 260 : 80;
-
-    return Container(
-      width: width,
-      decoration: const BoxDecoration(
-        color: _textPrimary, // foreground
-        border: Border(right: BorderSide(color: Colors.white10)),
-      ),
-      child: Column(
-        children: [
-          // Logo Section
-          Container(
-            height: 64,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.white10)),
-            ),
-            child: Row(
-              mainAxisAlignment: isMobile || _sidebarOpen ? MainAxisAlignment.spaceBetween : MainAxisAlignment.center,
-              children: [
-                if (isMobile || _sidebarOpen)
-                  const Row(
-                    children: [
-                      Icon(LucideIcons.shield, color: _primary, size: 28),
-                      SizedBox(width: 8),
-                      Text(
-                        'Admin',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ],
-                  ),
-                if (!isMobile)
-                  IconButton(
-                    icon: Icon(_sidebarOpen ? LucideIcons.x : LucideIcons.menu, color: Colors.white60, size: 18),
-                    onPressed: () => setState(() => _sidebarOpen = !_sidebarOpen),
-                  ),
-              ],
-            ),
-          ),
-
-          // Navigation items
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-              children: [
-                _sidebarItem(LucideIcons.home, 'Tableau de bord', true),
-                _sidebarItem(LucideIcons.users, 'Utilisateurs', false),
-                _sidebarItem(LucideIcons.wrench, 'Prestataires', false),
-                _sidebarItem(LucideIcons.calendarDays, 'Réservations', false),
-                _sidebarItem(LucideIcons.star, 'Avis & Réclamations', false),
-                _sidebarItem(LucideIcons.dollarSign, 'Finances', false),
-                _sidebarItem(LucideIcons.barChart3, 'Statistiques', false),
-                _sidebarItem(LucideIcons.settings, 'Paramètres', false),
-              ],
-            ),
-          ),
-
-          // Logout
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(border: Border(top: BorderSide(color: Colors.white10))),
-            child: _sidebarItem(LucideIcons.logOut, 'Déconnexion', false, isDestructive: true),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sidebarItem(IconData icon, String label, bool active, {bool isDestructive = false}) {
-    final bool showLabel = _sidebarOpen || MediaQuery.of(context).size.width < 1024;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {},
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-          decoration: BoxDecoration(
-            color: active ? _primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: showLabel ? MainAxisAlignment.start : MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: isDestructive
-                    ? Colors.redAccent
-                    : (active ? Colors.white : Colors.white60),
-              ),
-              if (showLabel) ...[
-                const SizedBox(width: 12),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isDestructive
-                        ? Colors.redAccent
-                        : (active ? Colors.white : Colors.white60),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   // ─── Top Bar ───────────────────────────────────────────────────────────────
   Widget _buildTopBar(bool isMobile) {
     return Container(
@@ -244,9 +119,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       child: Row(
         children: [
           if (isMobile)
-            IconButton(
-              icon: const Icon(LucideIcons.menu, color: _textPrimary),
-              onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+            Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(LucideIcons.menu, color: _textPrimary),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
             ),
           const Expanded(
             child: Row(
@@ -283,7 +160,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   height: 14,
                   decoration: const BoxDecoration(color: _destructive, shape: BoxShape.circle),
                   alignment: Alignment.center,
-                  child: const Text('4', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                  child: Text(_stats?.unreadNotifications.toString() ?? '0', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -350,9 +227,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       spacing: 16,
       runSpacing: 16,
       children: [
-        _kpiItem('Total Utilisateurs', s.totalUsers.toString(), LucideIcons.users, _primary.withOpacity(0.1), _primary, '+${s.totalUsers > 0 ? (s.totalUsers * 0.1).toInt() : 0}'),
+        _kpiItem('Total Utilisateurs', s.totalUsers.toString(), LucideIcons.users, _primary.withOpacity(0.1), _primary, s.userGrowth),
         _kpiItem('Réservations du mois', s.reservationsThisMonth.toString(), LucideIcons.calendarDays, Colors.blue.withOpacity(0.1), Colors.blue, ''),
-        _kpiItem('Revenus totaux', '${NumberFormat("#,##0", "fr_FR").format(s.totalRevenue)} DH', LucideIcons.dollarSign, Colors.green.withOpacity(0.1), Colors.green, ''),
+        _kpiItem('Revenus totaux', '${NumberFormat("#,##0", "fr_FR").format(s.totalRevenue)} DH', LucideIcons.dollarSign, Colors.green.withOpacity(0.1), Colors.green, s.revenueGrowth),
         _kpiItem('En attente', s.pendingProviders.toString(), LucideIcons.clock, Colors.amber.withOpacity(0.1), Colors.amber, ''),
         _kpiItem('Réclamations', s.openClaims.toString(), LucideIcons.alertTriangle, Colors.red.withOpacity(0.1), Colors.red, ''),
         _kpiItem('Note moyenne', s.averageRating.toStringAsFixed(1), LucideIcons.star, Colors.purple.withOpacity(0.1), Colors.purple, ''),
@@ -653,7 +530,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _textPrimary)),
-              TextButton(onPressed: () {}, child: const Text('Voir tout →', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _primary))),
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, path),
+                child: const Text('Voir tout →', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _primary))
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -664,9 +544,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildPendingList() {
-    if (_pendingProviders.isEmpty) return _emptyState('Aucun prestataire en attente');
+    final query = _searchController.text.toLowerCase();
+    final filtered = _pendingProviders.where((p) => 
+      p['name'].toString().toLowerCase().contains(query) || 
+      p['category'].toString().toLowerCase().contains(query)
+    ).toList();
+
+    if (filtered.isEmpty) return _emptyState('Aucun résultat');
     return Column(
-      children: _pendingProviders.map((p) {
+      children: filtered.map((p) {
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Row(
@@ -674,9 +560,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               Container(
                 width: 36,
                 height: 36,
-                decoration: BoxDecoration(color: _primary.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                  color: _primary.withOpacity(0.1), 
+                  borderRadius: BorderRadius.circular(10),
+                  image: p['imageUrl'] != null ? DecorationImage(image: NetworkImage(p['imageUrl']), fit: BoxFit.cover) : null,
+                ),
                 alignment: Alignment.center,
-                child: Text(p['avatar'], style: const TextStyle(color: _primary, fontSize: 11, fontWeight: FontWeight.bold)),
+                child: p['imageUrl'] == null ? Text(p['avatar'], style: const TextStyle(color: _primary, fontSize: 11, fontWeight: FontWeight.bold)) : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -709,9 +599,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildClaimsList() {
-    if (_openClaims.isEmpty) return _emptyState('Aucune réclamation');
+    final query = _searchController.text.toLowerCase();
+    final filtered = _openClaims.where((c) => 
+      c['subject'].toString().toLowerCase().contains(query) || 
+      c['from'].toString().toLowerCase().contains(query)
+    ).toList();
+
+    if (filtered.isEmpty) return _emptyState('Aucun résultat');
     return Column(
-      children: _openClaims.map((c) {
+      children: filtered.map((c) {
         final isUrgent = c['priority'].toString().toUpperCase() == 'URGENT';
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
@@ -743,9 +639,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildUsersList() {
-    if (_recentUsers.isEmpty) return _emptyState('Aucun utilisateur');
+    final query = _searchController.text.toLowerCase();
+    final filtered = _recentUsers.where((u) => 
+      u['name'].toString().toLowerCase().contains(query) || 
+      u['type'].toString().toLowerCase().contains(query)
+    ).toList();
+
+    if (filtered.isEmpty) return _emptyState('Aucun résultat');
     return Column(
-      children: _recentUsers.map((u) {
+      children: filtered.map((u) {
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: Row(
@@ -753,9 +655,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               Container(
                 width: 36,
                 height: 36,
-                decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(10)),
+                decoration: BoxDecoration(
+                  color: _bg, 
+                  borderRadius: BorderRadius.circular(10),
+                  image: u['imageUrl'] != null ? DecorationImage(image: NetworkImage(u['imageUrl']), fit: BoxFit.cover) : null,
+                ),
                 alignment: Alignment.center,
-                child: Text(u['name'].toString().length >= 2 ? u['name'].toString().substring(0, 2).toUpperCase() : '??', style: const TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold)),
+                child: u['imageUrl'] == null ? Text(u['name'].toString().length >= 2 ? u['name'].toString().substring(0, 2).toUpperCase() : '??', style: const TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold)) : null,
               ),
               const SizedBox(width: 12),
               Expanded(
