@@ -1,23 +1,18 @@
-Analyzing 2 items...                                            
+Analyzing admin_dashboard_screen.dart...                        
 
-warning - Unused import: 'package:cloud_firestore/cloud_firestore.dart' - lib\screens\admin\admin_dashboard_screen.dart:2:8 - unused_import
-   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:182:51 - deprecated_member_use
-   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:189:52 - deprecated_member_use
-   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:234:37 - deprecated_member_use
-   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:283:62 - deprecated_member_use
-   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:313:55 - deprecated_member_use
-   info - Don't invoke 'print' in production code - lib\services\admin_dashboard_service.dart:93:7 - avoid_print
-   info - Statements in an if should be enclosed in a block - lib\services\admin_dashboard_service.dart:131:36 - curly_braces_in_flow_control_structures
-   info - Statements in an if should be enclosed in a block - lib\services\admin_dashboard_service.dart:132:39 - curly_braces_in_flow_control_structures
-   info - Statements in an if should be enclosed in a block - lib\services\admin_dashboard_service.dart:133:16 - curly_braces_in_flow_control_structures
-   info - Don't invoke 'print' in production code - lib\services\admin_dashboard_service.dart:145:7 - avoid_print
-   info - Don't invoke 'print' in production code - lib\services\admin_dashboard_service.dart:169:7 - avoid_print
-   info - Statements in an if should be enclosed in a block - lib\services\admin_dashboard_service.dart:187:31 - curly_braces_in_flow_control_structures
-   info - Statements in an if should be enclosed in a block - lib\services\admin_dashboard_service.dart:188:35 - curly_braces_in_flow_control_structures
-   info - Statements in an if should be enclosed in a block - lib\services\admin_dashboard_service.dart:195:36 - curly_braces_in_flow_control_structures
-   info - Statements in an if should be enclosed in a block - lib\services\admin_dashboard_service.dart:196:39 - curly_braces_in_flow_control_structures
-   info - Statements in an if should be enclosed in a block - lib\services\admin_dashboard_service.dart:197:16 - curly_braces_in_flow_control_structures
-   info - Don't invoke 'print' in production code - lib\services\admin_dashboard_service.dart:208:7 - avoid_print
-   info - Don't invoke 'print' in production code - lib\services\admin_dashboard_service.dart:234:7 - avoid_print
+warning - Unused import: 'package:intl/intl.dart' - lib\screens\admin\admin_dashboard_screen.dart:4:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:347:93 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:348:116 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:349:86 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:350:95 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:351:97 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:352:102 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:386:61 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:467:67 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:527:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:545:67 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:616:59 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:723:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:732:46 - deprecated_member_use
 
-19 issues found. (ran in 1.8s)
+14 issues found. (ran in 1.9s)
