@@ -1,0 +1,200 @@
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[   +1 ms] executing: [D:\flutter/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[  +94 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[        ] 2026-03-03 16:03:22 -0800
+[  +21 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +4 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[  +65 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +1 ms] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[   +2 ms] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[  +46 ms] Skipping pub get: version match.
+[ +124 ms] Found plugin firebase_core at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-4.5.0\
+[  +15 ms] Found plugin firebase_core_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-3.5.0\
+[  +19 ms] Found plugin firebase_auth at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth-6.2.0\
+[   +4 ms] Found plugin firebase_auth_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth_web-6.1.3\
+[  +26 ms] Found plugin cloud_firestore at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore-6.1.3\
+[  +10 ms] Found plugin cloud_firestore_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore_web-5.1.3\
+[ +148 ms] Found plugin firebase_core at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-4.5.0\
+[   +4 ms] Found plugin firebase_core_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-3.5.0\
+[  +17 ms] Found plugin firebase_auth at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth-6.2.0\
+[  +16 ms] Found plugin firebase_auth_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth_web-6.1.3\
+[  +24 ms] Found plugin cloud_firestore at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore-6.1.3\
+[   +3 ms] Found plugin cloud_firestore_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore_web-5.1.3\
+[  +34 ms] Skipping generating web_plugin_registrant.dart because it is up-to-date.
+[  +52 ms] Found plugin firebase_core at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-4.5.0\
+[   +2 ms] Found plugin firebase_core_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-3.5.0\
+[  +10 ms] Found plugin firebase_auth at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth-6.2.0\
+[   +3 ms] Found plugin firebase_auth_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth_web-6.1.3\
+[  +13 ms] Found plugin cloud_firestore at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore-6.1.3\
+[   +2 ms] Found plugin cloud_firestore_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore_web-5.1.3\
+[  +10 ms] Generating D:\marketplace_services_app\service_app\android\app\src\main\java\io\flutter\plugins\GeneratedPluginRegistrant.java
+[   +3 ms] Skipping generating GeneratedPluginRegistrant.java because it is up-to-date.
+[   +9 ms] Skipping generating generated_plugin_registrant.h because it is up-to-date.
+[   +3 ms] Skipping generating generated_plugin_registrant.cc because it is up-to-date.
+[   +3 ms] Skipping generating generated_plugins.cmake because it is up-to-date.
+[   +5 ms] Skipping generating generated_plugin_registrant.h because it is up-to-date.
+[   +1 ms] Skipping generating generated_plugin_registrant.cc because it is up-to-date.
+[   +2 ms] Skipping generating generated_plugins.cmake because it is up-to-date.
+[   +3 ms] Skipping generating GeneratedPluginRegistrant.h because it is up-to-date.
+[   +2 ms] Skipping generating GeneratedPluginRegistrant.m because it is up-to-date.
+[   +2 ms] Skipping generating GeneratedPluginRegistrant.swift because it is up-to-date.
+[ +108 ms] executing: C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe -format json -products * -utf8 -latest -version 16 -requires Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project
+[  +99 ms] Exit code 0 from: C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe -format json -products * -utf8 -latest -version 16 -requires Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project
+[        ] [
+             {
+               "instanceId": "49e5d20d",
+               "installDate": "2026-03-09T23:42:02Z",
+               "installationName": "VisualStudio/18.3.2+11520.95",
+               "installationPath": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community",
+               "installationVersion": "18.3.11520.95",
+               "productId": "Microsoft.VisualStudio.Product.Community",
+               "productPath": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\devenv.exe",
+               "state": 4294967295,
+               "isComplete": true,
+               "isLaunchable": true,
+               "isPrerelease": false,
+               "isRebootRequired": false,
+               "displayName": "Visual Studio Community 2026",
+               "description": "Tout ce dont vous avez besoin pour cr├®er des applications modernes ÔÇô gratuites pour vous, con├ºues pour avoir un impact.",
+               "channelId": "VisualStudio.18.Release",
+               "channelUri": "https://aka.ms/vs/18/stable/channel",
+               "enginePath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\resources\\app\\ServiceHub\\Services\\Microsoft.VisualStudio.Setup.Service",
+               "expirationDate": "2026-05-21T17:00:00+00:00",
+               "installedChannelId": "VisualStudio.18.Release",
+               "installedChannelUri": "https://aka.ms/vs/18/stable/channel",
+               "releaseNotes": "https://docs.microsoft.com/en-us/visualstudio/releases/18/release-notes-v18.3#18.3.2",
+               "resolvedInstallationPath": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community",
+               "retirementDate": "2026-08-19T17:00:00+00:00",
+               "thirdPartyNotices": "https://go.microsoft.com/fwlink/?LinkId=661480",
+               "updateDate": "2026-03-09T23:42:02.857613Z",
+               "catalog": {
+                 "buildBranch": "d18.3",
+                 "buildVersion": "18.3.11520.95",
+                 "featureReleaseMonth": "02",
+                 "featureReleaseYear": "2026",
+                 "id": "VisualStudio/18.3.2+11520.95",
+                 "includeBuildVersionInDisplayVersion": "False",
+                 "localBuild": "build-lab",
+                 "manifestName": "VisualStudio",
+                 "manifestType": "installer",
+                 "productDisplayVersion": "18.3.2",
+                 "productLine": "Dev18",
+                 "productLineVersion": "18",
+                 "productMilestone": "RTW",
+                 "productMilestoneIsPreRelease": "False",
+                 "productName": "Visual Studio",
+                 "productPatchVersion": "2",
+                 "productPreReleaseMilestoneSuffix": "1.0",
+                 "productRelease": "RTW",
+                 "productSemanticVersion": "18.3.2+11520.95",
+                 "requiredEngineVersion": "4.3.2029.11392"
+               },
+               "properties": {
+                 "appLocalWPF": "false",
+                 "campaignId": "2500:6e90f3945f6c4f5a9cbc9335332899f7",
+                 "channelManifestId": "VisualStudio.18.Release/18.3.2+11520.95",
+                 "includeRecommended": "1",
+                 "nickname": "",
+                 "setupEngineFilePath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\setup.exe"
+               }
+             }
+           ]
+[  +10 ms] Building Windows application...
+[   +8 ms] executing: C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe -S D:\marketplace_services_app\service_app\windows -B D:\marketplace_services_app\service_app\build\windows\x64 -G Visual Studio 18 2026 -A x64 -DFLUTTER_TARGET_PLATFORM=windows-x64
+[ +104 ms] -- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.19045.
+[  +71 ms] -- Using cached Firebase SDK zip file
+[   +1 ms] CMake Error at D:/marketplace_services_app/service_app/build/windows/x64/extracted/firebase_cpp_sdk_windows/CMakeLists.txt:17 (cmake_minimum_required):
+[   +2 ms]   Compatibility with CMake < 3.5 has been removed from CMake.
+[        ]   Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+[        ]   to tell CMake that the project requires at least <min> but has been updated
+[        ]   to work with policies introduced by <max> or earlier.
+[        ]   Or, add -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+[   +3 ms] -- Using cached extracted Firebase SDK
+[        ] -- Configuring incomplete, errors occurred!
+[  +16 ms] Building Windows application... (completed in 197ms)
+[        ] "flutter windows" took 1ÔÇ»154ms.
+[  +79 ms] Unable to generate build files
+[        ] 
+           #0      throwToolExit (package:flutter_tools/src/base/common.dart:34:3)
+           #1      _runCmakeGeneration (package:flutter_tools/src/windows/build_windows.dart:209:5)
+           <asynchronous suspension>
+           #2      buildWindows (package:flutter_tools/src/windows/build_windows.dart:105:5)
+           <asynchronous suspension>
+           #3      BuildWindowsCommand.runCommand (package:flutter_tools/src/commands/build_windows.dart:72:5)
+           <asynchronous suspension>
+           #4      FlutterCommand.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command.dart:1590:27)
+           <asynchronous suspension>
+           #5      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+           <asynchronous suspension>
+           #6      CommandRunner.runCommand (package:args/command_runner.dart:212:13)
+           <asynchronous suspension>
+           #7      FlutterCommandRunner.runCommand.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:496:9)
+           <asynchronous suspension>
+           #8      AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+           <asynchronous suspension>
+           #9      FlutterCommandRunner.runCommand (package:flutter_tools/src/runner/flutter_command_runner.dart:431:5)
+           <asynchronous suspension>
+           #10     FlutterCommandRunner.run.<anonymous closure> (package:flutter_tools/src/runner/flutter_command_runner.dart:307:33)
+           <asynchronous suspension>
+           #11     run.<anonymous closure>.<anonymous closure> (package:flutter_tools/runner.dart:104:11)
+           <asynchronous suspension>
+           #12     AppContext.run.<anonymous closure> (package:flutter_tools/src/base/context.dart:154:19)
+           <asynchronous suspension>
+           #13     main (package:flutter_tools/executable.dart:103:3)
+           <asynchronous suspension>
+
+
+[        ] Running 1 shutdown hook
+[   +1 ms] Shutdown hooks complete
+[ +195 ms] exiting with code 1
