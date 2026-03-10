@@ -6,6 +6,7 @@ class Expert {
   final double noteMoyenne;
   final bool isPremium;
   final List<String> services;
+  final String ville;
 
   Expert({
     required this.id,
@@ -15,9 +16,9 @@ class Expert {
     required this.noteMoyenne,
     required this.isPremium,
     required this.services,
+    required this.ville,
   });
 
-  // Convertir Firestore → Expert
   factory Expert.fromFirestore(Map<String, dynamic> data, String id) {
     return Expert(
       id: id,
@@ -27,6 +28,7 @@ class Expert {
       noteMoyenne: (data['noteMoyenne'] ?? 0.0).toDouble(),
       isPremium: data['isPremium'] ?? false,
       services: List<String>.from(data['services'] ?? []),
+      ville: data['ville'] ?? '',
     );
   }
 }

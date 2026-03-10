@@ -20,8 +20,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Expert> _experts = [];
   List<Expert> _filteredExperts = [];
+  List<String> _villesExperts = [];
   bool _isLoading = true;
   String _clientNom = 'Client';
+  String _clientVille = '';
+  String? _selectedVille;
   String? _selectedCategory;
 
   final List<Map<String, dynamic>> categories = [
@@ -47,51 +50,79 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
 
-    // Récupérer nom du client connecté
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      // Récupérer infos utilisateur
       final userDoc = await FirebaseFirestore.instance
           .collection('utilisateurs')
           .doc(user.uid)
           .get();
+
       setState(() {
         _clientNom = userDoc.data()?['nom'] ??
             userDoc.data()?['email'] ??
             'Client';
       });
+
+      // Récupérer ville du client
+      final adresseSnapshot = await FirebaseFirestore.instance
+          .collection('adresses')
+          .where('idUtilisateur', isEqualTo: user.uid)
+          .get();
+
+      if (adresseSnapshot.docs.isNotEmpty) {
+        final adresse = adresseSnapshot.docs.first.data();
+        final ville =
+            '${adresse['Ville'] ?? ''}, ${adresse['Quartier'] ?? ''}';
+        setState(() {
+          _clientVille = ville;
+          _selectedVille = ville; // ville par défaut
+        });
+      }
     }
 
-    // Récupérer les experts
+    // Récupérer experts et villes
     final experts = await _firestoreService.getExperts();
+    final villes = await _firestoreService.getVillesExperts();
+
     setState(() {
       _experts = experts;
+      _villesExperts = villes;
       _filteredExperts = experts;
       _isLoading = false;
     });
+
+    // Appliquer filtre ville par défaut
+    _applyFilters();
   }
 
-  // Filtre combiné : texte + catégorie
   void _applyFilters() {
     final query = _searchController.text.toLowerCase();
-    print('🔍 Catégorie sélectionnée: $_selectedCategory');
-    print('👷 Experts: ${_experts.map((e) => '${e.nom}: ${e.services}').toList()}');
-
     setState(() {
       _filteredExperts = _experts.where((expert) {
+        // Filtre par ville
+        final matchVille = _selectedVille == null ||
+            expert.ville
+                .toLowerCase()
+                .contains(_selectedVille!.toLowerCase());
+
+        // Filtre par catégorie
         final matchCategory = _selectedCategory == null ||
-            expert.services.any((s) =>
-                s.toLowerCase().contains(
-                    _selectedCategory!.toLowerCase()));
+            expert.services.any((s) => s
+                .toLowerCase()
+                .contains(_selectedCategory!.toLowerCase()));
+
+        // Filtre par texte
         final matchQuery = query.isEmpty ||
             expert.nom.toLowerCase().contains(query) ||
-            expert.services.any(
-                    (s) => s.toLowerCase().contains(query));
-        return matchCategory && matchQuery;
+            expert.services
+                .any((s) => s.toLowerCase().contains(query));
+
+        return matchVille && matchCategory && matchQuery;
       }).toList();
     });
   }
 
-  // Sélectionner ou désélectionner une catégorie
   void _selectCategory(String label) {
     setState(() {
       _selectedCategory = _selectedCategory == label ? null : label;
@@ -99,6 +130,80 @@ class _HomeScreenState extends State<HomeScreen> {
     _applyFilters();
   }
 
+  // Afficher le dropdown des villes
+  void _showVilleDropdown(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (context) {
+        return Stack(
+          children: [
+            Positioned(
+              top: 100,
+              left: 16,
+              right: 16,
+              child: Material(
+                borderRadius: BorderRadius.circular(16),
+                elevation: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: _villesExperts.isEmpty
+                      ? const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text('Aucune ville disponible'),
+                  )
+                      : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: _villesExperts.length,
+                    itemBuilder: (context, index) {
+                      final ville = _villesExperts[index];
+                      final isSelected = _selectedVille == ville;
+                      return ListTile(
+                        leading: Icon(
+                          Icons.location_on,
+                          color: isSelected
+                              ? const Color(0xFF3D5A99)
+                              : Colors.grey,
+                          size: 18,
+                        ),
+                        title: Text(
+                          ville,
+                          style: TextStyle(
+                            color: isSelected
+                                ? const Color(0xFF3D5A99)
+                                : Colors.black87,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            fontSize: 14,
+                          ),
+                        ),
+                        tileColor: isSelected
+                            ? const Color(0xFF3D5A99).withOpacity(0.1)
+                            : null,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        onTap: () {
+                          setState(() => _selectedVille = ville);
+                          _applyFilters();
+                          Navigator.pop(context);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -125,26 +230,38 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.location_on,
-                                  color: Colors.white, size: 16),
-                              SizedBox(width: 4),
-                              Text('Casablanca, Maarif',
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 13)),
-                              Icon(Icons.keyboard_arrow_down,
-                                  color: Colors.white, size: 16),
-                            ],
+                        // Ville cliquable → dropdown
+                        GestureDetector(
+                          onTap: () => _showVilleDropdown(context),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.location_on,
+                                    color: Colors.white, size: 16),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _selectedVille != null
+                                      ? _selectedVille!
+                                      : _clientVille.isNotEmpty
+                                      ? _clientVille
+                                      : 'Choisir une ville',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13),
+                                ),
+                                const Icon(Icons.keyboard_arrow_down,
+                                    color: Colors.white, size: 16),
+                              ],
+                            ),
                           ),
                         ),
+                        // Notification
                         Stack(
                           children: [
                             Container(
@@ -153,8 +270,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: Colors.white.withOpacity(0.2),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.notifications_outlined,
-                                  color: Colors.white, size: 22),
+                              child: const Icon(
+                                  Icons.notifications_outlined,
+                                  color: Colors.white,
+                                  size: 22),
                             ),
                             Positioned(
                               right: 6,
@@ -184,9 +303,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: TextStyle(
                             color: Colors.white70, fontSize: 14)),
                     const SizedBox(height: 16),
-                    // Barre de recherche
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(12),
@@ -199,7 +318,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           hintText: 'Search here',
                           hintStyle: TextStyle(color: Colors.white60),
                           border: InputBorder.none,
-                          icon: Icon(Icons.search, color: Colors.white60),
+                          icon: Icon(Icons.search,
+                              color: Colors.white60),
                         ),
                       ),
                     ),
@@ -217,7 +337,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     // ── CATEGORIES ──
                     const Text('Popular',
                         style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
                     SizedBox(
                       height: 90,
@@ -234,7 +355,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             label: cat['label'],
                             icon: cat['icon'],
                             isSelected: isSelected,
-                            onTap: () => _selectCategory(cat['label']),
+                            onTap: () =>
+                                _selectCategory(cat['label']),
                           );
                         },
                       ),
@@ -265,7 +387,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: CircularProgressIndicator())
                         : _filteredExperts.isEmpty
                         ? const Center(
-                        child: Text('Aucun prestataire trouvé'))
+                        child: Text(
+                            'Aucun prestataire trouvé'))
                         : SizedBox(
                       height: 210,
                       child: ListView.builder(
@@ -276,7 +399,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           _filteredExperts[index];
                           return NearbyProviderCard(
                             name: expert.nom,
-                            service: expert.services.isNotEmpty
+                            service: expert
+                                .services.isNotEmpty
                                 ? expert.services.first
                                 : '',
                             rating: expert.noteMoyenne,
@@ -294,7 +418,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     // ── TOP RATED ──
                     const Text('Top Rated',
                         style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold)),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 12),
 
                     _isLoading
@@ -302,17 +427,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: CircularProgressIndicator())
                         : _filteredExperts.isEmpty
                         ? const Center(
-                        child: Text('Aucun prestataire trouvé'))
+                        child: Text(
+                            'Aucun prestataire trouvé'))
                         : ListView.builder(
                       shrinkWrap: true,
                       physics:
                       const NeverScrollableScrollPhysics(),
                       itemCount: _filteredExperts.length,
                       itemBuilder: (context, index) {
-                        final expert = _filteredExperts[index];
+                        final expert =
+                        _filteredExperts[index];
                         return TopRatedCard(
                           name: expert.nom,
-                          services: expert.services.join(', '),
+                          services:
+                          expert.services.join(', '),
                           rating: expert.noteMoyenne,
                           imageUrl: expert.photo,
                           isPremium: expert.isPremium,
