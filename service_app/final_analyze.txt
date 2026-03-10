@@ -1,0 +1,49 @@
+Analyzing 3 items...                                            
+
+   info - Parameter 'key' could be a super parameter - lib\main.dart:16:9 - use_super_parameters
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:360:93 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:361:116 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:362:136 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:363:95 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:364:97 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:365:102 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:399:61 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:500:67 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:564:53 - deprecated_member_use
+   info - Statements in a for should be enclosed in a block - lib\screens\admin\admin_dashboard_screen.dart:574:36 - curly_braces_in_flow_control_structures
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:613:67 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:694:35 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:820:48 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_dashboard_screen.dart:829:46 - deprecated_member_use
+  error - The method 'getFinancialTransactions' isn't defined for the type 'AdminDashboardService' - lib\screens\admin\admin_finances_screen.dart:47:18 - undefined_method
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_finances_screen.dart:289:85 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_finances_screen.dart:313:153 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_notifications_screen.dart:187:103 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_providers_screen.dart:337:58 - deprecated_member_use
+   info - The 'child' argument should be last in widget constructor invocations - lib\screens\admin\admin_providers_screen.dart:338:15 - sort_child_properties_last
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_providers_screen.dart:387:48 - deprecated_member_use
+  error - The method 'getAllReservations' isn't defined for the type 'AdminDashboardService' - lib\screens\admin\admin_reservations_screen.dart:48:34 - undefined_method
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_reservations_screen.dart:336:60 - deprecated_member_use
+   info - The 'child' argument should be last in widget constructor invocations - lib\screens\admin\admin_reservations_screen.dart:337:15 - sort_child_properties_last
+  error - The method 'getAllReviews' isn't defined for the type 'AdminDashboardService' - lib\screens\admin\admin_reviews_screen.dart:46:34 - undefined_method
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_reviews_screen.dart:318:62 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_reviews_screen.dart:339:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_statistics_screen.dart:236:85 - deprecated_member_use
+warning - Unused import: 'package:intl/intl.dart' - lib\screens\admin\admin_users_screen.dart:3:8 - unused_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_users_screen.dart:347:58 - deprecated_member_use
+   info - The 'child' argument should be last in widget constructor invocations - lib\screens\admin\admin_users_screen.dart:348:15 - sort_child_properties_last
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\admin\admin_users_screen.dart:374:177 - deprecated_member_use
+   info - Statements in an if should be enclosed in a block - lib\services\admin_dashboard_service.dart:374:39 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\services\admin_dashboard_service.dart:375:45 - curly_braces_in_flow_control_structures
+warning - Unnecessary cast - lib\services\admin_dashboard_service.dart:415:20 - unnecessary_cast
+warning - Unnecessary cast - lib\services\admin_dashboard_service.dart:451:20 - unnecessary_cast
+warning - Dead code - lib\services\admin_dashboard_service.dart:505:3 - dead_code
+warning - The declaration 'getAllReservations' isn't referenced - lib\services\admin_dashboard_service.dart:505:38 - unused_element
+warning - Unnecessary cast - lib\services\admin_dashboard_service.dart:510:20 - unnecessary_cast
+warning - The declaration 'getAllReviews' isn't referenced - lib\services\admin_dashboard_service.dart:535:38 - unused_element
+warning - Unnecessary cast - lib\services\admin_dashboard_service.dart:540:20 - unnecessary_cast
+warning - The declaration 'getFinancialTransactions' isn't referenced - lib\services\admin_dashboard_service.dart:555:38 - unused_element
+warning - Unnecessary cast - lib\services\admin_dashboard_service.dart:560:20 - unnecessary_cast
+  error - Expected to find '}' - lib\services\admin_dashboard_service.dart:584:1 - expected_token
+
+45 issues found. (ran in 6.0s)

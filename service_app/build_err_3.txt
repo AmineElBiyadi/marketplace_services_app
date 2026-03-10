@@ -1,0 +1,458 @@
+[ +660 ms] Unable to locate an Android SDK.
+[  +16 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[   +2 ms] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[   +1 ms] executing: [D:\flutter/] git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[ +101 ms] Exit code 0 from: git -c log.showSignature=false log HEAD -n 1 --pretty=format:%ad --date=iso
+[        ] 2026-03-03 16:03:22 -0800
+[  +22 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +2 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[ +110 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[   +2 ms] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[  +15 ms] Skipping pub get: version match.
+[ +100 ms] Found plugin firebase_core at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-4.5.0\
+[  +10 ms] Found plugin firebase_core_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-3.5.0\
+[  +13 ms] Found plugin firebase_auth at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth-6.2.0\
+[   +3 ms] Found plugin firebase_auth_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth_web-6.1.3\
+[  +15 ms] Found plugin cloud_firestore at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore-6.1.3\
+[   +9 ms] Found plugin cloud_firestore_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore_web-5.1.3\
+[ +102 ms] Found plugin firebase_core at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-4.5.0\
+[   +2 ms] Found plugin firebase_core_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-3.5.0\
+[   +9 ms] Found plugin firebase_auth at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth-6.2.0\
+[   +2 ms] Found plugin firebase_auth_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth_web-6.1.3\
+[  +12 ms] Found plugin cloud_firestore at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore-6.1.3\
+[   +3 ms] Found plugin cloud_firestore_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore_web-5.1.3\
+[  +20 ms] Skipping generating web_plugin_registrant.dart because it is up-to-date.
+[  +39 ms] Found plugin firebase_core at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core-4.5.0\
+[   +2 ms] Found plugin firebase_core_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_core_web-3.5.0\
+[   +8 ms] Found plugin firebase_auth at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth-6.2.0\
+[   +2 ms] Found plugin firebase_auth_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\firebase_auth_web-6.1.3\
+[   +9 ms] Found plugin cloud_firestore at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore-6.1.3\
+[   +2 ms] Found plugin cloud_firestore_web at C:\Users\hp\AppData\Local\Pub\Cache\hosted\pub.dev\cloud_firestore_web-5.1.3\
+[   +7 ms] Generating D:\marketplace_services_app\service_app\android\app\src\main\java\io\flutter\plugins\GeneratedPluginRegistrant.java
+[   +3 ms] Skipping generating GeneratedPluginRegistrant.java because it is up-to-date.
+[   +7 ms] Skipping generating generated_plugin_registrant.h because it is up-to-date.
+[   +1 ms] Skipping generating generated_plugin_registrant.cc because it is up-to-date.
+[   +2 ms] Skipping generating generated_plugins.cmake because it is up-to-date.
+[   +4 ms] Skipping generating generated_plugin_registrant.h because it is up-to-date.
+[   +1 ms] Skipping generating generated_plugin_registrant.cc because it is up-to-date.
+[   +2 ms] Skipping generating generated_plugins.cmake because it is up-to-date.
+[   +2 ms] Skipping generating GeneratedPluginRegistrant.h because it is up-to-date.
+[   +1 ms] Skipping generating GeneratedPluginRegistrant.m because it is up-to-date.
+[   +1 ms] Skipping generating GeneratedPluginRegistrant.swift because it is up-to-date.
+[ +103 ms] executing: C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe -format json -products * -utf8 -latest -version 16 -requires Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project
+[ +116 ms] Exit code 0 from: C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe -format json -products * -utf8 -latest -version 16 -requires Microsoft.VisualStudio.Workload.NativeDesktop Microsoft.VisualStudio.Component.VC.Tools.x86.x64 Microsoft.VisualStudio.Component.VC.CMake.Project
+[   +1 ms] [
+             {
+               "instanceId": "49e5d20d",
+               "installDate": "2026-03-09T23:42:02Z",
+               "installationName": "VisualStudio/18.3.2+11520.95",
+               "installationPath": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community",
+               "installationVersion": "18.3.11520.95",
+               "productId": "Microsoft.VisualStudio.Product.Community",
+               "productPath": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\devenv.exe",
+               "state": 4294967295,
+               "isComplete": true,
+               "isLaunchable": true,
+               "isPrerelease": false,
+               "isRebootRequired": false,
+               "displayName": "Visual Studio Community 2026",
+               "description": "Tout ce dont vous avez besoin pour cr├®er des applications modernes ÔÇô gratuites pour vous, con├ºues pour avoir un impact.",
+               "channelId": "VisualStudio.18.Release",
+               "channelUri": "https://aka.ms/vs/18/stable/channel",
+               "enginePath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\resources\\app\\ServiceHub\\Services\\Microsoft.VisualStudio.Setup.Service",
+               "expirationDate": "2026-05-21T17:00:00+00:00",
+               "installedChannelId": "VisualStudio.18.Release",
+               "installedChannelUri": "https://aka.ms/vs/18/stable/channel",
+               "releaseNotes": "https://docs.microsoft.com/en-us/visualstudio/releases/18/release-notes-v18.3#18.3.2",
+               "resolvedInstallationPath": "C:\\Program Files\\Microsoft Visual Studio\\18\\Community",
+               "retirementDate": "2026-08-19T17:00:00+00:00",
+               "thirdPartyNotices": "https://go.microsoft.com/fwlink/?LinkId=661480",
+               "updateDate": "2026-03-09T23:42:02.857613Z",
+               "catalog": {
+                 "buildBranch": "d18.3",
+                 "buildVersion": "18.3.11520.95",
+                 "featureReleaseMonth": "02",
+                 "featureReleaseYear": "2026",
+                 "id": "VisualStudio/18.3.2+11520.95",
+                 "includeBuildVersionInDisplayVersion": "False",
+                 "localBuild": "build-lab",
+                 "manifestName": "VisualStudio",
+                 "manifestType": "installer",
+                 "productDisplayVersion": "18.3.2",
+                 "productLine": "Dev18",
+                 "productLineVersion": "18",
+                 "productMilestone": "RTW",
+                 "productMilestoneIsPreRelease": "False",
+                 "productName": "Visual Studio",
+                 "productPatchVersion": "2",
+                 "productPreReleaseMilestoneSuffix": "1.0",
+                 "productRelease": "RTW",
+                 "productSemanticVersion": "18.3.2+11520.95",
+                 "requiredEngineVersion": "4.3.2029.11392"
+               },
+               "properties": {
+                 "appLocalWPF": "false",
+                 "campaignId": "2500:6e90f3945f6c4f5a9cbc9335332899f7",
+                 "channelManifestId": "VisualStudio.18.Release/18.3.2+11520.95",
+                 "includeRecommended": "1",
+                 "nickname": "",
+                 "setupEngineFilePath": "C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\setup.exe"
+               }
+             }
+           ]
+[  +12 ms] Building Windows application...
+[  +11 ms] executing: C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe -S D:\marketplace_services_app\service_app\windows -B D:\marketplace_services_app\service_app\build\windows\x64 -G Visual Studio 18 2026 -A x64 -DFLUTTER_TARGET_PLATFORM=windows-x64
+[ +104 ms] -- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.19045.
+[  +84 ms] -- Using cached Firebase SDK zip file
+[        ] -- Using cached extracted Firebase SDK
+[   +1 ms] CMake Deprecation Warning at D:/marketplace_services_app/service_app/build/windows/x64/extracted/firebase_cpp_sdk_windows/CMakeLists.txt:17 (cmake_minimum_required):
+[   +3 ms]   Compatibility with CMake < 3.10 will be removed from a future version of
+[        ]   CMake.
+[        ]   Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+[        ]   to tell CMake that the project requires at least <min> but has been updated
+[        ]   to work with policies introduced by <max> or earlier.
+[  +35 ms] -- Could NOT find PkgConfig (missing: PKG_CONFIG_EXECUTABLE) 
+[   +5 ms] -- Configuring done (0.2s)
+[ +371 ms] -- Generating done (0.4s)
+[   +3 ms] -- Build files have been written to: D:/marketplace_services_app/service_app/build/windows/x64
+[  +27 ms] executing: C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe --build D:\marketplace_services_app\service_app\build\windows\x64 --config Release --target INSTALL --verbose
+[ +110 ms] Change Dir: 'D:/marketplace_services_app/service_app/build/windows/x64'
+[        ] Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/18/Community/MSBuild/Current/Bin/amd64/MSBuild.exe" INSTALL.vcxproj /p:Configuration=Release /p:Platform=x64 /p:VisualStudioVersion=18.0 /v:n
+[ +274 ms] Version MSBuild 18.3.0-release-26070-10+3972042b7 pour .NET Framework
+[ +161 ms] La g├®n├®ration a d├®marr├® 10/03/2026 02:08:05.
+[ +292 ms] Projet "D:\marketplace_services_app\service_app\build\windows\x64\INSTALL.vcxproj" sur le n┼ôud 1 (cibles par d├®faut).
+[        ] Le projet "D:\marketplace_services_app\service_app\build\windows\x64\INSTALL.vcxproj" (1) g├®n├¿re "D:\marketplace_services_app\service_app\build\windows\x64\ZERO_CHECK.vcxproj" (2) sur le n┼ôud 1 (cibles par d├®faut).
+[        ] PrepareForBuild:
+[        ]   La sortie structur├®e est activ├®e. La mise en forme du compilateur diagnostics refl├¿te la hi├®rarchie des erreurs. Pour plus dÔÇÖinformations, consultez https://aka.ms/cpp/structured-output.
+[  +12 ms] InitializeBuildStatus:
+[        ]   Cr├®ation de "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild", car "AlwaysCreate" a ├®t├® sp├®cifi├®.
+[        ]   Mise ├á jour de l'horodatage "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild".
+[  +27 ms] CustomBuild:
+[        ]   Toutes les sorties sont ├á jour.
+[  +46 ms] FinalizeBuildStatus:
+[        ]   Suppression du fichier "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild".
+[   +1 ms]   Mise ├á jour de l'horodatage "x64\Release\ZERO_CHECK\ZERO_CHECK.tlog\ZERO_CHECK.lastbuildstate".
+[   +1 ms] G├®n├®ration du projet "D:\marketplace_services_app\service_app\build\windows\x64\ZERO_CHECK.vcxproj" termin├®e (cibles par d├®faut).
+[ +148 ms] Le projet "D:\marketplace_services_app\service_app\build\windows\x64\INSTALL.vcxproj" (1) g├®n├¿re "D:\marketplace_services_app\service_app\build\windows\x64\ALL_BUILD.vcxproj" (3) sur le n┼ôud 1 (cibles par d├®faut).
+[        ] Le projet "D:\marketplace_services_app\service_app\build\windows\x64\ALL_BUILD.vcxproj" (3) g├®n├¿re "D:\marketplace_services_app\service_app\build\windows\x64\plugins\cloud_firestore\cloud_firestore_plugin.vcxproj" (4) sur le n┼ôud 1 (cibles par d├®faut).
+[        ] Le projet "D:\marketplace_services_app\service_app\build\windows\x64\plugins\cloud_firestore\cloud_firestore_plugin.vcxproj" (4) g├®n├¿re "D:\marketplace_services_app\service_app\build\windows\x64\flutter\flutter_assemble.vcxproj" (5) sur le n┼ôud 1 (cibles par d├®faut).
+[        ] PrepareForBuild:
+[        ]   La sortie structur├®e est activ├®e. La mise en forme du compilateur diagnostics refl├¿te la hi├®rarchie des erreurs. Pour plus dÔÇÖinformations, consultez https://aka.ms/cpp/structured-output.
+[   +4 ms] InitializeBuildStatus:
+[        ]   Cr├®ation de "x64\Release\flutter_assemble\flutter_assemble.tlog\unsuccessfulbuild", car "AlwaysCreate" a ├®t├® sp├®cifi├®.
+[        ]   Mise ├á jour de l'horodatage "x64\Release\flutter_assemble\flutter_assemble.tlog\unsuccessfulbuild".
+[   +6 ms] CustomBuild:
+[        ]   "La build de 'D:\marketplace_services_app\service_app\build\windows\x64\CMakeFiles\84986f8f4328ea0ec777bee5ae3d2cb9\flutter_assemble.rule' d├®pend de 'D:\MARKETPLACE_SERVICES_APP\SERVICE_APP\WINDOWS\FLUTTER\EPHEMERAL\FLUTTER_WINDOWS.DLL', qui est produit par la build de 'D:\marketplace_services_app\service_app\build\windows\x64\CMakeFiles\3c38126ce3e20542dfcead6a06bdd440\flutter_windows.dll.rule'. Impossible de g├®n├®rer les ├®l├®ments en parall├¿le."
+[ +117 ms]   Generating D:/marketplace_services_app/service_app/windows/flutter/ephemeral/flutter_windows.dll, D:/marketplace_services_app/service_app/windows/flutter/ephemeral/flutter_export.h, D:/marketplace_services_app/service_app/windows/flutter/ephemeral/flutter_windows.h, D:/marketplace_services_app/service_app/windows/flutter/ephemeral/flutter_messenger.h, D:/marketplace_services_app/service_app/windows/flutter/ephemeral/flutter_plugin_registrar.h, D:/marketplace_services_app/service_app/windows/flutter/ephemeral/flutter_texture_registrar.h, D:/marketplace_services_app/service_app/windows/flutter/ephemeral/cpp_client_wrapper/core_implementations.cc, D:/marketplace_services_app/service_app/windows/flutter/ephemeral/cpp_client_wrapper/standard_codec.cc, D:/marketplace_services_app/service_app/windows/flutter/ephemeral/cpp_client_wrapper/plugin_registrar.cc, D:/marketplace_services_app/service_app/windows/flutter/ephemeral/cpp_client_wrapper/flutter_engine.cc, D:/marketplace_services_app/service_app/windows/flutter/ephemeral/cpp_client_wrapper/flutter_view_controller.cc, _phony_
+[+5273 ms]   [ +807 ms] Unable to locate an Android SDK.
+[   +7 ms]   [  +21 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ]   [   +1 ms] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[   +1 ms]   [        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[  +18 ms]   [  +19 ms] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[   +3 ms]   [   +3 ms] Artifact Instance of 'WindowsEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[  +92 ms]   [  +92 ms] Artifact Instance of 'MaterialFonts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'GradleWrapper' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidGenSnapshotArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'AndroidInternalBuildArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterWebSdk' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterEngineStamp' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LegacyCanvasKitRemover' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterSdk' is not required, skipping update.
+[   +2 ms]   [   +2 ms] Artifact Instance of 'MacOSEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxEngineArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'LinuxFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'MacOSFuchsiaSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerSDKArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FlutterRunnerDebugSymbols' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'IosUsbArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'FontSubsetArtifacts' is not required, skipping update.
+[        ]   [        ] Artifact Instance of 'PubDependencies' is not required, skipping update.
+[  +41 ms]   [  +42 ms] Initializing file store
+[  +22 ms]   [  +22 ms] Done initializing file store
+[  +98 ms]   [  +98 ms] Skipping target: dart_build
+[   +2 ms]   [   +2 ms] Skipping target: gen_dart_plugin_registrant
+[+5628 ms]   [+5628 ms] Skipping target: install_code_assets
+[        ]   [        ] Skipping target: gen_localizations
+[   +3 ms]   [   +3 ms] unpack_windows: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: D:\marketplace_services_app\service_app\windows\flutter\ephemeral\flutter_windows.dll,D:\marketplace_services_app\service_app\windows\flutter\ephemeral\flutter_windows.dll.exp,D:\marketplace_services_app\service_app\windows\flutter\ephemeral\flutter_windows.dll.pdb}
+[+1448 ms]   [+1448 ms] unpack_windows: Complete
+[+2537 ms]   [+2537 ms] kernel_snapshot_program: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: D:\marketplace_services_app\service_app\lib\firebase_options.dart}
+[  +12 ms]   [  +12 ms] D:\flutter\bin\cache\dart-sdk\bin\dartaotruntime.exe D:\flutter\bin\cache\dart-sdk\bin\snapshots\frontend_server_aot.dart.snapshot --sdk-root D:\flutter\bin\cache\artifacts\engine\common\flutter_patched_sdk_product/ --target=flutter --no-print-incremental-dependencies -DFLUTTER_VERSION=3.41.4 -DFLUTTER_CHANNEL=stable -DFLUTTER_GIT_URL=https://github.com/flutter/flutter.git -DFLUTTER_FRAMEWORK_REVISION=ff37bef603 -DFLUTTER_ENGINE_REVISION=e4b8dca3f1 -DFLUTTER_DART_VERSION=3.11.1 -Ddart.vm.profile=false -Ddart.vm.product=true --delete-tostring-package-uri=dart:ui --delete-tostring-package-uri=package:flutter --aot --tfa --target-os windows --packages D:\marketplace_services_app\service_app\.dart_tool\package_config.json --output-dill D:\marketplace_services_app\service_app\.dart_tool\flutter_build\9bb1d509dcc23801534a862f004476ae\app.dill --depfile D:\marketplace_services_app\service_app\.dart_tool\flutter_build\9bb1d509dcc23801534a862f004476ae\kernel_snapshot_program.d --verbosity=error package:service_app/main.dart
+[+16097 ms]   [+16097 ms] kernel_snapshot_program: Complete
+[ +561 ms]   [ +561 ms] aot_elf_release: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: D:\marketplace_services_app\service_app\.dart_tool\flutter_build\9bb1d509dcc23801534a862f004476ae\app.dill}
+[   +3 ms]   [   +3 ms] targetingApplePlatform = false
+[        ]   [        ] extractAppleDebugSymbols = true
+[        ]   [        ] Will strip AOT snapshot during build.
+[   +1 ms]   [   +1 ms] executing: D:\flutter\bin\cache\artifacts\engine\windows-x64-release\gen_snapshot --deterministic --snapshot_kind=app-aot-elf --elf=D:\marketplace_services_app\service_app\.dart_tool\flutter_build\9bb1d509dcc23801534a862f004476ae\app.so --strip D:\marketplace_services_app\service_app\.dart_tool\flutter_build\9bb1d509dcc23801534a862f004476ae\app.dill
+[+13312 ms]   [+13312 ms] aot_elf_release: Complete
+[  +46 ms]   [  +46 ms] windows_aot_bundle: Starting due to {InvalidatedReasonKind.inputChanged: The following inputs have updated contents: D:\marketplace_services_app\service_app\.dart_tool\flutter_build\9bb1d509dcc23801534a862f004476ae\app.so, InvalidatedReasonKind.outputMissing: The following outputs were missing: D:\marketplace_services_app\service_app\build\windows\app.so}
+[   +5 ms]   [   +6 ms] windows_aot_bundle: Complete
+[ +110 ms]   [ +110 ms] Skipping target: release_bundle_windows-x64_assets
+[   +1 ms]   [   +1 ms] Persisting file store
+[  +12 ms]   [  +13 ms] Done persisting file store
+[  +30 ms]   [  +30 ms] build succeeded.
+[  +14 ms]   [  +10 ms] "flutter assemble" took 40├ö├ç┬╗102ms.
+[  +72 ms]   [  +75 ms] Running 1 shutdown hook
+[   +1 ms]   [   +1 ms] Shutdown hooks complete
+[ +179 ms]   [ +179 ms] exiting with code 0
+[ +104 ms] FinalizeBuildStatus:
+[        ]   Suppression du fichier "x64\Release\flutter_assemble\flutter_assemble.tlog\unsuccessfulbuild".
+[   +1 ms]   Mise ├á jour de l'horodatage "x64\Release\flutter_assemble\flutter_assemble.tlog\flutter_assemble.lastbuildstate".
+[   +1 ms] G├®n├®ration du projet "D:\marketplace_services_app\service_app\build\windows\x64\flutter\flutter_assemble.vcxproj" termin├®e (cibles par d├®faut).
+[  +73 ms] Le projet "D:\marketplace_services_app\service_app\build\windows\x64\plugins\cloud_firestore\cloud_firestore_plugin.vcxproj" (4) g├®n├¿re "D:\marketplace_services_app\service_app\build\windows\x64\plugins\firebase_core\firebase_core_plugin.vcxproj" (6) sur le n┼ôud 1 (cibles par d├®faut).
+[        ] Le projet "D:\marketplace_services_app\service_app\build\windows\x64\plugins\firebase_core\firebase_core_plugin.vcxproj" (6) g├®n├¿re "D:\marketplace_services_app\service_app\build\windows\x64\flutter\flutter_wrapper_plugin.vcxproj" (7) sur le n┼ôud 1 (cibles par d├®faut).
+[        ] PrepareForBuild:
+[        ]   La sortie structur├®e est activ├®e. La mise en forme du compilateur diagnostics refl├¿te la hi├®rarchie des erreurs. Pour plus dÔÇÖinformations, consultez https://aka.ms/cpp/structured-output.
+[   +3 ms] InitializeBuildStatus:
+[        ]   Cr├®ation de "flutter_wrapper_plugin.dir\Release\flutter_.4C515E53.tlog\unsuccessfulbuild", car "AlwaysCreate" a ├®t├® sp├®cifi├®.
+[        ]   Mise ├á jour de l'horodatage "flutter_wrapper_plugin.dir\Release\flutter_.4C515E53.tlog\unsuccessfulbuild".
+[   +3 ms] CustomBuild:
+[        ]   Toutes les sorties sont ├á jour.
+[  +75 ms] ClCompile:
+[        ]   Toutes les sorties sont ├á jour.
+[  +37 ms] Lib:
+[        ]   Toutes les sorties sont ├á jour.
+[   +5 ms]   flutter_wrapper_plugin.vcxproj -> D:\marketplace_services_app\service_app\build\windows\x64\flutter\Release\flutter_wrapper_plugin.lib
+[  +36 ms] FinalizeBuildStatus:
+[        ]   Suppression du fichier "flutter_wrapper_plugin.dir\Release\flutter_.4C515E53.tlog\unsuccessfulbuild".
+[        ]   Mise ├á jour de l'horodatage "flutter_wrapper_plugin.dir\Release\flutter_.4C515E53.tlog\flutter_wrapper_plugin.lastbuildstate".
+[        ] G├®n├®ration du projet "D:\marketplace_services_app\service_app\build\windows\x64\flutter\flutter_wrapper_plugin.vcxproj" termin├®e (cibles par d├®faut).
+[  +15 ms] PrepareForBuild:
+[        ]   La sortie structur├®e est activ├®e. La mise en forme du compilateur diagnostics refl├¿te la hi├®rarchie des erreurs. Pour plus dÔÇÖinformations, consultez https://aka.ms/cpp/structured-output.
+[  +17 ms] InitializeBuildStatus:
+[        ]   Cr├®ation de "firebase_core_plugin.dir\Release\firebase.4BAF89EB.tlog\unsuccessfulbuild", car "AlwaysCreate" a ├®t├® sp├®cifi├®.
+[        ]   Mise ├á jour de l'horodatage "firebase_core_plugin.dir\Release\firebase.4BAF89EB.tlog\unsuccessfulbuild".
+[        ] CustomBuild:
+[   +1 ms]   Toutes les sorties sont ├á jour.
+[  +30 ms] ClCompile:
+[        ]   Toutes les sorties sont ├á jour.
+[   +9 ms] Lib:
+[        ]   Toutes les sorties sont ├á jour.
+[   +1 ms]   firebase_core_plugin.vcxproj -> D:\marketplace_services_app\service_app\build\windows\x64\plugins\firebase_core\Release\firebase_core_plugin.lib
+[  +23 ms] FinalizeBuildStatus:
+[        ]   Suppression du fichier "firebase_core_plugin.dir\Release\firebase.4BAF89EB.tlog\unsuccessfulbuild".
+[        ]   Mise ├á jour de l'horodatage "firebase_core_plugin.dir\Release\firebase.4BAF89EB.tlog\firebase_core_plugin.lastbuildstate".
+[        ] G├®n├®ration du projet "D:\marketplace_services_app\service_app\build\windows\x64\plugins\firebase_core\firebase_core_plugin.vcxproj" termin├®e (cibles par d├®faut).
+[  +16 ms] PrepareForBuild:
+[        ]   La sortie structur├®e est activ├®e. La mise en forme du compilateur diagnostics refl├¿te la hi├®rarchie des erreurs. Pour plus dÔÇÖinformations, consultez https://aka.ms/cpp/structured-output.
+[   +9 ms] InitializeBuildStatus:
+[        ]   Cr├®ation de "cloud_firestore_plugin.dir\Release\cloud_fi.E91FFFA3.tlog\unsuccessfulbuild", car "AlwaysCreate" a ├®t├® sp├®cifi├®.
+[        ]   Mise ├á jour de l'horodatage "cloud_firestore_plugin.dir\Release\cloud_fi.E91FFFA3.tlog\unsuccessfulbuild".
+[   +3 ms] CustomBuild:
+[        ]   Toutes les sorties sont ├á jour.
+[  +27 ms] ClCompile:
+[        ]   Toutes les sorties sont ├á jour.
+[   +8 ms] Lib:
+[        ]   Toutes les sorties sont ├á jour.
+[        ]   cloud_firestore_plugin.vcxproj -> D:\marketplace_services_app\service_app\build\windows\x64\plugins\cloud_firestore\Release\cloud_firestore_plugin.lib
+[  +21 ms] FinalizeBuildStatus:
+[        ]   Suppression du fichier "cloud_firestore_plugin.dir\Release\cloud_fi.E91FFFA3.tlog\unsuccessfulbuild".
+[        ]   Mise ├á jour de l'horodatage "cloud_firestore_plugin.dir\Release\cloud_fi.E91FFFA3.tlog\cloud_firestore_plugin.lastbuildstate".
+[        ] G├®n├®ration du projet "D:\marketplace_services_app\service_app\build\windows\x64\plugins\cloud_firestore\cloud_firestore_plugin.vcxproj" termin├®e (cibles par d├®faut).
+[  +50 ms] Le projet "D:\marketplace_services_app\service_app\build\windows\x64\ALL_BUILD.vcxproj" (3) g├®n├¿re "D:\marketplace_services_app\service_app\build\windows\x64\plugins\firebase_auth\firebase_auth_plugin.vcxproj" (8) sur le n┼ôud 1 (cibles par d├®faut).
+[        ] PrepareForBuild:
+[        ]   La sortie structur├®e est activ├®e. La mise en forme du compilateur diagnostics refl├¿te la hi├®rarchie des erreurs. Pour plus dÔÇÖinformations, consultez https://aka.ms/cpp/structured-output.
+[   +4 ms] InitializeBuildStatus:
+[        ]   Cr├®ation de "firebase_auth_plugin.dir\Release\firebase.ECF1EE90.tlog\unsuccessfulbuild", car "AlwaysCreate" a ├®t├® sp├®cifi├®.
+[        ]   Mise ├á jour de l'horodatage "firebase_auth_plugin.dir\Release\firebase.ECF1EE90.tlog\unsuccessfulbuild".
+[   +3 ms] CustomBuild:
+[        ]   Toutes les sorties sont ├á jour.
+[  +21 ms] ClCompile:
+[        ]   Toutes les sorties sont ├á jour.
+[  +24 ms] Lib:
+[        ]   Toutes les sorties sont ├á jour.
+[        ]   firebase_auth_plugin.vcxproj -> D:\marketplace_services_app\service_app\build\windows\x64\plugins\firebase_auth\Release\firebase_auth_plugin.lib
+[  +17 ms] FinalizeBuildStatus:
+[        ]   Suppression du fichier "firebase_auth_plugin.dir\Release\firebase.ECF1EE90.tlog\unsuccessfulbuild".
+[        ]   Mise ├á jour de l'horodatage "firebase_auth_plugin.dir\Release\firebase.ECF1EE90.tlog\firebase_auth_plugin.lastbuildstate".
+[        ] G├®n├®ration du projet "D:\marketplace_services_app\service_app\build\windows\x64\plugins\firebase_auth\firebase_auth_plugin.vcxproj" termin├®e (cibles par d├®faut).
+[  +46 ms] Le projet "D:\marketplace_services_app\service_app\build\windows\x64\ALL_BUILD.vcxproj" (3) g├®n├¿re "D:\marketplace_services_app\service_app\build\windows\x64\flutter\flutter_wrapper_app.vcxproj" (9) sur le n┼ôud 1 (cibles par d├®faut).
+[        ] PrepareForBuild:
+[        ]   La sortie structur├®e est activ├®e. La mise en forme du compilateur diagnostics refl├¿te la hi├®rarchie des erreurs. Pour plus dÔÇÖinformations, consultez https://aka.ms/cpp/structured-output.
+[   +4 ms] InitializeBuildStatus:
+[        ]   Cr├®ation de "flutter_wrapper_app.dir\Release\flutter_.A45E4F7D.tlog\unsuccessfulbuild", car "AlwaysCreate" a ├®t├® sp├®cifi├®.
+[        ]   Mise ├á jour de l'horodatage "flutter_wrapper_app.dir\Release\flutter_.A45E4F7D.tlog\unsuccessfulbuild".
+[   +3 ms] CustomBuild:
+[        ]   Toutes les sorties sont ├á jour.
+[  +19 ms] ClCompile:
+[        ]   Toutes les sorties sont ├á jour.
+[  +11 ms] Lib:
+[        ]   Toutes les sorties sont ├á jour.
+[        ]   flutter_wrapper_app.vcxproj -> D:\marketplace_services_app\service_app\build\windows\x64\flutter\Release\flutter_wrapper_app.lib
+[  +15 ms] FinalizeBuildStatus:
+[        ]   Suppression du fichier "flutter_wrapper_app.dir\Release\flutter_.A45E4F7D.tlog\unsuccessfulbuild".
+[        ]   Mise ├á jour de l'horodatage "flutter_wrapper_app.dir\Release\flutter_.A45E4F7D.tlog\flutter_wrapper_app.lastbuildstate".
+[        ] G├®n├®ration du projet "D:\marketplace_services_app\service_app\build\windows\x64\flutter\flutter_wrapper_app.vcxproj" termin├®e (cibles par d├®faut).
+[  +51 ms] Le projet "D:\marketplace_services_app\service_app\build\windows\x64\ALL_BUILD.vcxproj" (3) g├®n├¿re "D:\marketplace_services_app\service_app\build\windows\x64\runner\service_app.vcxproj" (10) sur le n┼ôud 1 (cibles par d├®faut).
+[        ] PrepareForBuild:
+[        ]   La sortie structur├®e est activ├®e. La mise en forme du compilateur diagnostics refl├¿te la hi├®rarchie des erreurs. Pour plus dÔÇÖinformations, consultez https://aka.ms/cpp/structured-output.
+[   +3 ms] InitializeBuildStatus:
+[        ]   Cr├®ation de "service_app.dir\Release\service_app.tlog\unsuccessfulbuild", car "AlwaysCreate" a ├®t├® sp├®cifi├®.
+[        ]   Mise ├á jour de l'horodatage "service_app.dir\Release\service_app.tlog\unsuccessfulbuild".
+[   +2 ms] CustomBuild:
+[        ]   Toutes les sorties sont ├á jour.
+[  +31 ms] ClCompile:
+[        ]   Toutes les sorties sont ├á jour.
+[  +11 ms] ResourceCompile:
+[        ]   Toutes les sorties sont ├á jour.
+[  +43 ms] Link:
+[        ]   Toutes les sorties sont ├á jour.
+[   +5 ms]   service_app.vcxproj -> D:\marketplace_services_app\service_app\build\windows\x64\runner\Release\service_app.exe
+[  +13 ms] FinalizeBuildStatus:
+[        ]   Suppression du fichier "service_app.dir\Release\service_app.tlog\unsuccessfulbuild".
+[        ]   Mise ├á jour de l'horodatage "service_app.dir\Release\service_app.tlog\service_app.lastbuildstate".
+[        ] G├®n├®ration du projet "D:\marketplace_services_app\service_app\build\windows\x64\runner\service_app.vcxproj" termin├®e (cibles par d├®faut).
+[  +13 ms] PrepareForBuild:
+[        ]   La sortie structur├®e est activ├®e. La mise en forme du compilateur diagnostics refl├¿te la hi├®rarchie des erreurs. Pour plus dÔÇÖinformations, consultez https://aka.ms/cpp/structured-output.
+[   +5 ms] InitializeBuildStatus:
+[        ]   Cr├®ation de "x64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild", car "AlwaysCreate" a ├®t├® sp├®cifi├®.
+[        ]   Mise ├á jour de l'horodatage "x64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild".
+[   +3 ms] CustomBuild:
+[        ]   Toutes les sorties sont ├á jour.
+[  +18 ms] FinalizeBuildStatus:
+[        ]   Suppression du fichier "x64\Release\ALL_BUILD\ALL_BUILD.tlog\unsuccessfulbuild".
+[        ]   Mise ├á jour de l'horodatage "x64\Release\ALL_BUILD\ALL_BUILD.tlog\ALL_BUILD.lastbuildstate".
+[        ] G├®n├®ration du projet "D:\marketplace_services_app\service_app\build\windows\x64\ALL_BUILD.vcxproj" termin├®e (cibles par d├®faut).
+[  +10 ms] PrepareForBuild:
+[        ]   La sortie structur├®e est activ├®e. La mise en forme du compilateur diagnostics refl├¿te la hi├®rarchie des erreurs. Pour plus dÔÇÖinformations, consultez https://aka.ms/cpp/structured-output.
+[   +6 ms] InitializeBuildStatus:
+[        ]   Cr├®ation de "x64\Release\INSTALL\INSTALL.tlog\unsuccessfulbuild", car "AlwaysCreate" a ├®t├® sp├®cifi├®.
+[        ]   Mise ├á jour de l'horodatage "x64\Release\INSTALL\INSTALL.tlog\unsuccessfulbuild".
+[  +75 ms] CustomBuild:
+[        ]   1>
+[  +18 ms] PostBuildEvent:
+[        ]   setlocal
+[        ]   "C:\Program Files\Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -DBUILD_TYPE=Release -P cmake_install.cmake
+[        ]   if %errorlevel% neq 0 goto :cmEnd
+[        ]   :cmEnd
+[        ]   endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+[        ]   :cmErrorLevel
+[        ]   exit /b %1
+[        ]   :cmDone
+[        ]   if %errorlevel% neq 0 goto :VCEnd
+[        ]   :VCEnd
+[  +85 ms]   -- Install configuration: "Release"
+[   +5 ms]   -- Up-to-date: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/icudtl.dat
+[        ]   -- Up-to-date: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/flutter_windows.dll
+[        ]   -- Up-to-date: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/cloud_firestore_plugin.lib
+[        ]   -- Up-to-date: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/firebase_auth_plugin.lib
+[        ]   -- Up-to-date: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/firebase_core_plugin.lib
+[        ]   -- Up-to-date: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release
+[   +4 ms]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets
+[   +1 ms]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/AssetManifest.bin
+[   +1 ms]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/FontManifest.json
+[   +1 ms]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/fonts
+[        ]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/fonts/MaterialIcons-Regular.otf
+[   +8 ms]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/NativeAssetsManifest.json
+[   +1 ms]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/NOTICES.Z
+[   +2 ms]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/packages
+[   +1 ms]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/packages/cupertino_icons
+[   +1 ms]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/packages/cupertino_icons/assets
+[        ]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/packages/cupertino_icons/assets/CupertinoIcons.ttf
+[   +3 ms]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/shaders
+[        ]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/shaders/ink_sparkle.frag
+[   +1 ms]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/flutter_assets/shaders/stretch_effect.frag
+[   +2 ms]   -- Installing: D:/marketplace_services_app/service_app/build/windows/x64/runner/Release/data/app.so
+[  +39 ms] FinalizeBuildStatus:
+[        ]   Suppression du fichier "x64\Release\INSTALL\INSTALL.tlog\unsuccessfulbuild".
+[        ]   Mise ├á jour de l'horodatage "x64\Release\INSTALL\INSTALL.tlog\INSTALL.lastbuildstate".
+[        ] G├®n├®ration du projet "D:\marketplace_services_app\service_app\build\windows\x64\INSTALL.vcxproj" termin├®e (cibles par d├®faut).
+[   +5 ms] La g├®n├®ration a r├®ussi.
+[        ]     0 Avertissement(s)
+[        ]     0 Erreur(s)
+[        ] Temps ├®coul├® 00:00:47.60
+[  +44 ms] Building Windows application... (completed in 48,8s)
+[   +3 ms] ÔêÜ Built build\windows\x64\runner\Release\service_app.exe
+[   +1 ms] "flutter windows" took 49ÔÇ»639ms.
+[  +74 ms] Running 1 shutdown hook
+[   +1 ms] Shutdown hooks complete
+[ +178 ms] exiting with code 0
