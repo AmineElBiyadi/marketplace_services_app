@@ -32,6 +32,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   List<Map<String, dynamic>> _openClaims = [];
   List<Map<String, dynamic>> _recentUsers = [];
   Map<String, int> _categoriesData = {};
+  List<Map<String, dynamic>> _dailyInscriptions = [];
+  List<Map<String, dynamic>> _monthlyRevenue = [];
 
   bool _sidebarOpen = true;
 
@@ -53,6 +55,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _service.getOpenClaims(limit: 5),
         _service.getRecentUsers(limit: 5),
         _service.getReservationsByCategory(),
+        _service.getDailyInscriptions(),
+        _service.getMonthlyRevenue(),
       ]);
 
       if (mounted) {
@@ -62,6 +66,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           _openClaims = results[2] as List<Map<String, dynamic>>;
           _recentUsers = results[3] as List<Map<String, dynamic>>;
           _categoriesData = results[4] as Map<String, int>;
+          _dailyInscriptions = results[5] as List<Map<String, dynamic>>;
+          _monthlyRevenue = results[6] as List<Map<String, dynamic>>;
           _loading = false;
         });
       }
@@ -344,12 +350,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       spacing: 16,
       runSpacing: 16,
       children: [
-        _kpiItem('Total Utilisateurs', s.totalUsers.toString(), LucideIcons.users, _primary.withOpacity(0.1), _primary, '+12%'),
-        _kpiItem('Réservations du mois', s.reservationsThisMonth.toString(), LucideIcons.calendarDays, Colors.blue.withOpacity(0.1), Colors.blue, '+8%'),
-        _kpiItem('Revenus totaux', '45,200 DH', LucideIcons.dollarSign, Colors.green.withOpacity(0.1), Colors.green, '+15%'),
+        _kpiItem('Total Utilisateurs', s.totalUsers.toString(), LucideIcons.users, _primary.withOpacity(0.1), _primary, '+${s.totalUsers > 0 ? (s.totalUsers * 0.1).toInt() : 0}'),
+        _kpiItem('Réservations du mois', s.reservationsThisMonth.toString(), LucideIcons.calendarDays, Colors.blue.withOpacity(0.1), Colors.blue, ''),
+        _kpiItem('Revenus totaux', '${NumberFormat("#,##0", "fr_FR").format(s.totalRevenue)} DH', LucideIcons.dollarSign, Colors.green.withOpacity(0.1), Colors.green, ''),
         _kpiItem('En attente', s.pendingProviders.toString(), LucideIcons.clock, Colors.amber.withOpacity(0.1), Colors.amber, ''),
         _kpiItem('Réclamations', s.openClaims.toString(), LucideIcons.alertTriangle, Colors.red.withOpacity(0.1), Colors.red, ''),
-        _kpiItem('Note moyenne', s.averageRating.toStringAsFixed(1), LucideIcons.star, Colors.purple.withOpacity(0.1), Colors.purple, '+0.2'),
+        _kpiItem('Note moyenne', s.averageRating.toStringAsFixed(1), LucideIcons.star, Colors.purple.withOpacity(0.1), Colors.purple, ''),
       ],
     );
   }
@@ -379,7 +385,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: _textPrimary)),
           const SizedBox(height: 2),
           Text(label, style: const TextStyle(fontSize: 11, color: _textSecondary, fontWeight: FontWeight.w600)),
-          if (change.isNotEmpty) ...[
+          if (change.isNotEmpty && change != '+0') ...[
             const SizedBox(height: 6),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -414,12 +420,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           children: [
             Expanded(flex: 1, child: _chartCard('Répartition Gratuit vs Premium', _buildPackChart())),
             const SizedBox(width: 24),
-            if (isPageWide) Expanded(flex: 1, child: _chartCard('Revenus mensuels (12 mois)', _buildRevenueChart())),
+            if (isPageWide) Expanded(flex: 1, child: _chartCard('Revenus mensuels', _buildRevenueChart())),
           ],
         ),
         if (!isPageWide) ...[
           const SizedBox(height: 24),
-          _chartCard('Revenus mensuels (12 mois)', _buildRevenueChart()),
+          _chartCard('Revenus mensuels', _buildRevenueChart()),
         ],
       ],
     );
@@ -446,19 +452,39 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildInscriptionsChart() {
+    if (_dailyInscriptions.isEmpty) return _emptyState('Pas de données');
+    
     return LineChart(
       LineChartData(
         gridData: FlGridData(show: true, drawVerticalLine: false, horizontalInterval: 5, getDrawingHorizontalLine: (_) => const FlLine(color: _border, strokeWidth: 1)),
         titlesData: FlTitlesData(
           rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 22, getTitlesWidget: (v, m) => Text('J${v.toInt()}', style: const TextStyle(fontSize: 10, color: _textSecondary)))),
-          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 28, getTitlesWidget: (v, m) => Text(v.toInt().toString(), style: const TextStyle(fontSize: 10, color: _textSecondary)))),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true, 
+              reservedSize: 22, 
+              getTitlesWidget: (v, m) {
+                if (v % 5 != 0) return const SizedBox();
+                return Text('J${v.toInt()}', style: const TextStyle(fontSize: 10, color: _textSecondary));
+              }
+            )
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true, 
+              reservedSize: 28, 
+              getTitlesWidget: (v, m) {
+                if (v % 2 != 0) return const SizedBox();
+                return Text(v.toInt().toString(), style: const TextStyle(fontSize: 10, color: _textSecondary));
+              }
+            )
+          ),
         ),
         borderData: FlBorderData(show: false),
         lineBarsData: [
           LineChartBarData(
-            spots: List.generate(10, (i) => FlSpot(i.toDouble(), (i % 3 + 2).toDouble() * 2)),
+            spots: List.generate(_dailyInscriptions.length, (i) => FlSpot(i.toDouble(), _dailyInscriptions[i]['clients'].toDouble())),
             isCurved: true,
             color: _primary,
             barWidth: 3,
@@ -467,7 +493,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             belowBarData: BarAreaData(show: true, color: _primary.withOpacity(0.1)),
           ),
           LineChartBarData(
-            spots: List.generate(10, (i) => FlSpot(i.toDouble(), (i % 2 + 1).toDouble() * 2)),
+            spots: List.generate(_dailyInscriptions.length, (i) => FlSpot(i.toDouble(), _dailyInscriptions[i]['experts'].toDouble())),
             isCurved: true,
             color: _accent,
             barWidth: 3,
@@ -518,27 +544,62 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildPackChart() {
+    final premium = _stats?.premiumProviders.toDouble() ?? 0;
+    final free = _stats?.freeProviders.toDouble() ?? 0;
+    if (premium == 0 && free == 0) return _emptyState('Aucun prestataire');
+
     return PieChart(
       PieChartData(
         sectionsSpace: 0,
         centerSpaceRadius: 55,
         sections: [
-          PieChartSectionData(color: _primary, value: _stats?.premiumProviders.toDouble() ?? 1, title: '', radius: 30),
-          PieChartSectionData(color: _textSecondary.withOpacity(0.2), value: _stats?.freeProviders.toDouble() ?? 1, title: '', radius: 30),
+          PieChartSectionData(color: _primary, value: premium, title: '${(premium/(premium+free)*100).toInt()}%', radius: 30, titleStyle: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+          PieChartSectionData(color: _textSecondary.withOpacity(0.2), value: free, title: '${(free/(premium+free)*100).toInt()}%', radius: 30, titleStyle: const TextStyle(color: _textPrimary, fontSize: 10, fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
   Widget _buildRevenueChart() {
+    if (_monthlyRevenue.isEmpty) return _emptyState('Pas de données');
+    
+    double maxRev = 100;
+    for (var m in _monthlyRevenue) if (m['revenue'] > maxRev) maxRev = m['revenue'].toDouble();
+
     return LineChart(
       LineChartData(
-        gridData: const FlGridData(show: true, drawVerticalLine: false, horizontalInterval: 10000),
-        titlesData: const FlTitlesData(show: false),
+        gridData: FlGridData(show: true, drawVerticalLine: false, horizontalInterval: maxRev / 4),
+        titlesData: FlTitlesData(
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (v, m) {
+                final idx = v.toInt();
+                if (idx < 0 || idx >= _monthlyRevenue.length || idx % 2 != 0) return const SizedBox();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(_monthlyRevenue[idx]['month'], style: const TextStyle(fontSize: 10, color: _textSecondary)),
+                );
+              },
+            )
+          ),
+          leftTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 35,
+              getTitlesWidget: (v, m) {
+                 if (v == 0) return const SizedBox();
+                 return Text('${(v/1000).toInt()}k', style: const TextStyle(fontSize: 10, color: _textSecondary));
+              }
+            )
+          )
+        ),
         borderData: FlBorderData(show: false),
         lineBarsData: [
           LineChartBarData(
-            spots: const [FlSpot(0, 18000), FlSpot(1, 22000), FlSpot(2, 28000), FlSpot(3, 32000), FlSpot(4, 30000), FlSpot(5, 45200)],
+            spots: List.generate(_monthlyRevenue.length, (i) => FlSpot(i.toDouble(), _monthlyRevenue[i]['revenue'].toDouble())),
             isCurved: true,
             color: _primary,
             barWidth: 3,
@@ -622,8 +683,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(p['name'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
-                    Text('${p['category']} • ${p['date']}', style: const TextStyle(fontSize: 10, color: _textSecondary)),
+                    Text(p['name'] ?? 'Nom inconnu', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
+                    Text('${p['category'] ?? 'Service'} • ${p['date']}', style: const TextStyle(fontSize: 10, color: _textSecondary)),
                   ],
                 ),
               ),
@@ -694,19 +755,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 height: 36,
                 decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(10)),
                 alignment: Alignment.center,
-                child: Text(u['name'].toString().substring(0, 2).toUpperCase(), style: const TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold)),
+                child: Text(u['name'].toString().length >= 2 ? u['name'].toString().substring(0, 2).toUpperCase() : '??', style: const TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(u['name'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
+                    Text(u['name'] ?? 'Sans nom', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
                     Text(u['date'], style: const TextStyle(fontSize: 10, color: _textSecondary)),
                   ],
                 ),
               ),
-              _badge(u['type'], u['type'] == 'Prestataire' ? _accent : _primary),
+              _badge(u['type'] ?? 'Client', u['type'] == 'Prestataire' ? _accent : _primary),
             ],
           ),
         );
