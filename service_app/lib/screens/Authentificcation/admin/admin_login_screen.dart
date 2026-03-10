@@ -1,0 +1,180 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import '../../../theme/app_colors.dart';
+import '../../../widgets/custom_button.dart';
+import '../../../widgets/custom_text_field.dart';
+import '../../../services/firestore_service.dart';
+
+class AdminLoginScreen extends StatefulWidget {
+  const AdminLoginScreen({super.key});
+
+  @override
+  State<AdminLoginScreen> createState() => _AdminLoginScreenState();
+}
+
+class _AdminLoginScreenState extends State<AdminLoginScreen> {
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _showPassword = false;
+  bool _isLoading = false;
+  int _attempts = 0;
+  final _firestoreService = FirestoreService();
+
+  bool get _isValid =>
+      _emailController.text.isNotEmpty && _passwordController.text.isNotEmpty;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleLogin() async {
+    if (_attempts >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Compte verrouillé. Trop de tentatives.'),
+          backgroundColor: AppColors.destructive,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final admin = await _firestoreService.loginAdmin(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (admin != null) {
+        if (mounted) context.go('/admin/dashboard');
+      } else {
+        setState(() => _attempts++);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Identifiants incorrects. ${5 - _attempts} tentative(s) restante(s).',
+              ),
+              backgroundColor: AppColors.destructive,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur: ${e.toString()}'),
+            backgroundColor: AppColors.destructive,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            IconButton(
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.pushReplacement('/login');
+                }
+              },
+              icon: const Icon(Icons.arrow_back, color: AppColors.foreground),
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: Container(
+                width: 112,
+                height: 112,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: const Icon(
+                  Icons.shield,
+                  size: 56,
+                  color: AppColors.primary,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Espace Administration',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: AppColors.foreground,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Accédez à votre espace admin',
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.mutedForeground,
+              ),
+            ),
+            const SizedBox(height: 24),
+            CustomTextField(
+              hintText: 'Email',
+              keyboardType: TextInputType.emailAddress,
+              controller: _emailController,
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            CustomTextField(
+              hintText: 'Mot de passe',
+              obscureText: !_showPassword,
+              controller: _passwordController,
+              onChanged: (_) => setState(() {}),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _showPassword ? Icons.visibility_off : Icons.visibility,
+                  color: AppColors.mutedForeground,
+                ),
+                onPressed: () => setState(() => _showPassword = !_showPassword),
+              ),
+            ),
+            const SizedBox(height: 16),
+            CustomButton(
+              text: _isLoading ? 'Connexion en cours...' : 'Se connecter',
+              height: 48,
+              onPressed: _isValid && !_isLoading ? _handleLogin : null,
+              isLoading: _isLoading,
+            ),
+            if (_attempts > 0 && _attempts < 5) ...[
+              const SizedBox(height: 12),
+              Center(
+                child: Text(
+                  '${5 - _attempts} tentative(s) restante(s)',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.destructive,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
