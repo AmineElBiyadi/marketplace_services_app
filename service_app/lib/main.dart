@@ -11,12 +11,16 @@ import 'screens/admin/admin_finances_screen.dart';
 import 'screens/admin/admin_statistics_screen.dart';
 import 'screens/admin/admin_notifications_screen.dart';
 import 'screens/admin/admin_settings_screen.dart';
+import 'theme/app_theme.dart';
+import 'screens/provider/provider_dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
+    options: DefaultFirebaseOptions.currentPlatform,
   );
+  runApp(const MyApp());
   runApp(const MyApp());
 }
 

@@ -123,7 +123,7 @@ const seedData = {
   abonnements: [
     {
       id: "abon_001",
-      idExpert: "expert_001", 
+      idExpert: "expert_001",
       statut: "ACTIVE",                     // ACTIVE | EXPIRE
       dateDebut: admin.firestore.Timestamp.fromDate(new Date("2024-01-01")),
       dateFin: admin.firestore.Timestamp.fromDate(new Date("2025-01-01")),
@@ -139,7 +139,7 @@ const seedData = {
   cartesBancaires: [
     {
       id: "carte_001",
-      idExpert: "expert_001", 
+      idExpert: "expert_001",
       CardNumber: "**** **** **** 4242",    // toujours masqué
       CVV: "***",
       ExpirationDate: "12/26",
@@ -324,7 +324,7 @@ const seedData = {
         type: "TEXT",
         createdAt: null,
       },
-                       
+
       // Snapshots pour afficher les noms dans la liste
       clientSnapshot: { nom: "Alice Martin", photo: "https://storage.example.com/profiles/alice.jpg" },
       expertSnapshot: { nom: "Bob Expert", photo: "https://storage.example.com/profiles/bob.jpg" },
