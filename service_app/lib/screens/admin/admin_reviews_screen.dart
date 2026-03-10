@@ -1,123 +1,144 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_colors.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
 
-class AdminReviewsScreen extends StatelessWidget {
+class AdminReviewsScreen extends StatefulWidget {
   const AdminReviewsScreen({super.key});
 
-  final List<Map<String, dynamic>> mockReviews = const [
-    {'id': 1, 'client': 'Amina B.', 'provider': 'Ahmed K.', 'rating': 5, 'comment': 'Excellent service!', 'date': '2026-03-10'},
-    {'id': 2, 'client': 'Omar T.', 'provider': 'Sarah M.', 'rating': 4, 'comment': 'Very good', 'date': '2026-03-09'},
-    {'id': 3, 'client': 'Fatima Z.', 'provider': 'Youssef B.', 'rating': 2, 'comment': 'Could be better', 'date': '2026-03-08'},
-    {'id': 4, 'client': 'Karim H.', 'provider': 'Nadia F.', 'rating': 5, 'comment': 'Amazing work!', 'date': '2026-03-07'},
-  ];
+  @override
+  State<AdminReviewsScreen> createState() => _AdminReviewsScreenState();
+}
+
+class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
+  final AdminDashboardService _service = AdminDashboardService();
+
+  static const Color _primary = Color(0xFF3D5A99);
+  static const Color _card = Colors.white;
+  static const Color _border = Color(0xFFE2E8F0);
+  static const Color _textPrimary = Color(0xFF0F172A);
+  static const Color _textSecondary = Color(0xFF64748B);
+
+  bool _loading = true;
+  List<Map<String, dynamic>> _reviews = [];
+  List<Map<String, dynamic>> _filtered = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final data = await _service.getAllReviews();
+      if (mounted) {
+        setState(() {
+          _reviews = data;
+          _filtered = data;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 1024;
+
     return AdminLayout(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Avis & Réclamations',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Gestion des avis clients et réclamations',
-              style: TextStyle(fontSize: 14, color: AppColors.mutedForeground),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: mockReviews.length,
-                  itemBuilder: (context, index) {
-                    final review = mockReviews[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.background,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Icon(Icons.person, color: AppColors.primary),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        review['client'] as String,
-                                        style: const TextStyle(fontWeight: FontWeight.w600),
-                                      ),
-                                      Text(
-                                        'For: ${review['provider']}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppColors.mutedForeground,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              Row(
-                                children: [
-                                  Icon(Icons.star, size: 16, color: AppColors.accent),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${review['rating']}',
-                                    style: const TextStyle(fontWeight: FontWeight.w700),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(review['comment'] as String),
-                          const SizedBox(height: 8),
-                          Text(
-                            review['date'] as String,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.mutedForeground,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+      activeRoute: '/admin/reviews',
+      child: Column(
+        children: [
+          _buildTopBar(isMobile),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: _primary))
+                : _buildMainContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopBar(bool isMobile) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: _border))),
+      child: Row(
+        children: [
+          if (isMobile)
+            Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(LucideIcons.menu, color: _textPrimary),
+                onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
+          const Text('Avis & Réclamations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
+          const Spacer(),
+          IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Container(
+        decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(24), border: Border.all(color: _border)),
+        child: Column(
+          children: [
+            if (_filtered.isEmpty)
+              const Padding(padding: EdgeInsets.all(48), child: Text('Aucun avis trouvé'))
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _filtered.length,
+                separatorBuilder: (context, index) => const Divider(height: 1, color: _border),
+                itemBuilder: (context, index) {
+                  final r = _filtered[index];
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(r['subject'] ?? 'Sans sujet', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        _priorityBadge(r['priority']),
+                      ],
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 4),
+                        Text(r['message'] ?? '', maxLines: 2, overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 8),
+                        Text('Par ${r['from']} • ${r['date']}', style: const TextStyle(fontSize: 11, color: _textSecondary)),
+                      ],
+                    ),
+                  );
+                },
+              ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _priorityBadge(String p) {
+    Color color = Colors.blue;
+    if (p == 'Haute') color = Colors.red;
+    if (p == 'Urgente') color = Colors.purple;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+      child: Text(p, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
     );
   }
 }

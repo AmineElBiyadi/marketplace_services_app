@@ -1,110 +1,128 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../theme/app_colors.dart';
+import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
 
-class AdminStatisticsScreen extends StatelessWidget {
+class AdminStatisticsScreen extends StatefulWidget {
   const AdminStatisticsScreen({super.key});
 
   @override
+  State<AdminStatisticsScreen> createState() => _AdminStatisticsScreenState();
+}
+
+class _AdminStatisticsScreenState extends State<AdminStatisticsScreen> {
+  final AdminDashboardService _service = AdminDashboardService();
+
+  static const Color _primary = Color(0xFF3D5A99);
+  static const Color _card = Colors.white;
+  static const Color _border = Color(0xFFE2E8F0);
+  static const Color _textPrimary = Color(0xFF0F172A);
+  static const Color _textSecondary = Color(0xFF64748B);
+
+  bool _loading = true;
+  Map<String, int> _categoryStats = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final stats = await _service.getReservationsByCategory();
+      if (mounted) {
+        setState(() {
+          _categoryStats = stats;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 1024;
+
     return AdminLayout(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Statistiques',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Analyses et rapports détaillés',
-              style: TextStyle(fontSize: 14, color: AppColors.mutedForeground),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                children: [
-                  // Registrations Chart
-                  _buildChartCard(
-                    title: 'Inscriptions (30j)',
-                    child: LineChart(
-                      LineChartData(
-                        gridData: FlGridData(show: true),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true)),
-                          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true)),
-                        ),
-                        borderData: FlBorderData(show: false),
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: List.generate(7, (i) => FlSpot(i.toDouble(), (i + 5).toDouble())),
-                            isCurved: true,
-                            color: AppColors.primary,
-                            barWidth: 3,
-                            dotData: FlDotData(show: false),
-                          ),
-                          LineChartBarData(
-                            spots: List.generate(7, (i) => FlSpot(i.toDouble(), (i + 2).toDouble())),
-                            isCurved: true,
-                            color: AppColors.accent,
-                            barWidth: 3,
-                            dotData: FlDotData(show: false),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Categories Chart
-                  _buildChartCard(
-                    title: 'Réservations par catégorie',
-                    child: BarChart(
-                      BarChartData(
-                        borderData: FlBorderData(show: false),
-                        titlesData: FlTitlesData(
-                          leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true)),
-                          bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true)),
-                        ),
-                        barGroups: [
-                          BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 120, color: AppColors.primary)]),
-                          BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 95, color: AppColors.primary)]),
-                          BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 150, color: AppColors.primary)]),
-                          BarChartGroupData(x: 3, barRods: [BarChartRodData(toY: 60, color: AppColors.primary)]),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+      activeRoute: '/admin/statistics',
+      child: Column(
+        children: [
+          _buildTopBar(isMobile),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: _primary))
+                : _buildMainContent(),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildChartCard({required String title, required Widget child}) {
+  Widget _buildTopBar(bool isMobile) {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: _border))),
+      child: Row(
         children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          if (isMobile)
+            Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(LucideIcons.menu, color: _textPrimary),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+          const Text('Statistiques & Analyses', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
+          const Spacer(),
+          IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(24), border: Border.all(color: _border)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Réservations par Catégorie', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 32),
+                SizedBox(
+                  height: 300,
+                  child: BarChart(
+                    BarChartData(
+                      borderData: FlBorderData(show: false),
+                      barGroups: List.generate(_categoryStats.length, (index) {
+                        return BarChartGroupData(x: index, barRods: [
+                          BarChartRodData(toY: _categoryStats.values.elementAt(index).toDouble(), color: _primary, width: 16),
+                        ]);
+                      }),
+                      titlesData: FlTitlesData(
+                        bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (v, m) {
+                          if (v.toInt() < _categoryStats.keys.length) return Text(_categoryStats.keys.elementAt(v.toInt()).substring(0, 3).toUpperCase(), style: const TextStyle(fontSize: 10));
+                          return const Text('');
+                        })),
+                        leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40)),
+                        rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          Expanded(child: child),
         ],
       ),
     );

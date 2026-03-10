@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_colors.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
 
 class AdminReservationsScreen extends StatefulWidget {
@@ -10,174 +11,135 @@ class AdminReservationsScreen extends StatefulWidget {
 }
 
 class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
-  String searchQuery = '';
-  String statusFilter = 'all';
+  final AdminDashboardService _service = AdminDashboardService();
 
-  final List<Map<String, dynamic>> mockReservations = [
-    {'id': 1, 'client': 'Amina Benali', 'provider': 'Ahmed Khalil', 'service': 'Plomberie', 'date': '2026-03-15', 'price': '250 DH', 'status': 'Confirmée'},
-    {'id': 2, 'client': 'Omar Tazi', 'provider': 'Fatima Alaoui', 'service': 'Ménage', 'date': '2026-03-14', 'price': '300 DH', 'status': 'Terminée'},
-    {'id': 3, 'client': 'Sara Mounir', 'provider': 'Youssef Berrada', 'service': 'Électricité', 'date': '2026-03-13', 'price': '180 DH', 'status': 'Annulée'},
-    {'id': 4, 'client': 'Karim Hajji', 'provider': 'Nadia Fassi', 'service': 'Coiffure', 'date': '2026-03-12', 'price': '150 DH', 'status': 'Confirmée'},
-    {'id': 5, 'client': 'Hana Bouzid', 'provider': 'Rachid Kabbaj', 'service': 'Jardinage', 'date': '2026-03-11', 'price': '400 DH', 'status': 'Terminée'},
-  ];
+  static const Color _primary = Color(0xFF3D5A99);
+  static const Color _card = Colors.white;
+  static const Color _border = Color(0xFFE2E8F0);
+  static const Color _textPrimary = Color(0xFF0F172A);
+  static const Color _textSecondary = Color(0xFF64748B);
 
-  List<Map<String, dynamic>> get filteredReservations {
-    return mockReservations.where((r) {
-      final matchesSearch = r['client'].toString().toLowerCase().contains(searchQuery.toLowerCase()) ||
-          r['provider'].toString().toLowerCase().contains(searchQuery.toLowerCase());
-      final matchesStatus = statusFilter == 'all' || r['status'] == statusFilter;
-      return matchesSearch && matchesStatus;
-    }).toList();
+  bool _loading = true;
+  List<Map<String, dynamic>> _reservations = [];
+  List<Map<String, dynamic>> _filtered = [];
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
   }
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Confirmée':
-        return AppColors.primary;
-      case 'Terminée':
-        return AppColors.success;
-      case 'Annulée':
-        return AppColors.destructive;
-      default:
-        return AppColors.mutedForeground;
+  Future<void> _loadData() async {
+    setState(() => _loading = true);
+    try {
+      final data = await _service.getAllReservations();
+      if (mounted) {
+        setState(() {
+          _reservations = data;
+          _filtered = data;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _filter(String q) {
+    setState(() {
+      _filtered = _reservations.where((r) => r['clientName'].toString().toLowerCase().contains(q.toLowerCase()) || r['expertName'].toString().toLowerCase().contains(q.toLowerCase())).toList();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final reservations = filteredReservations;
+    final bool isMobile = MediaQuery.of(context).size.width < 1024;
 
     return AdminLayout(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Réservations',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Gestion des réservations et paiements',
-              style: TextStyle(fontSize: 14, color: AppColors.mutedForeground),
-            ),
-            const SizedBox(height: 24),
-            // Toolbar
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    child: TextField(
-                      decoration: InputDecoration(
-                        hintText: 'Rechercher...',
-                        prefixIcon: const Icon(Icons.search, size: 20),
-                        filled: true,
-                        fillColor: AppColors.muted.withOpacity(0.3),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                      onChanged: (value) {
-                        setState(() {
-                          searchQuery = value;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: AppColors.muted.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: statusFilter,
-                      items: ['all', 'Confirmée', 'Terminée', 'Annulée'].map((status) {
-                        return DropdownMenuItem(
-                          value: status,
-                          child: Text(status == 'all' ? 'Tous' : status),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          statusFilter = value!;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            // Table
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: SingleChildScrollView(
-                  child: DataTable(
-                    columns: const [
-                      DataColumn(label: Text('ID')),
-                      DataColumn(label: Text('Client')),
-                      DataColumn(label: Text('Prestataire')),
-                      DataColumn(label: Text('Service')),
-                      DataColumn(label: Text('Date')),
-                      DataColumn(label: Text('Prix')),
-                      DataColumn(label: Text('Statut')),
-                      DataColumn(label: Text('Actions')),
-                    ],
-                    rows: reservations.map((r) {
-                      return DataRow(
-                        cells: [
-                          DataCell(Text('#${r['id']}')),
-                          DataCell(Text(r['client'] as String)),
-                          DataCell(Text(r['provider'] as String)),
-                          DataCell(Text(r['service'] as String)),
-                          DataCell(Text(r['date'] as String)),
-                          DataCell(Text(r['price'] as String)),
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: _getStatusColor(r['status'] as String).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                r['status'] as String,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: _getStatusColor(r['status'] as String),
-                                ),
-                              ),
-                            ),
-                          ),
-                          DataCell(Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.visibility_outlined, size: 18),
-                                onPressed: () {},
-                              ),
-                            ],
-                          )),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                ),
+      activeRoute: '/admin/reservations',
+      child: Column(
+        children: [
+          _buildTopBar(isMobile),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: _primary))
+                : _buildMainContent(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopBar(bool isMobile) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: _border))),
+      child: Row(
+        children: [
+          if (isMobile)
+            Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(LucideIcons.menu, color: _textPrimary),
+                onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          ],
-        ),
+          const Text('Gestion des Réservations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
+          const Spacer(),
+          IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16), border: Border.all(color: _border)),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _filter,
+              decoration: InputDecoration(
+                hintText: 'Rechercher une réservation...',
+                prefixIcon: const Icon(LucideIcons.search, size: 18),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Container(
+            decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(24), border: Border.all(color: _border)),
+            child: Column(
+              children: [
+                if (_filtered.isEmpty)
+                  const Padding(padding: EdgeInsets.all(48), child: Text('Aucune réservation trouvée'))
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _filtered.length,
+                    separatorBuilder: (context, index) => const Divider(height: 1, color: _border),
+                    itemBuilder: (context, index) {
+                      final r = _filtered[index];
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                        title: Text('${r['service']} • ${r['amount']} DH', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Client: ${r['clientName']} • Expert: ${r['expertName']}'),
+                        trailing: Text(r['status'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _primary)),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

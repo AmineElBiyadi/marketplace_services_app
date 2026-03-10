@@ -1,135 +1,82 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_colors.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../layouts/admin_layout.dart';
 
-class AdminSettingsScreen extends StatelessWidget {
+class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
 
   @override
+  State<AdminSettingsScreen> createState() => _AdminSettingsScreenState();
+}
+
+class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
+  static const Color _primary = Color(0xFF3D5A99);
+  static const Color _card = Colors.white;
+  static const Color _border = Color(0xFFE2E8F0);
+  static const Color _textPrimary = Color(0xFF0F172A);
+  static const Color _textSecondary = Color(0xFF64748B);
+
+  @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 1024;
+
     return AdminLayout(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Paramètres',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Configuration de la plateforme',
-              style: TextStyle(fontSize: 14, color: AppColors.mutedForeground),
-            ),
-            const SizedBox(height: 24),
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    _buildSettingsSection(
-                      title: 'Général',
-                      items: [
-                        _buildSettingsItem(
-                          icon: Icons.business,
-                          title: 'Informations de l\'entreprise',
-                          onTap: () {},
-                        ),
-                        _buildSettingsItem(
-                          icon: Icons.language,
-                          title: 'Langues',
-                          onTap: () {},
-                        ),
-                        _buildSettingsItem(
-                          icon: Icons.access_time,
-                          title: 'Fuseau horaire',
-                          onTap: () {},
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 32),
-                    _buildSettingsSection(
-                      title: 'Paiements',
-                      items: [
-                        _buildSettingsItem(
-                          icon: Icons.payment,
-                          title: 'Méthodes de paiement',
-                          onTap: () {},
-                        ),
-                        _buildSettingsItem(
-                          icon: Icons.percent,
-                          title: 'Commissions',
-                          onTap: () {},
-                        ),
-                      ],
-                    ),
-                    const Divider(height: 32),
-                    _buildSettingsSection(
-                      title: 'Notifications',
-                      items: [
-                        _buildSettingsItem(
-                          icon: Icons.notifications,
-                          title: 'Paramètres de notifications',
-                          onTap: () {},
-                        ),
-                        _buildSettingsItem(
-                          icon: Icons.email,
-                          title: 'Templates d\'emails',
-                          onTap: () {},
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+      activeRoute: '/admin/settings',
+      child: Column(
+        children: [
+          _buildTopBar(isMobile),
+          _buildMainContent(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopBar(bool isMobile) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: _border))),
+      child: Row(
+        children: [
+          if (isMobile)
+            Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(LucideIcons.menu, color: _textPrimary),
+                onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          ],
-        ),
+          const Text('Paramètres', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
+        ],
       ),
     );
   }
 
-  Widget _buildSettingsSection({
-    required String title,
-    required List<Widget> items,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 12),
-        ...items,
-      ],
+  Widget _buildMainContent() {
+    return Expanded(
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          _settingItem(LucideIcons.appWindow, 'Général', 'Nom de l\'application, logo, etc.'),
+          _settingItem(LucideIcons.shieldCheck, 'Sécurité', 'Authentification et accès.'),
+          _settingItem(LucideIcons.bell, 'Notifications', 'Configuration des alertes.'),
+          _settingItem(LucideIcons.database, 'Base de données', 'Maintenance et sauvegardes.'),
+        ],
+      ),
     );
   }
 
-  Widget _buildSettingsItem({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: AppColors.primary, size: 20),
+  Widget _settingItem(IconData icon, String title, String sub) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: _border)),
+      child: ListTile(
+        leading: Icon(icon, color: _primary),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(sub),
+        trailing: const Icon(LucideIcons.chevronRight, size: 18),
+        onTap: () {},
       ),
-      title: Text(title, style: const TextStyle(fontSize: 15)),
-      trailing: const Icon(Icons.chevron_right, color: AppColors.mutedForeground),
-      onTap: onTap,
     );
   }
 }

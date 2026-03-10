@@ -12,7 +12,10 @@ class AdminDashboardStats {
   final double averageRating;
   final int freeProviders;
   final int premiumProviders;
-  final double totalRevenue; // AJOUTÉ
+  final double totalRevenue;
+  final int unreadNotifications;
+  final String userGrowth;
+  final String revenueGrowth;
 
   AdminDashboardStats({
     required this.totalUsers,
@@ -25,7 +28,10 @@ class AdminDashboardStats {
     required this.averageRating,
     required this.freeProviders,
     required this.premiumProviders,
-    required this.totalRevenue, // AJOUTÉ
+    required this.totalRevenue,
+    required this.unreadNotifications,
+    required this.userGrowth,
+    required this.revenueGrowth,
   });
 }
 
@@ -112,6 +118,36 @@ class AdminDashboardService {
     final freeCount =
         expertsSnap.docs.where((d) => !premiumExpertIds.contains(d.id)).length;
 
+    // Notifications non lues
+    final notifSnap = await _db.collection('notifications').where('estLue', isEqualTo: false).get();
+    final unreadCount = notifSnap.docs.length;
+
+    // Calcul de la croissance (Utilisateurs)
+    final lastMonth = DateTime(now.year, now.month - 1, now.day);
+    final usersLastMonthSnap = await _db.collection('utilisateurs').where('created_At', isLessThan: Timestamp.fromDate(lastMonth)).get();
+    final usersLastMonth = usersLastMonthSnap.docs.length;
+    String userGrowth = '';
+    if (usersLastMonth > 0) {
+      double growth = ((totalUsers - usersLastMonth) / usersLastMonth) * 100;
+      userGrowth = '${growth >= 0 ? '+' : ''}${growth.toInt()}%';
+    }
+
+    // Calcul de la croissance (Revenus)
+    double revenueLastMonth = 0;
+    for (var doc in abonnementsSnap.docs) {
+      final data = doc.data();
+      final ts = data['createdAt'];
+      if (ts is Timestamp && ts.toDate().isBefore(startOfMonth)) {
+        revenueLastMonth += (data['montant'] ?? 0.0);
+      }
+    }
+    String revGrowth = '';
+    double currentMonthRevenue = totalRevenue - revenueLastMonth;
+    if (revenueLastMonth > 0) {
+      double growth = (currentMonthRevenue / revenueLastMonth) * 100;
+      revGrowth = '${growth >= 0 ? '+' : ''}${growth.toInt()}%';
+    }
+
     return AdminDashboardStats(
       totalUsers: totalUsers,
       totalClients: totalClients,
@@ -124,6 +160,9 @@ class AdminDashboardService {
       freeProviders: freeCount,
       premiumProviders: premiumCount,
       totalRevenue: totalRevenue,
+      unreadNotifications: unreadCount,
+      userGrowth: userGrowth,
+      revenueGrowth: revGrowth,
     );
   }
 
@@ -235,11 +274,13 @@ class AdminDashboardService {
       final userId = data['idUtilisateur'] as String?;
       String name = 'Expert';
 
+      String? imageUrl;
       if (userId != null) {
         final userDoc = await _db.collection('utilisateurs').doc(userId).get();
         if (userDoc.exists) {
           final ud = userDoc.data()!;
           name = ud['nom'] ?? ud['email'] ?? 'Expert';
+          imageUrl = ud['image_profile'];
         }
       }
 
@@ -262,6 +303,7 @@ class AdminDashboardService {
         'category': category,
         'date': date,
         'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
+        'imageUrl': imageUrl,
       });
     }
     return result;
@@ -337,6 +379,7 @@ class AdminDashboardService {
         'type': type,
         'date': _formatRelativeDate(data['created_At']),
         'phone': data['telephone'] ?? '',
+        'imageUrl': data['image_profile'],
       });
     }
     return result;
@@ -361,5 +404,184 @@ class AdminDashboardService {
       counts[cat] = (counts[cat] ?? 0) + 1;
     }
     return counts;
+  }
+
+  // ─── All Users (Management) ───────────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getAllUsers() async {
+    final snap = await _db.collection('utilisateurs').orderBy('created_At', descending: true).get();
+    
+    final List<Map<String, dynamic>> result = [];
+    for (final doc in snap.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final name = data['nom'] ?? data['email'] ?? 'Utilisateur';
+
+      String type = 'Client';
+      final expertCheck = await _db.collection('experts').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
+      final adminCheck = await _db.collection('admins').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
+      
+      String status = 'Actif';
+      if (adminCheck.docs.isNotEmpty) {
+        type = 'Admin';
+      } else if (expertCheck.docs.isNotEmpty) {
+        type = 'Prestataire';
+        status = expertCheck.docs.first.data()['etatCompte'] == 'ACTIVE' ? 'Actif' : 'Suspendu';
+      }
+
+      result.add({
+        'id': doc.id,
+        'name': name,
+        'type': type,
+        'date': _formatRelativeDate(data['created_At']),
+        'fullDate': data['created_At'] is Timestamp ? DateFormat('dd/MM/yyyy').format((data['created_At'] as Timestamp).toDate()) : 'N/A',
+        'phone': data['telephone'] ?? '',
+        'imageUrl': data['image_profile'],
+        'status': status,
+        'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
+      });
+    }
+    return result;
+  }
+
+  // ─── All Providers (Management) ───────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getAllProviders() async {
+    final snap = await _db.collection('experts').get();
+    final List<Map<String, dynamic>> result = [];
+    
+    for (final doc in snap.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final userId = data['idUtilisateur'] as String?;
+      String name = 'Expert';
+      String? imageUrl;
+      
+      if (userId != null) {
+        final userDoc = await _db.collection('utilisateurs').doc(userId).get();
+        if (userDoc.exists) {
+          final ud = userDoc.data()!;
+          name = ud['nom'] ?? ud['email'] ?? 'Expert';
+          imageUrl = ud['image_profile'];
+        }
+      }
+
+      String category = 'Non défini';
+      final seSnap = await _db.collection('serviceExperts').where('idExpert', isEqualTo: doc.id).limit(1).get();
+      if (seSnap.docs.isNotEmpty) {
+        final serviceId = seSnap.docs.first.data()['idService'];
+        if (serviceId != null) {
+          final serviceDoc = await _db.collection('services').doc(serviceId).get();
+          if (serviceDoc.exists) category = serviceDoc.data()?['nom'] ?? 'Autre';
+        }
+      }
+
+      final status = data['etatCompte'] == 'ACTIVE' ? 'Validé' : (data['etatCompte'] == 'SUSPENDUE' ? 'Suspendu' : 'En attente');
+      final pack = data['packId'] == 'premium' ? 'Premium' : 'Gratuit';
+      
+      // Calculate average rating
+      double rating = 0.0;
+      final evalSnap = await _db.collection('evaluations').where('idExpert', isEqualTo: doc.id).get();
+      if (evalSnap.docs.isNotEmpty) {
+        double sum = 0;
+        for (final e in evalSnap.docs) {
+          sum += (e.data()['note'] ?? 0).toDouble();
+        }
+        rating = sum / evalSnap.docs.length;
+      }
+
+      result.add({
+        'id': doc.id,
+        'name': name,
+        'category': category,
+        'pack': pack,
+        'rating': rating,
+        'services': seSnap.docs.length, // approximation
+        'status': status,
+        'date': _formatRelativeDate(data['createdAt']),
+        'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
+        'imageUrl': imageUrl,
+        'zone': data['region'] ?? 'N/A',
+      });
+    }
+    return result;
+  }
+
+  // ─── All Reservations (Management) ────────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getAllReservations() async {
+    final snap = await _db.collection('interventions').orderBy('dateIntervention', descending: true).get();
+    final List<Map<String, dynamic>> result = [];
+    
+    for (final doc in snap.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final clientDoc = await _db.collection('utilisateurs').doc(data['idClient']).get();
+      final expertDoc = await _db.collection('experts').doc(data['idExpert']).get();
+      
+      String expertName = 'Expert';
+      if (expertDoc.exists) {
+        final exUserDoc = await _db.collection('utilisateurs').doc(expertDoc.data()?['idUtilisateur']).get();
+        expertName = exUserDoc.data()?['nom'] ?? exUserDoc.data()?['email'] ?? 'Expert';
+      }
+
+      result.add({
+        'id': doc.id,
+        'clientName': clientDoc.data()?['nom'] ?? clientDoc.data()?['email'] ?? 'Client',
+        'expertName': expertName,
+        'service': data['tacheSnapshot']?['serviceNom'] ?? 'Service',
+        'date': data['dateIntervention']?['date'] ?? 'N/A',
+        'time': data['dateIntervention']?['heure'] ?? 'N/A',
+        'amount': data['tacheSnapshot']?['prix'] ?? 0,
+        'status': data['statut'] ?? 'En attente',
+      });
+    }
+    return result;
+  }
+
+  // ─── All Reviews & Claims (Management) ────────────────────────────────────
+  Future<List<Map<String, dynamic>>> getAllReviews() async {
+    final snap = await _db.collection('reclamations').orderBy('createdAt', descending: true).get();
+    final List<Map<String, dynamic>> result = [];
+    
+    for (final doc in snap.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final userDoc = await _db.collection('utilisateurs').doc(data['idUtilisateur']).get();
+      
+      result.add({
+        'id': doc.id,
+        'from': userDoc.data()?['nom'] ?? userDoc.data()?['email'] ?? 'Utilisateur',
+        'subject': data['sujet'] ?? 'Sans sujet',
+        'message': data['description'] ?? '',
+        'priority': data['priorite'] ?? 'Normale',
+        'status': data['statut'] ?? 'Ouvert',
+        'date': _formatRelativeDate(data['createdAt']),
+      });
+    }
+    return result;
+  }
+
+  // ─── Financial Transactions (Abonnements) ────────────────────────────────
+  Future<List<Map<String, dynamic>>> getFinancialTransactions() async {
+    final snap = await _db.collection('abonnements').orderBy('dateDebut', descending: true).get();
+    final List<Map<String, dynamic>> result = [];
+    
+    for (final doc in snap.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final expertDoc = await _db.collection('experts').doc(data['idExpert']).get();
+      
+      String expertName = 'Expert';
+      if (expertDoc.exists) {
+        final exUserDoc = await _db.collection('utilisateurs').doc(expertDoc.data()?['idUtilisateur']).get();
+        expertName = exUserDoc.data()?['nom'] ?? exUserDoc.data()?['email'] ?? 'Expert';
+      }
+
+      final ts = data['dateDebut'] as Timestamp?;
+      final dateStr = ts != null ? DateFormat('dd/MM/yyyy').format(ts.toDate()) : 'N/A';
+
+      result.add({
+        'id': doc.id,
+        'expertName': expertName,
+        'pack': data['packId'] ?? 'Premium',
+        'amount': data['prix'] ?? 0,
+        'date': dateStr,
+        'status': 'Payé', // Abonnements in collection are usually successful ones
+      });
+    }
+    return result;
   }
 }
