@@ -3,9 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/expert.dart';
 import '../services/firestore_service.dart';
-import '../widgets/category_card.dart';
-import '../widgets/nearby_provider_card.dart';
-import '../widgets/top_rated_card.dart';
+import '../widgets/home/category_card.dart';
+import '../widgets/home/nearby_provider_card.dart';
+import '../widgets/home/top_rated_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
