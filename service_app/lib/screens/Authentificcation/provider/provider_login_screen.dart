@@ -37,7 +37,15 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
       );
 
       if (user != null) {
-        if (mounted) context.go('/provider/dashboard');
+        if (mounted) {
+          final etatCompte = user['etatCompte'] ?? 'PENDING';
+          final expertId = user['expertId'] ?? '';
+          if (etatCompte == 'ACTIVE') {
+            context.go('/provider/dashboard', extra: {'expertId': expertId});
+          } else {
+            context.go('/provider/pending');
+          }
+        }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
