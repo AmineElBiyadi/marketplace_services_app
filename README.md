@@ -13,10 +13,7 @@ Cette application permet aux clients de rechercher des services, de réserver de
   - **Firestore** : Base de données en temps réel.
   - **Authentication** : Gestion des utilisateurs (Email, Google Sign-In).
   - **Storage** : Stockage des images et documents.
-- **Navigation** : [Go Router](https://pub.dev/packages/go_router) 🚦
-- **Gestion d'État** : [Provider](https://pub.dev/packages/provider) 📦
-- **UI/Icons** : [Lucide Icons](https://lucideicons.io/) ✨
-- **Statistiques** : [FL Chart](https://pub.dev/packages/fl_chart) 📊
+
 
 ---
 
@@ -39,7 +36,7 @@ Le module Admin a été entièrement refondu pour offrir une expérience "SaaS" 
 
 ---
 
-## 🚀 Installation & Configuration
+##  Installation & Configuration
 
 ### Prérequis
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) (dernière version stable).
@@ -76,7 +73,7 @@ Le module Admin a été entièrement refondu pour offrir une expérience "SaaS" 
 ---
 
 ##  Structure du Code (`lib/`)
-- `screens/admin` : Écrans du tableau de bord d'administration.
+- `screens/` : Les Écrans ou les UI  .
 - `services/` : Logique d'interaction avec Firebase (Firestore, Auth).
 - `layouts/` : Structures de page réutilisables (Sidebar/TopBar).
 - `widgets/` : Composants UI personnalisés.
