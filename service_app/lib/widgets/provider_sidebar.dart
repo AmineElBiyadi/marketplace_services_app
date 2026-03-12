@@ -78,15 +78,15 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
               children: [
-                _sidebarItem(LucideIcons.home, 'Tableau de bord', '/provider/dashboard'),
-                _sidebarItem(LucideIcons.calendarDays, 'Mon Agenda', '/provider/agenda'),
+                _sidebarItem(LucideIcons.home, 'Tableau de bord', '/provider/:expertId/dashboard'),
+                _sidebarItem(LucideIcons.calendarDays, 'Mon Agenda', '/provider/:expertId/agenda'),
                 _sidebarItem(LucideIcons.messageSquare, 'Messages', '/provider/messages'),
-                _sidebarItem(LucideIcons.user, 'Profil', '/provider/profile'),
-                _sidebarItem(LucideIcons.briefcase, 'Mes Services', '/provider/services'),
-                _sidebarItem(LucideIcons.clipboardList, 'Réservations', '/provider/bookings'),
-                _sidebarItem(LucideIcons.bell, 'Notifications', '/provider/notifications'),
-                _sidebarItem(LucideIcons.creditCard, 'Abonnement', '/provider/subscription'),
-                _sidebarItem(LucideIcons.settings, 'Paramètres', '/provider/settings'),
+                _sidebarItem(LucideIcons.user, 'Profil', '/provider/:expertId/profile'),
+                _sidebarItem(LucideIcons.briefcase, 'Mes Services', '/provider/:expertId/services'),
+                _sidebarItem(LucideIcons.clipboardList, 'Réservations', '/provider/:expertId/bookings'),
+                _sidebarItem(LucideIcons.bell, 'Notifications', '/provider/:expertId/notifications'),
+                _sidebarItem(LucideIcons.creditCard, 'Abonnement', '/provider/:expertId/subscription'),
+                _sidebarItem(LucideIcons.settings, 'Paramètres', '/provider/:expertId/settings'),
               ],
             ),
           ),
@@ -129,7 +129,8 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
             return;
           }
           if (widget.activeRoute != route) {
-            context.go(route);
+            final targetRoute = route.replaceAll(':expertId', widget.expertId);
+            context.go(targetRoute);
           }
           if (widget.isMobile) {
             Navigator.pop(context); // Close drawer on mobile
