@@ -21,21 +21,25 @@ class CategoryCard extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 65,
-            height: 65,
+            width: 70,
+            height: 70,
             decoration: BoxDecoration(
               color: isSelected
                   ? const Color(0xFF3D5A99)
-                  : Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(18),
-              border: isSelected
-                  ? Border.all(color: const Color(0xFF3D5A99), width: 2)
-                  : null,
+                  : _getPastelColor(label),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Icon(
               icon,
-              color: isSelected ? Colors.white : Colors.blue.shade700,
-              size: 32,
+              color: isSelected ? Colors.white : _getIconColor(label),
+              size: 28,
             ),
           ),
           const SizedBox(height: 6),
@@ -43,14 +47,46 @@ class CategoryCard extends StatelessWidget {
             label,
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: isSelected
-                  ? const Color(0xFF3D5A99)
-                  : Colors.black87,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected ? const Color(0xFF3D5A99) : Colors.black87,
             ),
           ),
         ],
       ),
     );
+  }
+
+  Color _getPastelColor(String label) {
+    switch (label.toLowerCase()) {
+      case 'plomberie':
+        return const Color(0xFFE3F2FD);
+      case 'électricité':
+        return const Color(0xFFFFFDE7);
+      case 'nettoyage':
+        return const Color(0xFFE8F5E9);
+      case 'jardinage':
+        return const Color(0xFFF1F8E9);
+      case 'coiffure':
+        return const Color(0xFFFCE4EC);
+      default:
+        return Colors.blue.shade50;
+    }
+  }
+
+  Color _getIconColor(String label) {
+    switch (label.toLowerCase()) {
+      case 'plomberie':
+        return const Color(0xFF1976D2);
+      case 'électricité':
+        return const Color(0xFFFBC02D);
+      case 'nettoyage':
+        return const Color(0xFF2E7D32);
+      case 'jardinage':
+        return const Color(0xFF558B2F);
+      case 'coiffure':
+        return const Color(0xFFC2185B);
+      default:
+        return Colors.blue.shade700;
+    }
   }
 }

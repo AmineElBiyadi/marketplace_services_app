@@ -51,14 +51,41 @@ class _HomeScreenState extends State<HomeScreen> {
     // 1. Nom du client connecté
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      // First try by UID (if they match)
       final userDoc = await FirebaseFirestore.instance
           .collection('utilisateurs')
           .doc(user.uid)
           .get();
-      setState(() {
-        _clientNom =
-            userDoc.data()?['nom'] ?? userDoc.data()?['email'] ?? '';
-      });
+      
+      if (userDoc.exists) {
+        setState(() {
+          _clientNom = userDoc.data()?['nom'] ?? '';
+        });
+      } else {
+        // Fallback: Search by phone or email since doc ID might be random from .add()
+        final query = await FirebaseFirestore.instance
+            .collection('utilisateurs')
+            .where('telephone', isEqualTo: user.phoneNumber)
+            .limit(1)
+            .get();
+            
+        if (query.docs.isNotEmpty) {
+          setState(() {
+            _clientNom = query.docs.first.data()['nom'] ?? '';
+          });
+        } else if (user.email != null) {
+          final queryEmail = await FirebaseFirestore.instance
+              .collection('utilisateurs')
+              .where('email', isEqualTo: user.email)
+              .limit(1)
+              .get();
+          if (queryEmail.docs.isNotEmpty) {
+            setState(() {
+              _clientNom = queryEmail.docs.first.data()['nom'] ?? '';
+            });
+          }
+        }
+      }
     }
 
     // 2. Position GPS (optionnel — ne bloque pas le chargement)
@@ -95,8 +122,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Calcule la distance entre l'utilisateur et un expert.
-  /// Retourne null si la position n'est pas disponible ou si l'expert
-  /// n'a pas de coordonnées.
   double? _distanceTo(Expert expert) {
     if (_userPosition == null) return null;
     if (expert.location == null) return null;
@@ -109,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Build ───────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // Tri "Nearby" : experts avec distance connue d'abord
+    // Tri "Nearby"
     final nearby = List<Expert>.from(_filteredExperts)
       ..sort((a, b) {
         final da = _distanceTo(a);
@@ -120,253 +145,239 @@ class _HomeScreenState extends State<HomeScreen> {
         return da.compareTo(db);
       });
 
-    // Top Rated : tri par note décroissante
+    // Top Rated
     final topRated = List<Expert>.from(_filteredExperts)
       ..sort((a, b) => b.noteMoyenne.compareTo(a.noteMoyenne));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F0),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-
-              // ══════════════════════════════════════
-              //  HEADER BLEU
-              // ══════════════════════════════════════
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF3D5A99),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(24),
-                    bottomRight: Radius.circular(24),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Notification
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Stack(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              shape: BoxShape.circle,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── HEADER ──
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF3D5A99),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(32),
+                        bottomRight: Radius.circular(32),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _isLoading
+                                      ? Container(width: 100, height: 20, color: Colors.white24)
+                                      : Text(
+                                          'Hi ${_clientNom.isNotEmpty ? _clientNom : 'Client'},',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                  const Text(
+                                    'What service are you looking for?',
+                                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                                  ),
+                                ],
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.notifications_outlined,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                          ),
-                          Positioned(
-                            right: 6,
-                            top: 6,
-                            child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Colors.red,
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2),
                                 shape: BoxShape.circle,
                               ),
+                              child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+                        // Search Bar
+                        Container(
+                          height: 55,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.search, color: Colors.grey),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: TextField(
+                                  decoration: InputDecoration(
+                                    hintText: 'Search here',
+                                    border: InputBorder.none,
+                                    hintStyle: TextStyle(color: Colors.grey),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (_userPosition != null) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.my_location, color: Colors.white60, size: 13),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Localisation activée',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.6),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Salutation dynamique
-                    _isLoading
-                        ? const SizedBox(
-                      height: 28,
-                      width: 180,
-                      child: LinearProgressIndicator(
-                        backgroundColor: Colors.white24,
-                        color: Colors.white54,
-                      ),
-                    )
-                        : Text(
-                      'Hi ${_clientNom.isNotEmpty ? _clientNom : 'Client'},',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'What service are you looking for?',
-                      style: TextStyle(
-                          color: Colors.white70, fontSize: 14),
-                    ),
-
-                    // Indicateur GPS discret
-                    if (_userPosition != null) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.my_location,
-                              color: Colors.white60, size: 13),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Localisation activée',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-
-                    // ── CATÉGORIES ──
-                    const Text(
-                      'Popular',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      height: 90,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: categories.length,
-                        separatorBuilder: (_, __) =>
-                        const SizedBox(width: 16),
-                        itemBuilder: (context, index) {
-                          final cat = categories[index];
-                          final isSelected =
-                              _selectedCategory == cat['label'];
-                          return CategoryCard(
-                            label: cat['label'],
-                            icon: cat['icon'],
-                            isSelected: isSelected,
-                            onTap: () => _selectCategory(cat['label']),
-                          );
-                        },
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ── NEARBY PROVIDERS ──
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Nearby Providers',
-                          style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text('Map >',
-                              style:
-                              TextStyle(color: Color(0xFF3D5A99))),
-                        ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                  ),
 
-                    _isLoading
-                        ? const Center(
-                        child: CircularProgressIndicator())
-                        : nearby.isEmpty
-                        ? const Center(
-                        child:
-                        Text('Aucun prestataire trouvé'))
-                        : SizedBox(
-                      height: 210,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: nearby.length,
-                        itemBuilder: (context, index) {
-                          final expert = nearby[index];
-                          final dist = _distanceTo(expert);
-                          return NearbyProviderCard(
-                            name: expert.nom,
-                            service:
-                            expert.services.isNotEmpty
-                                ? expert.services.first
-                                : '',
-                            rating: expert.noteMoyenne,
-                            distance: dist ?? 0.0,
-                            imageUrl: expert.photo,
-                            isPremium: expert.isPremium,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    ExpertProfileScreen(expert: expert),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ── TOP RATED ──
-                    const Text(
-                      'Top Rated',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 12),
-
-                    _isLoading
-                        ? const Center(
-                        child: CircularProgressIndicator())
-                        : topRated.isEmpty
-                        ? const Center(
-                        child:
-                        Text('Aucun prestataire trouvé'))
-                        : ListView.builder(
-                      shrinkWrap: true,
-                      physics:
-                      const NeverScrollableScrollPhysics(),
-                      itemCount: topRated.length,
-                      itemBuilder: (context, index) {
-                        final expert = topRated[index];
-                        return TopRatedCard(
-                          name: expert.nom,
-                          services:
-                          expert.services.join(', '),
-                          rating: expert.noteMoyenne,
-                          imageUrl: expert.photo,
-                          isPremium: expert.isPremium,
-                          onChat: () {},
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  ExpertProfileScreen(expert: expert),
-                            ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Categories
+                        const Text(
+                          'Popular',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 90,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: categories.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 16),
+                            itemBuilder: (context, index) {
+                              final cat = categories[index];
+                              final isSelected = _selectedCategory == cat['label'];
+                              return CategoryCard(
+                                label: cat['label'],
+                                icon: cat['icon'],
+                                isSelected: isSelected,
+                                onTap: () => _selectCategory(cat['label']),
+                              );
+                            },
                           ),
-                        );
-                      },
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Nearby
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Nearby Providers',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                            TextButton(
+                              onPressed: () {},
+                              child: const Text('Map >', style: TextStyle(color: Color(0xFF3D5A99))),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        _isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : nearby.isEmpty
+                                ? const Center(child: Text('Aucun prestataire trouvé'))
+                                : SizedBox(
+                                    height: 210,
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: nearby.length,
+                                      itemBuilder: (context, index) {
+                                        final expert = nearby[index];
+                                        final dist = _distanceTo(expert);
+                                        return NearbyProviderCard(
+                                          name: expert.nom,
+                                          service: expert.services.isNotEmpty ? expert.services.first : '',
+                                          rating: expert.noteMoyenne,
+                                          distance: dist ?? 0.0,
+                                          imageUrl: expert.photo,
+                                          isPremium: expert.isPremium,
+                                          onTap: () => Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) => ExpertProfileScreen(expert: expert),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+
+                        const SizedBox(height: 24),
+
+                        // Top Rated
+                        const Text(
+                          'Top Rated',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 12),
+
+                        _isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : topRated.isEmpty
+                                ? const Center(child: Text('Aucun prestataire trouvé'))
+                                : ListView.builder(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    itemCount: topRated.length,
+                                    itemBuilder: (context, index) {
+                                      final expert = topRated[index];
+                                      return TopRatedCard(
+                                        name: expert.nom,
+                                        services: expert.services.join(', '),
+                                        rating: expert.noteMoyenne,
+                                        imageUrl: expert.photo,
+                                        isPremium: expert.isPremium,
+                                        onChat: () {},
+                                        onTap: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => ExpertProfileScreen(expert: expert),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
