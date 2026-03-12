@@ -16,6 +16,8 @@ import '../screens/admin/admin_finances_screen.dart';
 import '../screens/admin/admin_statistics_screen.dart';
 import '../screens/admin/admin_settings_screen.dart';
 import '../screens/provider/provider_dashboard_screen.dart';
+import '../screens/provider/provider_reservations_screen.dart';
+import '../screens/provider/provider_services_screen.dart';
 import '../navigation/main_navigation.dart';
 
 // ─── Route name constants ──────────────────────────────────────────
@@ -30,6 +32,13 @@ class AppRoutes {
   static const String providerSignup = '/provider/signup';
   static const String providerDashboard = '/provider/dashboard';
   static const String providerPending = '/provider/pending';
+  static const String providerBookings = '/provider/bookings';
+  static const String providerServices = '/provider/services';
+  static const String providerAgenda = '/provider/agenda';
+  static const String providerProfile = '/provider/profile';
+  static const String providerNotifications = '/provider/notifications';
+  static const String providerSubscription = '/provider/subscription';
+  static const String providerSettings = '/provider/settings';
 
   static const String adminLogin = '/admin/login';
   static const String adminDashboard = '/admin';
@@ -93,6 +102,22 @@ final GoRouter router = GoRouter(
         final extra = state.extra as Map<String, dynamic>? ?? {};
         final expertId = extra['expertId'] as String? ?? '';
         return ProviderDashboardScreen(expertId: expertId);
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.providerBookings,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final expertId = extra['expertId'] as String? ?? '';
+        return ProviderReservationsScreen(expertId: expertId);
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.providerServices,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final expertId = extra['expertId'] as String? ?? '';
+        return ProviderServicesScreen(expertId: expertId);
       },
     ),
 

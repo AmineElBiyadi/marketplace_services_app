@@ -45,6 +45,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   Widget build(BuildContext context) {
     return ProviderLayout(
       activeRoute: '/provider/dashboard',
+      expertId: _expertId,
       child: CustomScrollView(
         slivers: [
           // Header
