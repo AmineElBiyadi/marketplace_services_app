@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'navigation/main_navigation.dart';
+import 'routes/routes.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,17 +13,15 @@ void main() async {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Marketplace Services',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const MainNavigation(),
+      theme: AppTheme.lightTheme,
+      routerConfig: router,
     );
   }
 }

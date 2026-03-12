@@ -25,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -70,6 +64,30 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1003192210122',
     projectId: 'services-app-70555',
     storageBucket: 'services-app-70555.firebasestorage.app',
+    androidClientId: '1003192210122-alja58hgshav5ja205pnuagfu3ok5gfp.apps.googleusercontent.com',
+    iosClientId: '1003192210122-sqf8o7lf79djleht0sse5qctermktld8.apps.googleusercontent.com',
     iosBundleId: 'com.example.serviceApp',
   );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyBFOPmd2isSylxpGhfvJJ05UFfNcBjaFuE',
+    appId: '1:1003192210122:ios:faf3ec0e96c1a5af73da33',
+    messagingSenderId: '1003192210122',
+    projectId: 'services-app-70555',
+    storageBucket: 'services-app-70555.firebasestorage.app',
+    androidClientId: '1003192210122-alja58hgshav5ja205pnuagfu3ok5gfp.apps.googleusercontent.com',
+    iosClientId: '1003192210122-sqf8o7lf79djleht0sse5qctermktld8.apps.googleusercontent.com',
+    iosBundleId: 'com.example.serviceApp',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyBUx86H9Pk8sZ9LFeWM_1maqSyg908sP8Y',
+    appId: '1:1003192210122:web:60f26956973007a373da33',
+    messagingSenderId: '1003192210122',
+    projectId: 'services-app-70555',
+    authDomain: 'services-app-70555.firebaseapp.com',
+    storageBucket: 'services-app-70555.firebasestorage.app',
+    measurementId: 'G-GSFM2KBBZ2',
+  );
+
 }
