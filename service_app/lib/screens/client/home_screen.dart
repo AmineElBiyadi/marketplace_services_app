@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../models/expert.dart';
 import '../../services/firestore_service.dart';
+import '../../services/location_service.dart';
 import '../../widgets/home/category_card.dart';
 import '../../widgets/home/nearby_provider_card.dart';
 import '../../widgets/home/top_rated_card.dart';
@@ -16,16 +18,16 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
-  final TextEditingController _searchController = TextEditingController();
+  final LocationService _locationService = LocationService();
 
   List<Expert> _experts = [];
   List<Expert> _filteredExperts = [];
-  List<String> _villesExperts = [];
   bool _isLoading = true;
-  String _clientNom = 'Client';
-  String _clientVille = '';
-  String? _selectedVille;
+  String _clientNom = '';
   String? _selectedCategory;
+
+  /// Position GPS de l'utilisateur (null si permission refusée)
+  Position? _userPosition;
 
   final List<Map<String, dynamic>> categories = [
     {'label': 'Plomberie', 'icon': Icons.plumbing},
@@ -41,84 +43,45 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadData();
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
+  // ── Chargement des données ──────────────────
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
 
+    // 1. Nom du client connecté
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // Récupérer infos utilisateur
       final userDoc = await FirebaseFirestore.instance
           .collection('utilisateurs')
           .doc(user.uid)
           .get();
-
       setState(() {
-        _clientNom = userDoc.data()?['nom'] ??
-            userDoc.data()?['email'] ??
-            'Client';
+        _clientNom =
+            userDoc.data()?['nom'] ?? userDoc.data()?['email'] ?? '';
       });
-
-      // Récupérer ville du client
-      final adresseSnapshot = await FirebaseFirestore.instance
-          .collection('adresses')
-          .where('idUtilisateur', isEqualTo: user.uid)
-          .get();
-
-      if (adresseSnapshot.docs.isNotEmpty) {
-        final adresse = adresseSnapshot.docs.first.data();
-        final ville =
-            '${adresse['Ville'] ?? ''}, ${adresse['Quartier'] ?? ''}';
-        setState(() {
-          _clientVille = ville;
-          _selectedVille = ville; // ville par défaut
-        });
-      }
     }
 
-    // Récupérer experts et villes
+    // 2. Position GPS (optionnel — ne bloque pas le chargement)
+    final position = await _locationService.getCurrentPosition();
+    if (mounted) setState(() => _userPosition = position);
+
+    // 3. Liste des experts
     final experts = await _firestoreService.getExperts();
-    final villes = await _firestoreService.getVillesExperts();
-
-    setState(() {
-      _experts = experts;
-      _villesExperts = villes;
-      _filteredExperts = experts;
-      _isLoading = false;
-    });
-
-    // Appliquer filtre ville par défaut
-    _applyFilters();
+    if (mounted) {
+      setState(() {
+        _experts = experts;
+        _isLoading = false;
+      });
+      _applyFilters();
+    }
   }
 
+  // ── Filtre par catégorie ────────────────────
   void _applyFilters() {
-    final query = _searchController.text.toLowerCase();
     setState(() {
-      _filteredExperts = _experts.where((expert) {
-        // Filtre par ville
-        final matchVille = _selectedVille == null ||
-            expert.ville
-                .toLowerCase()
-                .contains(_selectedVille!.toLowerCase());
-
-        // Filtre par catégorie
-        final matchCategory = _selectedCategory == null ||
-            expert.services.any((s) => s
-                .toLowerCase()
-                .contains(_selectedCategory!.toLowerCase()));
-
-        // Filtre par texte
-        final matchQuery = query.isEmpty ||
-            expert.nom.toLowerCase().contains(query) ||
-            expert.services
-                .any((s) => s.toLowerCase().contains(query));
-
-        return matchVille && matchCategory && matchQuery;
+      _filteredExperts = _experts.where((e) {
+        if (_selectedCategory == null) return true;
+        return e.services.any((s) =>
+            s.toLowerCase().contains(_selectedCategory!.toLowerCase()));
       }).toList();
     });
   }
@@ -130,82 +93,36 @@ class _HomeScreenState extends State<HomeScreen> {
     _applyFilters();
   }
 
-  // Afficher le dropdown des villes
-  void _showVilleDropdown(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.transparent,
-      builder: (context) {
-        return Stack(
-          children: [
-            Positioned(
-              top: 100,
-              left: 16,
-              right: 16,
-              child: Material(
-                borderRadius: BorderRadius.circular(16),
-                elevation: 8,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: _villesExperts.isEmpty
-                      ? const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Aucune ville disponible'),
-                  )
-                      : ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _villesExperts.length,
-                    itemBuilder: (context, index) {
-                      final ville = _villesExperts[index];
-                      final isSelected = _selectedVille == ville;
-                      return ListTile(
-                        leading: Icon(
-                          Icons.location_on,
-                          color: isSelected
-                              ? const Color(0xFF3D5A99)
-                              : Colors.grey,
-                          size: 18,
-                        ),
-                        title: Text(
-                          ville,
-                          style: TextStyle(
-                            color: isSelected
-                                ? const Color(0xFF3D5A99)
-                                : Colors.black87,
-                            fontWeight: isSelected
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                            fontSize: 14,
-                          ),
-                        ),
-                        tileColor: isSelected
-                            ? const Color(0xFF3D5A99).withOpacity(0.1)
-                            : null,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onTap: () {
-                          setState(() => _selectedVille = ville);
-                          _applyFilters();
-                          Navigator.pop(context);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+  /// Calcule la distance entre l'utilisateur et un expert.
+  /// Retourne null si la position n'est pas disponible ou si l'expert
+  /// n'a pas de coordonnées.
+  double? _distanceTo(Expert expert) {
+    if (_userPosition == null) return null;
+    if (expert.location == null) return null;
+    return _locationService.distanceFromGeoPoint(
+      userPosition: _userPosition,
+      expertGeoPoint: expert.location,
     );
   }
+
+  // ── Build ───────────────────────────────────
   @override
   Widget build(BuildContext context) {
+    // Tri "Nearby" : experts avec distance connue d'abord
+    final nearby = List<Expert>.from(_filteredExperts)
+      ..sort((a, b) {
+        final da = _distanceTo(a);
+        final db = _distanceTo(b);
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        return da.compareTo(db);
+      });
+
+    // Top Rated : tri par note décroissante
+    final topRated = List<Expert>.from(_filteredExperts)
+      ..sort((a, b) => b.noteMoyenne.compareTo(a.noteMoyenne));
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F0),
       body: SafeArea(
@@ -214,9 +131,11 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              // ── HEADER BLEU ──
+              // ══════════════════════════════════════
+              //  HEADER BLEU
+              // ══════════════════════════════════════
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
                 decoration: const BoxDecoration(
                   color: Color(0xFF3D5A99),
                   borderRadius: BorderRadius.only(
@@ -227,103 +146,83 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Ville cliquable → dropdown
-                        GestureDetector(
-                          onTap: () => _showVilleDropdown(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 6),
+                    // Notification
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Stack(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
+                              shape: BoxShape.circle,
                             ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.location_on,
-                                    color: Colors.white, size: 16),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _selectedVille != null
-                                      ? _selectedVille!
-                                      : _clientVille.isNotEmpty
-                                      ? _clientVille
-                                      : 'Choisir une ville',
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13),
-                                ),
-                                const Icon(Icons.keyboard_arrow_down,
-                                    color: Colors.white, size: 16),
-                              ],
+                            child: const Icon(
+                              Icons.notifications_outlined,
+                              color: Colors.white,
+                              size: 22,
                             ),
                           ),
-                        ),
-                        // Notification
-                        Stack(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                          Positioned(
+                            right: 6,
+                            top: 6,
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(
-                                  Icons.notifications_outlined,
-                                  color: Colors.white,
-                                  size: 22),
                             ),
-                            Positioned(
-                              right: 6,
-                              top: 6,
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Hi $_clientNom,',
+                    const SizedBox(height: 8),
+
+                    // Salutation dynamique
+                    _isLoading
+                        ? const SizedBox(
+                      height: 28,
+                      width: 180,
+                      child: LinearProgressIndicator(
+                        backgroundColor: Colors.white24,
+                        color: Colors.white54,
+                      ),
+                    )
+                        : Text(
+                      'Hi ${_clientNom.isNotEmpty ? _clientNom : 'Client'},',
                       style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold),
-                    ),
-                    const Text('What service are you looking for?',
-                        style: TextStyle(
-                            color: Colors.white70, fontSize: 14)),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) => _applyFilters(),
-                        style: const TextStyle(color: Colors.white),
-                        decoration: const InputDecoration(
-                          hintText: 'Search here',
-                          hintStyle: TextStyle(color: Colors.white60),
-                          border: InputBorder.none,
-                          icon: Icon(Icons.search,
-                              color: Colors.white60),
-                        ),
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'What service are you looking for?',
+                      style: TextStyle(
+                          color: Colors.white70, fontSize: 14),
+                    ),
+
+                    // Indicateur GPS discret
+                    if (_userPosition != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.my_location,
+                              color: Colors.white60, size: 13),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Localisation activée',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.6),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -334,11 +233,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
 
-                    // ── CATEGORIES ──
-                    const Text('Popular',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold)),
+                    // ── CATÉGORIES ──
+                    const Text(
+                      'Popular',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 12),
                     SizedBox(
                       height: 90,
@@ -355,8 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             label: cat['label'],
                             icon: cat['icon'],
                             isSelected: isSelected,
-                            onTap: () =>
-                                _selectCategory(cat['label']),
+                            onTap: () => _selectCategory(cat['label']),
                           );
                         },
                       ),
@@ -368,15 +267,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Nearby Providers',
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold)),
+                        const Text(
+                          'Nearby Providers',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold),
+                        ),
                         TextButton(
                           onPressed: () {},
                           child: const Text('Map >',
-                              style: TextStyle(
-                                  color: Color(0xFF3D5A99))),
+                              style:
+                              TextStyle(color: Color(0xFF3D5A99))),
                         ),
                       ],
                     ),
@@ -385,26 +286,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     _isLoading
                         ? const Center(
                         child: CircularProgressIndicator())
-                        : _filteredExperts.isEmpty
+                        : nearby.isEmpty
                         ? const Center(
-                        child: Text(
-                            'Aucun prestataire trouvé'))
+                        child:
+                        Text('Aucun prestataire trouvé'))
                         : SizedBox(
                       height: 210,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
-                        itemCount: _filteredExperts.length,
+                        itemCount: nearby.length,
                         itemBuilder: (context, index) {
-                          final expert =
-                          _filteredExperts[index];
+                          final expert = nearby[index];
+                          final dist = _distanceTo(expert);
                           return NearbyProviderCard(
                             name: expert.nom,
-                            service: expert
-                                .services.isNotEmpty
+                            service:
+                            expert.services.isNotEmpty
                                 ? expert.services.first
                                 : '',
                             rating: expert.noteMoyenne,
-                            distance: 0.0,
+                            distance: dist ?? 0.0,
                             imageUrl: expert.photo,
                             isPremium: expert.isPremium,
                             onTap: () {},
@@ -416,27 +317,27 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 24),
 
                     // ── TOP RATED ──
-                    const Text('Top Rated',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Top Rated',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 12),
 
                     _isLoading
                         ? const Center(
                         child: CircularProgressIndicator())
-                        : _filteredExperts.isEmpty
+                        : topRated.isEmpty
                         ? const Center(
-                        child: Text(
-                            'Aucun prestataire trouvé'))
+                        child:
+                        Text('Aucun prestataire trouvé'))
                         : ListView.builder(
                       shrinkWrap: true,
                       physics:
                       const NeverScrollableScrollPhysics(),
-                      itemCount: _filteredExperts.length,
+                      itemCount: topRated.length,
                       itemBuilder: (context, index) {
-                        final expert =
-                        _filteredExperts[index];
+                        final expert = topRated[index];
                         return TopRatedCard(
                           name: expert.nom,
                           services:
