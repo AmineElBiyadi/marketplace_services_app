@@ -21,7 +21,8 @@ const List<String> _categories = [
 ];
 
 class ProviderServicesScreen extends StatefulWidget {
-  const ProviderServicesScreen({Key? key}) : super(key: key);
+  final String expertId;
+  const ProviderServicesScreen({Key? key, required this.expertId}) : super(key: key);
 
   @override
   State<ProviderServicesScreen> createState() =>
@@ -206,7 +207,8 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
     final progress = (_services.length / _maxServices) * 100;
 
     return ProviderLayout(
-      currentIndex: 1,
+      activeRoute: '/provider/services',
+      expertId: widget.expertId,
       child: CustomScrollView(
         slivers: [
           SliverPadding(
