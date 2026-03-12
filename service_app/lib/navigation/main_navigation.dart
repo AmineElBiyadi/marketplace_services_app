@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import '../screens/client/home_screen.dart';
 import '../screens/client/search_screen.dart';
 import '../screens/client/bookings_screen.dart';
-import '../screens/client/profile_screen.dart';
 
 class MainNavigation extends StatefulWidget {
-  const MainNavigation({Key? key}) : super(key: key);
+  const MainNavigation({super.key});
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
@@ -18,7 +17,6 @@ class _MainNavigationState extends State<MainNavigation> {
     const HomeScreen(),
     const SearchScreen(),
     const BookingsScreen(),
-    const ProfileScreen(),
   ];
 
   @override
@@ -46,11 +44,6 @@ class _MainNavigationState extends State<MainNavigation> {
             icon: Icon(Icons.calendar_today_outlined),
             activeIcon: Icon(Icons.calendar_today),
             label: 'Bookings',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
           ),
         ],
       ),
