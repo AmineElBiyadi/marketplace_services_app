@@ -3,44 +3,43 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/expert.dart';
 import '../../services/firestore_service.dart';
+import 'expert_datails_screen.dart';
 
 // ─────────────────────────────────────────────
 //  CONSTANTES
 // ─────────────────────────────────────────────
-const Color _kPrimary = Color(0xFF3D5A99);
-const Color _kBg = Color(0xFFF5F5F0);
-const Color _kGold = Color(0xFFFFC107);
+const Color _kPrimary   = Color(0xFF1A1F36);   // navy foncé
+const Color _kAccent    = Color(0xFF4F6BED);   // bleu bouton filtre
+const Color _kBg        = Color(0xFFF5F3EC);   // beige clair maquette
+const Color _kGold      = Color(0xFFFFC107);   // premium
+const Color _kAvailable = Color(0xFF2ECC71);   // badge vert
 
 // ─────────────────────────────────────────────
 //  MODÈLE DE FILTRE
 // ─────────────────────────────────────────────
-enum SortOption { pertinence, noteDec, prixAsc, prixDesc }
+enum SortOption { pertinence, noteDec, nearest }
 
 class _FilterState {
   String? ville;
   double minNote = 0.0;
-  double maxPrix = 500.0;
   SortOption sort = SortOption.pertinence;
   bool premiumFirst = true;
 
   _FilterState copyWith({
     String? ville,
     double? minNote,
-    double? maxPrix,
     SortOption? sort,
     bool? premiumFirst,
   }) =>
       _FilterState()
         ..ville = ville ?? this.ville
         ..minNote = minNote ?? this.minNote
-        ..maxPrix = maxPrix ?? this.maxPrix
         ..sort = sort ?? this.sort
         ..premiumFirst = premiumFirst ?? this.premiumFirst;
 
   bool get hasActiveFilters =>
       ville != null ||
           minNote > 0 ||
-          maxPrix < 500 ||
           sort != SortOption.pertinence;
 }
 
@@ -117,7 +116,6 @@ class _SearchScreenState extends State<SearchScreen> {
         return false;
       }
       if (e.noteMoyenne < _filters.minNote) return false;
-      if (e.prixMin != null && e.prixMin! > _filters.maxPrix) return false;
       if (query.isNotEmpty) {
         final matchNom = e.nom.toLowerCase().contains(query);
         final matchService =
@@ -131,11 +129,7 @@ class _SearchScreenState extends State<SearchScreen> {
       case SortOption.noteDec:
         result.sort((a, b) => b.noteMoyenne.compareTo(a.noteMoyenne));
         break;
-      case SortOption.prixAsc:
-        result.sort((a, b) => (a.prixMin ?? 0).compareTo(b.prixMin ?? 0));
-        break;
-      case SortOption.prixDesc:
-        result.sort((a, b) => (b.prixMin ?? 0).compareTo(a.prixMin ?? 0));
+      case SortOption.nearest:
         break;
       case SortOption.pertinence:
         break;
@@ -200,72 +194,92 @@ class _SearchScreenState extends State<SearchScreen> {
           children: [
 
             // ══════════════════════════════════════
-            //  HEADER BLEU
+            //  HEADER (fond beige, pas bleu)
             // ══════════════════════════════════════
-            Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-              decoration: const BoxDecoration(
-                color: _kPrimary,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
-              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Trouver un prestataire',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Barre de recherche (fond blanc)
-                  Container(
-                    height: 46,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.search,
-                            color: Colors.grey, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: TextField(
-                            controller: _searchController,
-                            onChanged: (_) => _applyFilters(),
-                            decoration: const InputDecoration(
-                              hintText: 'Nom, service, spécialité…',
-                              hintStyle: TextStyle(
-                                  color: Colors.grey, fontSize: 14),
-                              border: InputBorder.none,
-                              isDense: true,
-                            ),
-                            style: const TextStyle(fontSize: 14),
+                  // Barre de recherche
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 46,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.06),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.search,
+                                  color: Colors.grey.shade400, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: _searchController,
+                                  onChanged: (_) => _applyFilters(),
+                                  decoration: InputDecoration(
+                                    hintText: 'Search services...',
+                                    hintStyle: TextStyle(
+                                        color: Colors.grey.shade400,
+                                        fontSize: 14),
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                  ),
+                                  style: const TextStyle(
+                                      fontSize: 14, color: _kPrimary),
+                                ),
+                              ),
+                              if (_searchController.text.isNotEmpty)
+                                GestureDetector(
+                                  onTap: () {
+                                    _searchController.clear();
+                                    _applyFilters();
+                                  },
+                                  child: Icon(Icons.close,
+                                      color: Colors.grey.shade400, size: 18),
+                                ),
+                            ],
                           ),
                         ),
-                        if (_searchController.text.isNotEmpty)
-                          GestureDetector(
-                            onTap: () {
-                              _searchController.clear();
-                              _applyFilters();
-                            },
-                            child: const Icon(Icons.close,
-                                color: Colors.grey, size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      // Bouton filtre bleu
+                      GestureDetector(
+                        onTap: _showFilterSheet,
+                        child: Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: _kAccent,
+                            borderRadius: BorderRadius.circular(14),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _kAccent.withOpacity(0.35),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                      ],
-                    ),
+                          child: const Icon(Icons.tune_rounded,
+                              color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 10),
 
-                  // Chips : Ville + Filtres + Tri rapides
+                  // Chips : Ville + Tri rapides
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -278,17 +292,8 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                         const SizedBox(width: 8),
                         _HeaderChip(
-                          icon: Icons.tune,
-                          label: _filters.hasActiveFilters
-                              ? 'Filtres actifs'
-                              : 'Filtres',
-                          onTap: _showFilterSheet,
-                          active: _filters.hasActiveFilters,
-                        ),
-                        const SizedBox(width: 8),
-                        _HeaderChip(
                           icon: Icons.star,
-                          label: 'Meilleures notes',
+                          label: 'Top Rated',
                           onTap: () {
                             setState(() => _filters.sort =
                             _filters.sort == SortOption.noteDec
@@ -300,16 +305,16 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                         const SizedBox(width: 8),
                         _HeaderChip(
-                          icon: Icons.attach_money,
-                          label: 'Prix croissant',
+                          icon: Icons.near_me,
+                          label: 'Nearest',
                           onTap: () {
                             setState(() => _filters.sort =
-                            _filters.sort == SortOption.prixAsc
+                            _filters.sort == SortOption.nearest
                                 ? SortOption.pertinence
-                                : SortOption.prixAsc);
+                                : SortOption.nearest);
                             _applyFilters();
                           },
-                          active: _filters.sort == SortOption.prixAsc,
+                          active: _filters.sort == SortOption.nearest,
                         ),
                       ],
                     ),
@@ -458,24 +463,29 @@ class _HeaderChip extends StatelessWidget {
         padding:
         const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: active ? Colors.white : Colors.white.withOpacity(0.18),
+          color: active ? _kAccent : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: active ? Colors.white : Colors.white38),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon,
                 size: 15,
-                color: active ? _kPrimary : Colors.white),
+                color: active ? Colors.white : Colors.grey.shade500),
             const SizedBox(width: 5),
             Text(
               label,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: active ? _kPrimary : Colors.white,
+                color: active ? Colors.white : Colors.grey.shade700,
               ),
             ),
           ],
@@ -529,9 +539,12 @@ class _ExpertCard extends StatelessWidget {
     final isPremium = expert.isPremium;
 
     return GestureDetector(
-      onTap: () {
-        // TODO: naviguer vers le profil expert
-      },
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ExpertProfileScreen(expert: expert),
+        ),
+      ),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
@@ -956,73 +969,6 @@ class _FilterSheetState extends State<_FilterSheet> {
             ),
             const Divider(height: 24),
 
-            // ── Prix maximum ──
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.attach_money,
-                          color: _kPrimary, size: 18),
-                      const SizedBox(width: 6),
-                      const Text('Prix maximum',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15)),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: _kPrimary.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          _local.maxPrix >= 500
-                              ? 'Illimité'
-                              : '${_local.maxPrix.toStringAsFixed(0)} MAD',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: _kPrimary),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      activeTrackColor: _kPrimary,
-                      thumbColor: _kPrimary,
-                      inactiveTrackColor:
-                      _kPrimary.withOpacity(0.15),
-                      overlayColor: _kPrimary.withOpacity(0.1),
-                    ),
-                    child: Slider(
-                      value: _local.maxPrix,
-                      min: 0,
-                      max: 500,
-                      divisions: 50,
-                      onChanged: (v) =>
-                          setState(() => _local.maxPrix = v),
-                    ),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text('0 MAD',
-                          style: TextStyle(
-                              color: Colors.grey, fontSize: 11)),
-                      Text('500+ MAD',
-                          style: TextStyle(
-                              color: Colors.grey, fontSize: 11)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 24),
-
             // ── Tri ──
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
@@ -1053,18 +999,11 @@ class _FilterSheetState extends State<_FilterSheet> {
                             () => _local.sort = SortOption.noteDec),
                   ),
                   _SortChip(
-                    label: 'Prix ↑',
-                    icon: Icons.trending_up,
-                    selected: _local.sort == SortOption.prixAsc,
+                    label: 'Le plus proche',
+                    icon: Icons.near_me,
+                    selected: _local.sort == SortOption.nearest,
                     onTap: () => setState(
-                            () => _local.sort = SortOption.prixAsc),
-                  ),
-                  _SortChip(
-                    label: 'Prix ↓',
-                    icon: Icons.trending_down,
-                    selected: _local.sort == SortOption.prixDesc,
-                    onTap: () => setState(
-                            () => _local.sort = SortOption.prixDesc),
+                            () => _local.sort = SortOption.nearest),
                   ),
                 ],
               ),
@@ -1173,7 +1112,7 @@ class _SortChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(
             horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? _kPrimary : Colors.grey.shade100,
+          color: selected ? _kAccent : Colors.grey.shade100,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(

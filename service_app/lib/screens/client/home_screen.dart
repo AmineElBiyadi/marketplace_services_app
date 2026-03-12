@@ -8,6 +8,7 @@ import '../../services/location_service.dart';
 import '../../widgets/home/category_card.dart';
 import '../../widgets/home/nearby_provider_card.dart';
 import '../../widgets/home/top_rated_card.dart';
+import 'expert_datails_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -308,7 +309,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             distance: dist ?? 0.0,
                             imageUrl: expert.photo,
                             isPremium: expert.isPremium,
-                            onTap: () {},
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    ExpertProfileScreen(expert: expert),
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -346,7 +353,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           imageUrl: expert.photo,
                           isPremium: expert.isPremium,
                           onChat: () {},
-                          onTap: () {},
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  ExpertProfileScreen(expert: expert),
+                            ),
+                          ),
                         );
                       },
                     ),
