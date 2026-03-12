@@ -8,6 +8,13 @@ import '../screens/Authentificcation/provider/provider_signup_screen.dart' as pr
 import '../screens/Authentificcation/provider/provider_pending_screen.dart' as provider_pending;
 import '../screens/Authentificcation/admin/admin_login_screen.dart' as admin_login;
 import '../screens/admin/admin_dashboard_screen.dart';
+import '../screens/admin/admin_users_screen.dart';
+import '../screens/admin/admin_providers_screen.dart';
+import '../screens/admin/admin_reservations_screen.dart';
+import '../screens/admin/admin_reviews_screen.dart';
+import '../screens/admin/admin_finances_screen.dart';
+import '../screens/admin/admin_statistics_screen.dart';
+import '../screens/admin/admin_settings_screen.dart';
 import '../screens/provider/provider_dashboard_screen.dart';
 import '../navigation/main_navigation.dart';
 
@@ -25,7 +32,14 @@ class AppRoutes {
   static const String providerPending = '/provider/pending';
 
   static const String adminLogin = '/admin/login';
-  static const String adminDashboard = '/admin/dashboard';
+  static const String adminDashboard = '/admin';
+  static const String adminUsers = '/admin/users';
+  static const String adminProviders = '/admin/providers';
+  static const String adminReservations = '/admin/reservations';
+  static const String adminReviews = '/admin/reviews';
+  static const String adminFinances = '/admin/finances';
+  static const String adminStatistics = '/admin/statistics';
+  static const String adminSettings = '/admin/settings';
 }
 
 // ─── GoRouter configuration ────────────────────────────────────────
@@ -89,7 +103,35 @@ final GoRouter router = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.adminDashboard,
-      builder: (context, state) => const AdminDashboardScreen(),
+      pageBuilder: (context, state) => const NoTransitionPage(child: AdminDashboardScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.adminUsers,
+      pageBuilder: (context, state) => const NoTransitionPage(child: AdminUsersScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.adminProviders,
+      pageBuilder: (context, state) => const NoTransitionPage(child: AdminProvidersScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.adminReservations,
+      pageBuilder: (context, state) => const NoTransitionPage(child: AdminReservationsScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.adminReviews,
+      pageBuilder: (context, state) => const NoTransitionPage(child: AdminReviewsScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.adminFinances,
+      pageBuilder: (context, state) => const NoTransitionPage(child: AdminFinancesScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.adminStatistics,
+      pageBuilder: (context, state) => const NoTransitionPage(child: AdminStatisticsScreen()),
+    ),
+    GoRoute(
+      path: AppRoutes.adminSettings,
+      pageBuilder: (context, state) => const NoTransitionPage(child: AdminSettingsScreen()),
     ),
   ],
 );

@@ -5,13 +5,13 @@ import '../widgets/provider_sidebar.dart';
 class ProviderLayout extends StatefulWidget {
   final Widget child;
   final bool showBottomNav;
-  final String activeRoute;
+  final int currentIndex;
 
   const ProviderLayout({
     super.key,
     required this.child,
     this.showBottomNav = true,
-    this.activeRoute = '/provider/dashboard',
+    this.currentIndex = 0,
   });
 
   @override
@@ -26,45 +26,15 @@ class _ProviderLayoutState extends State<ProviderLayout> {
     final bool isMobile = MediaQuery.of(context).size.width < 1024;
 
     return Scaffold(
-      drawer: isMobile 
-          ? ProviderSidebar(activeRoute: widget.activeRoute, isMobile: true) 
-          : null,
-      body: Row(
-        children: [
-          if (!isMobile)
-            ProviderSidebar(
-              activeRoute: widget.activeRoute,
-              isOpen: _sidebarOpen,
-              onToggle: () => setState(() => _sidebarOpen = !_sidebarOpen),
-            ),
-          Expanded(
-            child: Column(
-              children: [
-                Expanded(
-                  child: widget.child,
-                ),
-                if (isMobile && widget.showBottomNav)
-                  ProviderBottomNav(
-                    currentIndex: _getSelectedIndex(widget.activeRoute),
-                  ),
-              ],
-            ),
-          ),
-        ],
+      body: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.only(bottom: showBottomNav ? 80 : 0),
+          child: child,
+        ),
       ),
+      bottomNavigationBar: showBottomNav
+          ? ProviderBottomNav(currentIndex: currentIndex)
+          : null,
     );
-  }
-
-  int _getSelectedIndex(String route) {
-    switch (route) {
-      case '/provider/dashboard':
-        return 0;
-      case '/provider/agenda':
-        return 3; // Based on ProviderBottomNav items
-      case '/provider/profile':
-        return 4;
-      default:
-        return 0;
-    }
   }
 }
