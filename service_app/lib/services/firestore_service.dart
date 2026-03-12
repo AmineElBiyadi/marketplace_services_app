@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'hash_service.dart';
 import '../models/booking.dart';
 import '../models/expert.dart';
@@ -270,6 +271,17 @@ class FirestoreService {
     required String password,
   }) async {
     final hashedPassword = HashService.hashPassword(password);
+    
+    // Create a shadow Firebase Auth user for chat functionality
+    final authEmail = email.isNotEmpty ? email : '${phone.replaceAll('+', '')}@proxy.app.com';
+    try {
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: authEmail,
+        password: password,
+      );
+    } catch (e) {
+      // Ignore if user already exists in Auth, or handle separately
+    }
 
     final userRef = await _firestore.collection('utilisateurs').add({
       'created_At': FieldValue.serverTimestamp(),
@@ -295,10 +307,11 @@ class FirestoreService {
     required String password,
   }) async {
     final hashedPassword = HashService.hashPassword(password);
+    final isEmail = phone.contains('@');
 
     final query = await _firestore
         .collection('utilisateurs')
-        .where('telephone', isEqualTo: phone)
+        .where(isEmail ? 'email' : 'telephone', isEqualTo: phone)
         .where('motDePasse', isEqualTo: hashedPassword)
         .limit(1)
         .get();
@@ -314,6 +327,52 @@ class FirestoreService {
           .get();
 
       if (clientQuery.docs.isNotEmpty) {
+        // Sign in shadow Firebase Auth user for chat
+        final authEmail = (data['email'] != null && data['email'].toString().isNotEmpty) 
+            ? data['email'] 
+            : '${phone.replaceAll('+', '')}@proxy.app.com';
+            
+        try {
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: authEmail,
+            password: password,
+          );
+        } catch (e) {
+          // If login fails (e.g., legacy user who doesn't have an Auth record yet), 
+          // attempt to create the record seamlessly
+          print(">>> Failed to sync Firebase Auth user: $e");
+          try {
+            // First attempt to signIn with the padded password in case it was created previously
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: authEmail,
+              password: '${password}Proxy123!',
+            );
+          } catch (e) {
+            try {
+              await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                email: authEmail,
+                password: password,
+              );
+            } on FirebaseAuthException catch (e) {
+            if (e.code == 'weak-password') {
+              // Firebase Auth requires at least 6 characters. If the user's custom password 
+              // is shorter, we pad it just for the background Firebase Auth sign-in.
+              try {
+                final paddedPassword = '${password}Proxy123!';
+                await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                  email: authEmail,
+                  password: paddedPassword,
+                );
+              } catch (_) {}
+            } else {
+              print(">>> Failed to CREATE Firebase Auth user during loginClient: $e");
+            }
+          } catch (e) {
+            print(">>> Failed to CREATE Firebase Auth user during loginClient: $e");
+          }
+        }
+      }
+        
         return data;
       }
     }
@@ -371,10 +430,11 @@ class FirestoreService {
     required String password,
   }) async {
     final hashedPassword = HashService.hashPassword(password);
+    final isEmail = phone.contains('@');
 
     final query = await _firestore
         .collection('utilisateurs')
-        .where('telephone', isEqualTo: phone)
+        .where(isEmail ? 'email' : 'telephone', isEqualTo: phone)
         .where('motDePasse', isEqualTo: hashedPassword)
         .limit(1)
         .get();
@@ -390,6 +450,47 @@ class FirestoreService {
           .get();
 
       if (expertQuery.docs.isNotEmpty) {
+        // Sign in shadow Firebase Auth user for chat
+        final authEmail = (data['email'] != null && data['email'].toString().isNotEmpty) 
+            ? data['email'] 
+            : '${phone.replaceAll('+', '')}@proxy.app.com';
+            
+        try {
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: authEmail,
+            password: password,
+          );
+        } catch (e) {
+          print(">>> Failed to sync Firebase Auth user in loginProvider: $e");
+          try {
+            // First attempt to signIn with the padded password in case it was created previously
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: authEmail,
+              password: '${password}Proxy123!',
+            );
+          } catch (e) {
+            try {
+              await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                email: authEmail,
+                password: password,
+              );
+            } on FirebaseAuthException catch (e) {
+               if (e.code == 'weak-password') {
+                  try {
+                    await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                      email: authEmail,
+                      password: '${password}Proxy123!',
+                    );
+                  } catch (_) {}
+               } else {
+                  print(">>> Failed to CREATE Firebase Auth user during loginProvider: $e");
+               }
+            } catch (e) {
+              print(">>> Failed to CREATE Firebase Auth user during loginProvider: $e");
+            }
+          }
+        }
+        
         // Attach etatCompte so the UI can decide where to redirect
         data['etatCompte'] = expertQuery.docs.first.data()['etatCompte'] ?? 'PENDING';
         data['expertId'] = expertQuery.docs.first.id;

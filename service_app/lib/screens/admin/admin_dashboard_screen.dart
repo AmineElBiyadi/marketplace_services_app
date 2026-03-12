@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
+import 'package:go_router/go_router.dart';
 import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
 
@@ -531,7 +532,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _textPrimary)),
               TextButton(
-                onPressed: () => Navigator.pushNamed(context, path),
+                onPressed: () => context.go(path),
                 child: const Text('Voir tout →', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _primary))
               ),
             ],
