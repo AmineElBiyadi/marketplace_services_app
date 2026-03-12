@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
+import '../screens/chat/chat_list_screen.dart';
+
+// ... (Widget definition remains the same)
 
 class ProviderSidebar extends StatefulWidget {
   final String activeRoute;
   final bool isMobile;
   final VoidCallback? onToggle;
   final bool isOpen;
+  final String expertId;
 
   const ProviderSidebar({
     super.key,
@@ -15,6 +19,7 @@ class ProviderSidebar extends StatefulWidget {
     this.isMobile = false,
     this.onToggle,
     this.isOpen = true,
+    required this.expertId,
   });
 
   @override
@@ -34,7 +39,7 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
       ),
       child: Column(
         children: [
-          // Logo Section
+          // ... (Logo Section remains the same)
           Container(
             height: 64,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -75,6 +80,7 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
               children: [
                 _sidebarItem(LucideIcons.home, 'Tableau de bord', '/provider/dashboard'),
                 _sidebarItem(LucideIcons.calendarDays, 'Mon Agenda', '/provider/agenda'),
+                _sidebarItem(LucideIcons.messageSquare, 'Messages', '/provider/messages'),
                 _sidebarItem(LucideIcons.user, 'Profil', '/provider/profile'),
                 _sidebarItem(LucideIcons.briefcase, 'Mes Services', '/provider/services'),
                 _sidebarItem(LucideIcons.clipboardList, 'Réservations', '/provider/bookings'),
@@ -84,6 +90,7 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
               ],
             ),
           ),
+          // ... (Logout remains the same)
 
           // Logout
           Container(
@@ -107,6 +114,18 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
           if (route == '/logout') {
             // Handle Logout
             context.go('/login');
+            return;
+          }
+          if (route == '/provider/messages') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ChatListScreen(
+                  currentUserRole: 'expert',
+                  expertId: widget.expertId,
+                ),
+              ),
+            );
             return;
           }
           if (widget.activeRoute != route) {
