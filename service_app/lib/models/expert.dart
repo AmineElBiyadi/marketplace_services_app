@@ -10,9 +10,9 @@ class ExpertModel {
   final bool casierJudiciaire;
   final String? carteNationale;
   final int profileViews;
-  
-  // Potential joined data
+
   final UserModel? user;
+  final GeoPoint? location;
 
   ExpertModel({
     this.id,
@@ -24,9 +24,11 @@ class ExpertModel {
     this.carteNationale,
     this.profileViews = 0,
     this.user,
+    this.location,
   });
 
-  factory ExpertModel.fromFirestore(DocumentSnapshot doc, {UserModel? user}) {
+  factory ExpertModel.fromFirestore(DocumentSnapshot doc,
+      {UserModel? user}) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return ExpertModel(
       id: doc.id,
@@ -54,7 +56,7 @@ class ExpertModel {
   }
 }
 
-/// Flat model used for listing/search results (built from joined Firestore data)
+/// Flat model used for listing/search results (built from joined Firestore data).
 class Expert {
   final String id;
   final String nom;
@@ -65,6 +67,13 @@ class Expert {
   final List<String> services;
   final String ville;
 
+  /// Prix minimum affiché (ex: champ [prixMin] dans Firestore ou calculé
+  /// depuis les tâches de l'expert). Null si non renseigné.
+  final double? prixMin;
+
+  /// Position GPS de l'expert (null si non renseignée).
+  final GeoPoint? location;
+
   Expert({
     required this.id,
     required this.nom,
@@ -74,6 +83,8 @@ class Expert {
     required this.isPremium,
     required this.services,
     required this.ville,
+    this.prixMin,
+    this.location,
   });
 
   factory Expert.fromFirestore(Map<String, dynamic> data, String id) {
@@ -86,6 +97,10 @@ class Expert {
       isPremium: data['isPremium'] ?? false,
       services: List<String>.from(data['services'] ?? []),
       ville: data['ville'] ?? '',
+      prixMin: data['prixMin'] != null
+          ? (data['prixMin'] as num).toDouble()
+          : null,
+      location: data['location'] as GeoPoint?,
     );
   }
 }
