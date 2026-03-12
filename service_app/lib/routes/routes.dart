@@ -18,6 +18,7 @@ import '../screens/admin/admin_settings_screen.dart';
 import '../screens/provider/provider_dashboard_screen.dart';
 import '../screens/provider/provider_reservations_screen.dart';
 import '../screens/provider/provider_services_screen.dart';
+import '../screens/provider/provider_agenda_screen.dart';
 import '../navigation/main_navigation.dart';
 
 // ─── Route name constants ──────────────────────────────────────────
@@ -118,6 +119,14 @@ final GoRouter router = GoRouter(
         final extra = state.extra as Map<String, dynamic>? ?? {};
         final expertId = extra['expertId'] as String? ?? '';
         return ProviderServicesScreen(expertId: expertId);
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.providerAgenda,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        final expertId = extra['expertId'] as String? ?? '';
+        return ProviderAgendaScreen(expertId: expertId);
       },
     ),
 

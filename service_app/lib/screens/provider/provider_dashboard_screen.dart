@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_colors.dart';
+import '../../routes/routes.dart';
 import '../../widgets/glass_container.dart';
 import '../../widgets/badges.dart';
 import '../../layouts/provider_layout.dart';
@@ -456,7 +457,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
 
   Widget _buildAgendaQuickAccess() {
     return GestureDetector(
-      onTap: () => context.push('/provider/agenda'),
+      onTap: () => context.push(AppRoutes.providerAgenda, extra: {'expertId': _expertId}),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
