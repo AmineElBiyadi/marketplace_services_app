@@ -50,7 +50,7 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Numéro de téléphone ou mot de passe incorrect.'),
+              content: Text('Identifiant ou mot de passe incorrect.'),
               backgroundColor: AppColors.destructive,
             ),
           );
@@ -136,10 +136,10 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
               ),
               const SizedBox(height: 32),
               CustomTextField(
-                hint: "Numéro de téléphone",
+                hint: "Email ou numéro de téléphone",
                 controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                prefix: Icon(Icons.phone, color: AppColors.textSecondary),
+                keyboardType: TextInputType.emailAddress,
+                prefix: Icon(Icons.person, color: AppColors.textSecondary),
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: 16),
