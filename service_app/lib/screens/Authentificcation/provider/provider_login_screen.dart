@@ -41,7 +41,7 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
           final etatCompte = user['etatCompte'] ?? 'PENDING';
           final expertId = user['expertId'] ?? '';
           if (etatCompte == 'ACTIVE') {
-            context.go('/provider/dashboard', extra: {'expertId': expertId});
+            context.go('/provider/$expertId/dashboard');
           } else {
             context.go('/provider/pending');
           }

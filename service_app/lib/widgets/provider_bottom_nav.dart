@@ -32,10 +32,10 @@ class ProviderBottomNav extends StatelessWidget {
         onTap: (index) {
           switch (index) {
             case 0:
-              context.go('/provider/dashboard');
+              context.go('/provider/$expertId/dashboard');
               break;
             case 1:
-              context.go('/provider/agenda');
+              context.go('/provider/$expertId/agenda');
               break;
             case 2:
               // Messages: push ChatListScreen for the expert
@@ -50,7 +50,7 @@ class ProviderBottomNav extends StatelessWidget {
               );
               break;
             case 3:
-              context.go('/provider/profile');
+              context.go('/provider/$expertId/profile');
               break;
           }
         },

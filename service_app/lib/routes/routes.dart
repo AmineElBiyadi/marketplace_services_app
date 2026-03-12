@@ -6,6 +6,7 @@ import '../screens/Authentificcation/client/otp_screen.dart' as client_otp;
 import '../screens/Authentificcation/provider/provider_login_screen.dart' as provider_login;
 import '../screens/Authentificcation/provider/provider_signup_screen.dart' as provider_signup;
 import '../screens/Authentificcation/provider/provider_pending_screen.dart' as provider_pending;
+import '../screens/Authentificcation/client/welcome_screen.dart';
 import '../screens/Authentificcation/admin/admin_login_screen.dart' as admin_login;
 import '../screens/admin/admin_dashboard_screen.dart';
 import '../screens/admin/admin_users_screen.dart';
@@ -30,15 +31,15 @@ class AppRoutes {
 
   static const String providerLogin = '/provider/login';
   static const String providerSignup = '/provider/signup';
-  static const String providerDashboard = '/provider/dashboard';
   static const String providerPending = '/provider/pending';
-  static const String providerBookings = '/provider/bookings';
-  static const String providerServices = '/provider/services';
-  static const String providerAgenda = '/provider/agenda';
-  static const String providerProfile = '/provider/profile';
-  static const String providerNotifications = '/provider/notifications';
-  static const String providerSubscription = '/provider/subscription';
-  static const String providerSettings = '/provider/settings';
+  static const String providerDashboard = '/provider/:expertId/dashboard';
+  static const String providerBookings = '/provider/:expertId/bookings';
+  static const String providerServices = '/provider/:expertId/services';
+  static const String providerAgenda = '/provider/:expertId/agenda';
+  static const String providerProfile = '/provider/:expertId/profile';
+  static const String providerNotifications = '/provider/:expertId/notifications';
+  static const String providerSubscription = '/provider/:expertId/subscription';
+  static const String providerSettings = '/provider/:expertId/settings';
 
   static const String adminLogin = '/admin/login';
   static const String adminDashboard = '/admin';
@@ -72,6 +73,10 @@ final GoRouter router = GoRouter(
       },
     ),
     GoRoute(
+      path: '/welcome',
+      builder: (context, state) => const WelcomeScreen(),
+    ),
+    GoRoute(
       path: AppRoutes.home,
       builder: (context, state) => const MainNavigation(),
     ),
@@ -99,25 +104,37 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: AppRoutes.providerDashboard,
       builder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>? ?? {};
-        final expertId = extra['expertId'] as String? ?? '';
+        final expertId = state.pathParameters['expertId'] ?? '';
         return ProviderDashboardScreen(expertId: expertId);
       },
     ),
     GoRoute(
       path: AppRoutes.providerBookings,
       builder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>? ?? {};
-        final expertId = extra['expertId'] as String? ?? '';
+        final expertId = state.pathParameters['expertId'] ?? '';
         return ProviderReservationsScreen(expertId: expertId);
       },
     ),
     GoRoute(
       path: AppRoutes.providerServices,
       builder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>? ?? {};
-        final expertId = extra['expertId'] as String? ?? '';
+        final expertId = state.pathParameters['expertId'] ?? '';
         return ProviderServicesScreen(expertId: expertId);
+      },
+    ),
+    // Additional Provider Routes (Agenda, Profile, etc.)
+    GoRoute(
+      path: AppRoutes.providerAgenda,
+      builder: (context, state) {
+        final expertId = state.pathParameters['expertId'] ?? '';
+        return ProviderDashboardScreen(expertId: expertId); // Fallback to dashboard for now
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.providerProfile,
+      builder: (context, state) {
+        final expertId = state.pathParameters['expertId'] ?? '';
+        return ProviderDashboardScreen(expertId: expertId); // Fallback
       },
     ),
 
