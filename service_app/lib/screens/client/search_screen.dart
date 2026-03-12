@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/expert.dart';
 import '../../services/firestore_service.dart';
-import 'expert_datails_screen.dart';
+import 'expert_details_screen.dart';
 
 // ─────────────────────────────────────────────
 //  CONSTANTES
@@ -47,7 +47,7 @@ class _FilterState {
 //  ÉCRAN PRINCIPAL
 // ─────────────────────────────────────────────
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({Key? key}) : super(key: key);
+  const SearchScreen({super.key});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
