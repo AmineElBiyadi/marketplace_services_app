@@ -10,14 +10,14 @@ import '../../widgets/common_widgets.dart';
 import '../../layouts/provider_layout.dart';
 
 const List<String> _categories = [
-  "Plomberie",
-  "Électricité",
-  "Ménage",
-  "Jardinage",
-  "Coiffure",
-  "Informatique",
-  "Peinture",
-  "Climatisation"
+  "Plumbing",
+  "Electricity",
+  "Cleaning",
+  "Gardening",
+  "Hairdressing",
+  "IT Support",
+  "Painting",
+  "Air Conditioning"
 ];
 
 class ProviderServicesScreen extends StatefulWidget {
@@ -33,28 +33,28 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   final List<Map<String, dynamic>> _services = [
     {
       "id": 1,
-      "title": "Réparation robinet",
-      "category": "Plomberie",
+      "title": "Faucet repair",
+      "category": "Plumbing",
       "price": "150 DH",
       "active": true
     },
     {
       "id": 2,
-      "title": "Installation chauffe-eau",
-      "category": "Plomberie",
-      "price": "À partir de 300 DH",
+      "title": "Water heater installation",
+      "category": "Plumbing",
+      "price": "From 300 DH",
       "active": true
     },
     {
       "id": 3,
-      "title": "Débouchage canalisation",
-      "category": "Plomberie",
-      "price": "Sur devis",
+      "title": "Drain unblocking",
+      "category": "Plumbing",
+      "price": "On quote",
       "active": false
     },
   ];
 
-  final String _pack = "Gratuit";
+  final String _pack = "Free";
   final int _maxServices = 5;
 
   void _toggleService(int id) {
@@ -93,7 +93,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                "Nouveau service",
+                "New service",
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -102,15 +102,15 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
               ),
               const SizedBox(height: 24),
               CustomTextField(
-                hint: "Titre du service",
+                hint: "Service title",
               ),
               const SizedBox(height: 16),
-              _buildDropdownField("Catégorie", _categories),
+              _buildDropdownField("Category", _categories),
               const SizedBox(height: 16),
               TextField(
                 maxLines: 3,
                 decoration: InputDecoration(
-                  hintText: "Description du service...",
+                  hintText: "Service description...",
                   filled: true,
                   fillColor: AppColors.cardBackground,
                   border: OutlineInputBorder(
@@ -125,24 +125,24 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                   Expanded(
                     flex: 2,
                     child: CustomTextField(
-                      hint: "Prix (DH)",
+                      hint: "Price (DH)",
                       keyboardType: TextInputType.number,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildDropdownField(
-                        "Type", ["Fixe", "À partir de", "Sur devis"]),
+                        "Type", ["Fixed", "Starting from", "On quote"]),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-              _buildDropdownField("Durée estimée", [
+              _buildDropdownField("Estimated duration", [
                 "30 min",
-                "1 heure",
-                "2 heures",
-                "Demi-journée",
-                "Journée complète"
+                "1 hour",
+                "2 hours",
+                "Half day",
+                "Full day"
               ]),
               const SizedBox(height: 16),
               GlassContainer(
@@ -158,7 +158,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "Ajouter des photos (max 5)",
+                      "Add photos (max 5)",
                       style: TextStyle(
                         fontSize: 14,
                         color: AppColors.textSecondary,
@@ -169,7 +169,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
               ),
               const SizedBox(height: 24),
               CustomButton(
-                text: "Enregistrer le service",
+                text: "Save service",
                 onPressed: () => Navigator.pop(context),
               ),
               const SizedBox(height: 24),
@@ -219,28 +219,55 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      "Mes Services",
+                    const Text(
+                      "My Services",
                       style: TextStyle(
                         fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF1E293B), // Dark blue/slate
                       ),
                     ),
-                    CustomButton(
-                      text: "Ajouter",
-                      icon: Icons.add,
-                      isCompact: true,
+                    ElevatedButton.icon(
                       onPressed: _showAddSheet,
+                      icon: const Icon(Icons.add, size: 20, color: Colors.white),
+                      label: const Text(
+                        "Add",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
                     ),
                   ],
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-                // Limit indicator
-                if (_pack == "Gratuit") ...[
-                  GlassContainer(
+                // Limit indicator / Usage Card
+                if (_pack == "Gratuit" || true) ...[ // Force display for demo/redesign
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 20,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -248,28 +275,28 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              "${_services.length}/$_maxServices services utilisés",
-                              style: TextStyle(
-                                fontSize: 14,
+                              "${_services.length}/$_maxServices services used",
+                              style: const TextStyle(
+                                fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                                color: Color(0xFF1E293B),
                               ),
                             ),
                             GestureDetector(
                               onTap: () =>
                                   context.push('/provider/subscription'),
-                              child: Row(
+                              child: const Row(
                                 children: [
                                   Icon(
-                                    Icons.star,
-                                    size: 14,
+                                    Icons.workspace_premium_rounded,
+                                    size: 18,
                                     color: AppColors.primary,
                                   ),
-                                  const SizedBox(width: 4),
+                                  SizedBox(width: 6),
                                   Text(
                                     "Upgrade",
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.bold,
                                       color: AppColors.primary,
                                     ),
@@ -279,21 +306,33 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: progress / 100,
-                            backgroundColor: AppColors.divider,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                                AppColors.primary),
-                            minHeight: 8,
-                          ),
+                        const SizedBox(height: 16),
+                        Stack(
+                          children: [
+                            Container(
+                              height: 10,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF1F5F9), // Very light gray/blue
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                            ),
+                            FractionallySizedBox(
+                              widthFactor: _services.length / _maxServices,
+                              child: Container(
+                                height: 10,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary,
+                                  borderRadius: BorderRadius.circular(5),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                 ],
 
                 // Service Cards
@@ -309,88 +348,130 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   }
 
   Widget _buildServiceCard(Map<String, dynamic> service) {
+    bool isActive = service["active"] ?? false;
+    
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: GlassContainer(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: Column(
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Icon/Image Container
                 Container(
-                  width: 64,
-                  height: 64,
+                  width: 70,
+                  height: 70,
                   decoration: BoxDecoration(
-                    color: AppColors.divider,
-                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFFEFF6FF), // Very light blue
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Icon(
-                    Icons.image,
-                    color: AppColors.textSecondary,
+                  child: const Icon(
+                    Icons.image_outlined,
+                    color: Color(0xFF3B82F6), // Blue 500
+                    size: 32,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 16),
+                // Text Content
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         service["title"],
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E293B),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 4),
                       Text(
                         service["category"],
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF64748B), // Slate/Gray
                         ),
                       ),
+                      const SizedBox(height: 8),
                       Text(
                         service["price"],
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF3B82F6),
                         ),
                       ),
                     ],
                   ),
                 ),
-                Switch(
-                  value: service["active"],
-                  onChanged: (_) => _toggleService(service["id"]),
-                  activeColor: AppColors.primary,
+                // Toggle Switch
+                Transform.scale(
+                  scale: 0.9,
+                  child: Switch(
+                    value: isActive,
+                    onChanged: (_) => _toggleService(service["id"]),
+                    activeColor: Colors.white,
+                    activeTrackColor: AppColors.primary,
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: Colors.grey.shade300,
+                  ),
                 ),
               ],
             ),
-            const Divider(height: 24),
+            const SizedBox(height: 16),
+            const Divider(height: 1, color: Color(0xFFF1F5F9)),
+            const SizedBox(height: 16),
+            // Footer: State Badge + Actions
             Row(
               children: [
-                StatusBadge(
-                  text: service["active"] ? "Actif" : "Inactif",
-                  type: service["active"] ? BadgeType.success : BadgeType.basic,
-                ),
-                const Spacer(),
-                IconButton(
-                  onPressed: () {},
-                  icon: Icon(
-                    Icons.edit,
-                    size: 20,
-                    color: AppColors.textSecondary,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isActive ? AppColors.primary : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    isActive ? "Active" : "Inactive",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: isActive ? Colors.white : Colors.grey.shade600,
+                    ),
                   ),
                 ),
-                IconButton(
-                  onPressed: () {},
-                  icon: Icon(
-                    Icons.delete,
-                    size: 20,
-                    color: Colors.red,
+                const Spacer(),
+                GestureDetector(
+                  onTap: () {},
+                  child: const Icon(
+                    Icons.edit_outlined,
+                    size: 22,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(width: 20),
+                GestureDetector(
+                  onTap: () {},
+                  child: const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 22,
+                    color: Colors.redAccent,
                   ),
                 ),
               ],

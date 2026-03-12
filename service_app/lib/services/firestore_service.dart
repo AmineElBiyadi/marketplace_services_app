@@ -116,7 +116,7 @@ class FirestoreService {
 
   Future<void> updateExpertAvailability(String expertId, bool isOnline) async {
     await _firestore.collection('experts').doc(expertId).update({
-      'etatCompte': isOnline ? 'ACTIVE' : 'DESACTIVE',
+      'estDisponible': isOnline,
     });
   }
 
@@ -420,6 +420,7 @@ class FirestoreService {
       'zoneTexte': zone,
       'categorie': category,
       'views': 0,
+      'estDisponible': true,
     });
   }
 
