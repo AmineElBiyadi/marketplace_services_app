@@ -5,12 +5,14 @@ class ProviderLayout extends StatelessWidget {
   final Widget child;
   final bool showBottomNav;
   final int currentIndex;
+  final String expertId;
 
   const ProviderLayout({
     super.key,
     required this.child,
     this.showBottomNav = true,
     this.currentIndex = 0,
+    required this.expertId,
   });
 
   @override
@@ -23,7 +25,10 @@ class ProviderLayout extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: showBottomNav
-          ? ProviderBottomNav(currentIndex: currentIndex)
+          ? ProviderBottomNav(
+              currentIndex: currentIndex,
+              expertId: expertId,
+            )
           : null,
     );
   }

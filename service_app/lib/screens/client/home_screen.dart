@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/expert.dart';
+import '../../models/chat_model.dart';
 import '../../services/firestore_service.dart';
+import '../../services/chat_service.dart';
 import '../../widgets/home/category_card.dart';
 import '../../widgets/home/nearby_provider_card.dart';
 import '../../widgets/home/top_rated_card.dart';
+import '../chat/chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -16,6 +19,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
+  final ChatService _chatService = ChatService();
   final TextEditingController _searchController = TextEditingController();
 
   List<Expert> _experts = [];
@@ -58,11 +62,13 @@ class _HomeScreenState extends State<HomeScreen> {
           .doc(user.uid)
           .get();
 
-      setState(() {
-        _clientNom = userDoc.data()?['nom'] ??
-            userDoc.data()?['email'] ??
-            'Client';
-      });
+      if (mounted) {
+        setState(() {
+          _clientNom = userDoc.data()?['nom'] ??
+              userDoc.data()?['email'] ??
+              'Client';
+        });
+      }
 
       // Récupérer ville du client
       final adresseSnapshot = await FirebaseFirestore.instance
@@ -74,10 +80,12 @@ class _HomeScreenState extends State<HomeScreen> {
         final adresse = adresseSnapshot.docs.first.data();
         final ville =
             '${adresse['Ville'] ?? ''}, ${adresse['Quartier'] ?? ''}';
-        setState(() {
-          _clientVille = ville;
-          _selectedVille = ville; // ville par défaut
-        });
+        if (mounted) {
+          setState(() {
+            _clientVille = ville;
+            _selectedVille = ville; // ville par défaut
+          });
+        }
       }
     }
 
@@ -85,12 +93,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final experts = await _firestoreService.getExperts();
     final villes = await _firestoreService.getVillesExperts();
 
-    setState(() {
-      _experts = experts;
-      _villesExperts = villes;
-      _filteredExperts = experts;
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _experts = experts;
+        _villesExperts = villes;
+        _filteredExperts = experts;
+        _isLoading = false;
+      });
+    }
 
     // Appliquer filtre ville par défaut
     _applyFilters();
@@ -128,6 +138,72 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedCategory = _selectedCategory == label ? null : label;
     });
     _applyFilters();
+  }
+
+  /// Opens (or creates) a chat with the given expert and navigates to ChatScreen
+  Future<void> _openChat(Expert expert) async {
+    print(">>> _openChat TAPPED for expert: ${expert.nom}");
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      print(">>> currentUser is NULL! Early return.");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez vous connecter pour chater')),
+      );
+      return;
+    }
+    print(">>> currentUser is: ${currentUser.uid}");
+
+    // Fetch current user's name for the snapshot
+    final userDoc = await FirebaseFirestore.instance
+        .collection('utilisateurs')
+        .doc(currentUser.uid)
+        .get();
+    final clientName = userDoc.data()?['nom'] ?? userDoc.data()?['email'] ?? '';
+    final clientPhoto = userDoc.data()?['image_profile'] ?? '';
+
+    try {
+      final chatId = await _chatService.createChat(
+        idClient:       currentUser.uid,
+        idExpert:       expert.id,
+        idIntervention: 'direct', // direct chat without a formal intervention
+        clientSnapshot: {'nom': clientName, 'photo': clientPhoto},
+        expertSnapshot: {'nom': expert.nom, 'photo': expert.photo},
+      );
+
+      // Build a local ChatModel to pass to ChatScreen
+      final now = Timestamp.now();
+      final chat = ChatModel(
+        chatId:          chatId,
+        idClient:        currentUser.uid,
+        idExpert:        expert.id,
+        idIntervention:  'direct',
+        estOuvert:       true,
+        nbMessagesNonLus: 0,
+        createdAt:       now,
+        updatedAt:       now,
+        clientSnapshot:  UserSnapshot(nom: clientName, photo: clientPhoto),
+        expertSnapshot:  UserSnapshot(nom: expert.nom, photo: expert.photo),
+      );
+
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            chat: chat,
+            currentUserRole: 'client',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Impossible d\'ouvrir le chat: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   // Afficher le dropdown des villes
@@ -444,7 +520,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           rating: expert.noteMoyenne,
                           imageUrl: expert.photo,
                           isPremium: expert.isPremium,
-                          onChat: () {},
+                          onChat: () => _openChat(expert),
                           onTap: () {},
                         );
                       },
