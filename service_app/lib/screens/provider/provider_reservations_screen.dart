@@ -69,7 +69,8 @@ final Map<String, Color> _statusColors = {
 };
 
 class ProviderReservationsScreen extends StatefulWidget {
-  const ProviderReservationsScreen({Key? key}) : super(key: key);
+  final String expertId;
+  const ProviderReservationsScreen({Key? key, required this.expertId}) : super(key: key);
 
   @override
   State<ProviderReservationsScreen> createState() =>
@@ -238,7 +239,8 @@ class _ProviderReservationsScreenState
   @override
   Widget build(BuildContext context) {
     return ProviderLayout(
-      currentIndex: 2,
+      activeRoute: '/provider/bookings',
+      expertId: widget.expertId,
       child: Column(
         children: [
           // Header
