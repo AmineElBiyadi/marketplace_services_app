@@ -565,42 +565,11 @@ class FirestoreService {
         .limit(1)
         .get();
 
-      if (clientQuery.docs.isNotEmpty) {
-        final authEmail = (data['email'] != null && data['email'].toString().isNotEmpty) 
-            ? data['email'] 
-            : '${phone.replaceAll('+', '')}@proxy.app.com';
-            
-        try {
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
-            email: authEmail,
-            password: password,
-          );
-        } catch (_) {
-          try {
-            await FirebaseAuth.instance.signInWithEmailAndPassword(
-              email: authEmail,
-              password: '${password}Proxy123!',
-            );
-          } catch (_) {
-            try {
-              await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                email: authEmail,
-                password: password,
-              );
-            } catch (_) {
-              try {
-                await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                  email: authEmail,
-                  password: '${password}Proxy123!',
-                );
-              } catch (_) {}
-            }
-          }
-        }
-        return data;
-      }
-    }
-    return null;
+    if (clientQuery.docs.isEmpty) return null;
+
+    final data = userDoc.data()!;
+    data['id'] = uid;
+    return data;
   }
 
   // ─── Provider Services & Tasks ─────────────────────────────
@@ -1063,45 +1032,13 @@ class FirestoreService {
         .limit(1)
         .get();
 
-      if (expertQuery.docs.isNotEmpty) {
-        final authEmail = (data['email'] != null && data['email'].toString().isNotEmpty) 
-            ? data['email'] 
-            : '${phone.replaceAll('+', '')}@proxy.app.com';
-            
-        try {
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
-            email: authEmail,
-            password: password,
-          );
-        } catch (_) {
-          try {
-            await FirebaseAuth.instance.signInWithEmailAndPassword(
-              email: authEmail,
-              password: '${password}Proxy123!',
-            );
-          } catch (_) {
-            try {
-              await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                email: authEmail,
-                password: password,
-              );
-            } catch (_) {
-              try {
-                await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                  email: authEmail,
-                  password: '${password}Proxy123!',
-                );
-              } catch (_) {}
-            }
-          }
-        }
-        
-        data['etatCompte'] = expertQuery.docs.first.data()['etatCompte'] ?? 'PENDING';
-        data['expertId'] = expertQuery.docs.first.id;
-        return data;
-      }
-    }
-    return null;
+    if (expertQuery.docs.isEmpty) return null;
+
+    final data = userDoc.data()!;
+    data['id'] = uid;
+    data['etatCompte'] = expertQuery.docs.first.data()['etatCompte'] ?? 'PENDING';
+    data['expertId'] = expertQuery.docs.first.id;
+    return data;
   }
 
   // ─── Admins ────────────────────────────────────────────────
