@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_colors.dart';
 import '../../routes/routes.dart';
@@ -20,7 +21,7 @@ class ProviderDashboardScreen extends StatefulWidget {
 
 class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   final FirestoreService _firestoreService = FirestoreService();
-  String get _expertId => widget.expertId;
+  String? _resolvedExpertId;
 
   bool _isOnline = true;
   String _pack = "Gratuit";
@@ -29,24 +30,51 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadExpertData();
+    _resolveSession();
+  }
+
+  Future<void> _resolveSession() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null && currentUser.email != null) {
+      try {
+        final expertId = await _firestoreService.getExpertIdByEmail(currentUser.email!);
+        if (expertId != null) {
+          if (mounted) {
+            setState(() => _resolvedExpertId = expertId);
+            _loadExpertData();
+          }
+          return;
+        }
+      } catch (_) {}
+    }
+    if (mounted) {
+      setState(() => _resolvedExpertId = widget.expertId);
+      _loadExpertData();
+    }
   }
 
   void _loadExpertData() async {
-    final expert = await _firestoreService.getExpertProfile(_expertId);
+    if (_resolvedExpertId == null) return;
+    final expert = await _firestoreService.getExpertProfile(_resolvedExpertId!);
     if (expert != null) {
-      setState(() {
-        _isOnline = expert.etatCompte == 'ACTIVE';
-        _expertName = expert.user?.email.split('@')[0] ?? "Expert"; // Fallback name
-      });
+      if (mounted) {
+        setState(() {
+          _isOnline = expert.etatCompte == 'ACTIVE';
+          _expertName = expert.user?.nom ?? expert.user?.email.split('@')[0] ?? "Expert";
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_resolvedExpertId == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.primary)));
+    }
+
     return ProviderLayout(
       activeRoute: '/provider/dashboard',
-      expertId: _expertId,
+      expertId: _resolvedExpertId!,
       child: CustomScrollView(
         slivers: [
           // Header
@@ -151,7 +179,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         ),
                         const SizedBox(width: 12),
                         GestureDetector(
-                          onTap: () => context.push('/provider/subscription'),
+                          onTap: () => context.push(AppRoutes.providerSubscription.replaceAll(':expertId', _resolvedExpertId!)),
                           child: const Text(
                             "Upgrade",
                             style: TextStyle(
@@ -179,7 +207,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
 
   Widget _buildNotificationIcon() {
     return GestureDetector(
-      onTap: () => context.push('/provider/notifications'),
+      onTap: () => context.push(AppRoutes.providerNotifications.replaceAll(':expertId', _resolvedExpertId!)),
       child: Stack(
         children: [
           Container(
@@ -243,7 +271,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             value: _isOnline,
             onChanged: (v) async {
               setState(() => _isOnline = v);
-              await _firestoreService.updateExpertAvailability(_expertId, v);
+              await _firestoreService.updateExpertAvailability(_resolvedExpertId!, v);
             },
             activeColor: Colors.white,
             activeTrackColor: const Color(0xFF1E293B).withOpacity(0.5),
@@ -256,7 +284,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
 
   Widget _buildKPISection() {
     return FutureBuilder<Map<String, dynamic>>(
-      future: _firestoreService.getExpertKPIs(_expertId),
+      future: _firestoreService.getExpertKPIs(_resolvedExpertId!),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -409,7 +437,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         ),
         const SizedBox(height: 16),
         StreamBuilder<List<InterventionModel>>(
-          stream: _firestoreService.getPendingInterventions(_expertId),
+          stream: _firestoreService.getPendingInterventions(_resolvedExpertId!),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return Container(
@@ -457,7 +485,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
 
   Widget _buildAgendaQuickAccess() {
     return GestureDetector(
-      onTap: () => context.push(AppRoutes.providerAgenda, extra: {'expertId': _expertId}),
+      onTap: () => context.push(AppRoutes.providerAgenda.replaceAll(':expertId', _resolvedExpertId!)),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -526,7 +554,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         ),
         const SizedBox(height: 16),
         StreamBuilder<List<InterventionModel>>(
-          stream: _firestoreService.getUpcomingInterventions(_expertId),
+          stream: _firestoreService.getUpcomingInterventions(_resolvedExpertId!),
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return Container(
