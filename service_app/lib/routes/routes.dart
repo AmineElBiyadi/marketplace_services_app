@@ -24,6 +24,7 @@ import '../screens/splash_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import '../screens/chat/chat_list_screen.dart';
 
 // ─── Route name constants ──────────────────────────────────────────
 class AppRoutes {
@@ -44,6 +45,7 @@ class AppRoutes {
   static const String providerNotifications = '/provider/:expertId/notifications';
   static const String providerSubscription = '/provider/:expertId/subscription';
   static const String providerSettings = '/provider/:expertId/settings';
+  static const String providerMessages = '/provider/:expertId/messages';
 
   static const String adminLogin = '/admin/login';
   static const String adminDashboard = '/admin';
@@ -179,6 +181,13 @@ final GoRouter router = GoRouter(
       builder: (context, state) {
         final expertId = state.pathParameters['expertId'] ?? '';
         return ProviderDashboardScreen(expertId: expertId); // Fallback
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.providerMessages,
+      builder: (context, state) {
+        final expertId = state.pathParameters['expertId'] ?? '';
+        return ChatListScreen(currentUserRole: 'expert', expertId: expertId);
       },
     ),
 
