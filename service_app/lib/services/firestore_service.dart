@@ -191,6 +191,7 @@ class FirestoreService {
           isPremium: isPremium,
           services: services,
           ville: ville,
+          location: expertData['location'] as GeoPoint?,
         ));
       }
 

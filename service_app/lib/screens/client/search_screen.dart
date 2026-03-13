@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/expert.dart';
 import '../../services/firestore_service.dart';
+import '../../services/location_service.dart';
+import 'package:geolocator/geolocator.dart';
 import 'expert_details_screen.dart';
 
 // ─────────────────────────────────────────────
@@ -55,11 +57,13 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final FirestoreService _firestoreService = FirestoreService();
+  final LocationService _locationService = LocationService();
   final TextEditingController _searchController = TextEditingController();
 
   List<Expert> _allExperts = [];
   List<Expert> _filteredExperts = [];
   List<String> _villesExperts = [];
+  Position? _userPosition;
   bool _isLoading = true;
   _FilterState _filters = _FilterState();
 
@@ -96,10 +100,12 @@ class _SearchScreenState extends State<SearchScreen> {
 
     final experts = await _firestoreService.getExperts();
     final villes = await _firestoreService.getVillesExperts();
+    final position = await _locationService.getCurrentPosition();
 
     setState(() {
       _allExperts = experts;
       _villesExperts = villes;
+      _userPosition = position;
       _isLoading = false;
     });
 
@@ -130,6 +136,18 @@ class _SearchScreenState extends State<SearchScreen> {
         result.sort((a, b) => b.noteMoyenne.compareTo(a.noteMoyenne));
         break;
       case SortOption.nearest:
+        if (_userPosition != null) {
+          result.sort((a, b) {
+            final da = _locationService.distanceFromGeoPoint(
+                userPosition: _userPosition, expertGeoPoint: a.location);
+            final db = _locationService.distanceFromGeoPoint(
+                userPosition: _userPosition, expertGeoPoint: b.location);
+            if (da == null && db == null) return 0;
+            if (da == null) return 1;
+            if (db == null) return -1;
+            return da.compareTo(db);
+          });
+        }
         break;
       case SortOption.pertinence:
         break;
@@ -422,8 +440,8 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                       _ExpertCard(
                         expert: expert,
-                        searchQuery:
-                        _searchController.text,
+                        searchQuery: _searchController.text,
+                        userPosition: _userPosition,
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -531,8 +549,15 @@ class _SectionLabel extends StatelessWidget {
 class _ExpertCard extends StatelessWidget {
   final Expert expert;
   final String searchQuery;
+  final Position? userPosition;
 
-  const _ExpertCard({required this.expert, required this.searchQuery});
+  const _ExpertCard({
+    required this.expert,
+    required this.searchQuery,
+    this.userPosition,
+  });
+
+  static final LocationService _locationService = LocationService();
 
   @override
   Widget build(BuildContext context) {
@@ -692,6 +717,19 @@ class _ExpertCard extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            if (userPosition != null && expert.location != null) ...[
+                              const SizedBox(width: 8),
+                              const Icon(Icons.near_me, size: 12, color: _kAccent),
+                              const SizedBox(width: 2),
+                              Text(
+                                '${_locationService.distanceFromGeoPoint(userPosition: userPosition, expertGeoPoint: expert.location)?.toStringAsFixed(1) ?? '??'} km',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: _kAccent,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                         if (expert.prixMin != null) ...[
