@@ -6,6 +6,7 @@ import '../../../theme/app_colors.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class OTPScreen extends StatefulWidget {
@@ -109,12 +110,14 @@ class _OTPScreenState extends State<OTPScreen> {
 
     try {
       if (role == 'client') {
-        await _firestoreService.registerClient(
+        final uid = await _firestoreService.registerClient(
           name: widget.extraData!['name'],
           phone: widget.extraData!['phone'],
           email: widget.extraData!['email'],
           password: widget.extraData!['password'],
         );
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('logged_client_id', uid);
         if (mounted) context.go('/home');
       } else if (role == 'provider') {
         await _firestoreService.registerProvider(

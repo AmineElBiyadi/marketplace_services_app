@@ -9,6 +9,7 @@ import '../../widgets/home/category_card.dart';
 import '../../widgets/home/nearby_provider_card.dart';
 import '../../widgets/home/top_rated_card.dart';
 import 'expert_details_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -49,51 +50,43 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isLoading = true);
 
     // 1. Nom du client connecté
-    final user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      try {
-        // First try by UID (standard Firebase Auth practice)
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final customId = prefs.getString('logged_client_id');
+      final authUser = FirebaseAuth.instance.currentUser;
+      
+      // Focus on the customId first because the app uses custom Firestore-based auth
+      final searchUid = customId ?? authUser?.uid;
+      
+      debugPrint('Fetching name for searchUid: $searchUid (customId: $customId, authUser: ${authUser?.uid})');
+
+      if (searchUid != null) {
+        // Try direct fetch by ID first (works if customId is the doc ID)
         final userDoc = await FirebaseFirestore.instance
             .collection('utilisateurs')
-            .doc(user.uid)
+            .doc(searchUid)
             .get();
         
         if (userDoc.exists && userDoc.data()?['nom'] != null) {
-          setState(() {
-            _clientNom = userDoc.data()!['nom'];
-          });
+          if (mounted) setState(() => _clientNom = userDoc.data()!['nom']);
         } else {
-          // Fallback: Search by phone or email since doc ID might be random from manual registration
-          if (user.phoneNumber != null && user.phoneNumber!.isNotEmpty) {
-            final query = await FirebaseFirestore.instance
-                .collection('utilisateurs')
-                .where('telephone', isEqualTo: user.phoneNumber)
-                .limit(1)
-                .get();
-                
-            if (query.docs.isNotEmpty) {
-              setState(() {
-                _clientNom = query.docs.first.data()['nom'] ?? '';
-              });
-            }
-          }
-          
-          if (_clientNom.isEmpty && user.email != null && user.email!.isNotEmpty) {
-            final queryEmail = await FirebaseFirestore.instance
-                .collection('utilisateurs')
-                .where('email', isEqualTo: user.email)
-                .limit(1)
-                .get();
-            if (queryEmail.docs.isNotEmpty) {
-              setState(() {
-                _clientNom = queryEmail.docs.first.data()['nom'] ?? '';
-              });
+          // Fallback: search by current auth user details if they exist
+          if (authUser != null) {
+            if (authUser.email != null) {
+              final qEmail = await FirebaseFirestore.instance
+                  .collection('utilisateurs')
+                  .where('email', isEqualTo: authUser.email)
+                  .limit(1)
+                  .get();
+              if (qEmail.docs.isNotEmpty) {
+                 if (mounted) setState(() => _clientNom = qEmail.docs.first.data()['nom'] ?? '');
+              }
             }
           }
         }
-      } catch (e) {
-        debugPrint('Error fetching user name: $e');
       }
+    } catch (e) {
+      debugPrint('Error loading user data: $e');
     }
 
     // 2. Position GPS (optionnel — ne bloque pas le chargement)
@@ -169,78 +162,34 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   // ── HEADER ──
                   Container(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(24, 40, 24, 60), // Restored large padding
                     decoration: const BoxDecoration(
                       color: Color(0xFF4A69B1),
                       borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(32),
-                        bottomRight: Radius.circular(32),
+                        bottomLeft: Radius.circular(36),
+                        bottomRight: Radius.circular(36),
                       ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Hi ${_clientNom.isNotEmpty ? _clientNom : 'Client'},',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 26,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'What service are you looking for?',
-                                    style: TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w400,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.notifications_none, color: Colors.white, size: 26),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 30),
-                        // Search Bar
-                        Container(
-                          height: 60,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFC5D1E8).withValues(alpha: 0.8),
-                            borderRadius: BorderRadius.circular(18),
+                        Text(
+                          'Hi ${_clientNom.isNotEmpty ? _clientNom : 'Client'},',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
                           ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.search, color: Color(0xFF4A69B1), size: 26),
-                              SizedBox(width: 14),
-                              Expanded(
-                                child: TextField(
-                                  decoration: InputDecoration(
-                                    hintText: 'Search here',
-                                    border: InputBorder.none,
-                                    hintStyle: TextStyle(color: Color(0xFF4A69B1), fontWeight: FontWeight.w400),
-                                  ),
-                                ),
-                              ),
-                            ],
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'What service are you looking for?',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ],
