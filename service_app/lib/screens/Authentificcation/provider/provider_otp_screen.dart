@@ -56,8 +56,7 @@ class _ProviderOTPScreenState extends State<ProviderOTPScreen> {
         name: widget.extraData!['name'],
         phone: widget.extraData!['phone'],
         email: widget.extraData!['email'],
-        password: widget.extraData!['password'],
-        category: widget.extraData!['category'],
+        serviceIds: List<String>.from(widget.extraData!['serviceIds'] ?? []),
         description: widget.extraData!['description'],
         zone: widget.extraData!['zone'],
         cinFrontBase64: widget.extraData!['cinFront'],
@@ -82,7 +81,7 @@ class _ProviderOTPScreenState extends State<ProviderOTPScreen> {
   Future<void> _verifyOTP() async {
     setState(() => _isLoading = true);
     try {
-      await _authService.signInWithPhone(
+      await _authService.linkPhoneCredential(
         verificationId: widget.extraData!['verificationId'],
         smsCode: _otp,
       );

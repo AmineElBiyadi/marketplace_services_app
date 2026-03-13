@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../theme/app_colors.dart';
-import '../../../widgets/custom_button.dart';
-import '../../../widgets/custom_text_field.dart';
+import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
-
+import '../../../utils/auth_errors.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProviderLoginScreen extends StatefulWidget {
   const ProviderLoginScreen({super.key});
@@ -14,32 +13,55 @@ class ProviderLoginScreen extends StatefulWidget {
 }
 
 class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
-  final _phoneController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
   final _firestoreService = FirestoreService();
   bool _showPassword = false;
   bool _isLoading = false;
 
-
   bool get _isValid =>
-      _phoneController.text.isNotEmpty &&
+      _identifierController.text.isNotEmpty &&
       _passwordController.text.isNotEmpty;
+
+  @override
+  void dispose() {
+    _identifierController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleLogin() async {
     if (!_isValid) return;
-
     setState(() => _isLoading = true);
-
     try {
-      final user = await _firestoreService.loginProvider(
-        phone: _phoneController.text.trim(),
-        password: _passwordController.text,
-      );
+      final identifier = _identifierController.text.trim();
+      final password = _passwordController.text;
+      final isEmail = identifier.contains('@');
+
+      if (isEmail) {
+        await _authService.signInWithEmail(email: identifier, password: password);
+      } else {
+        String normalized = identifier;
+        if (!normalized.startsWith('+')) {
+          if (normalized.startsWith('0')) {
+            normalized = '+212${normalized.substring(1)}';
+          } else {
+            normalized = '+$normalized';
+          }
+        }
+        await _authService.signInWithPhoneProxy(phone: normalized, password: password);
+      }
+
+      final uid = _authService.currentUser!.uid;
+      final user = await _firestoreService.getProviderByUid(uid);
 
       if (user != null) {
+        final expertId = user['expertId'] ?? '';
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('logged_expert_id', expertId);
         if (mounted) {
           final etatCompte = user['etatCompte'] ?? 'PENDING';
-          final expertId = user['expertId'] ?? '';
           if (etatCompte == 'ACTIVE') {
             context.go('/provider/$expertId/dashboard');
           } else {
@@ -47,23 +69,21 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
           }
         }
       } else {
+        // Signed in but not a provider — sign out and show error
+        await _authService.signOut();
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Identifiant ou mot de passe incorrect.'),
-              backgroundColor: AppColors.destructive,
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Identifiant ou mot de passe incorrect.'),
+            backgroundColor: Color(0xFFEF4444),
+          ));
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: ${e.toString()}'),
-            backgroundColor: AppColors.destructive,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(friendlyAuthError(e)),
+          backgroundColor: const Color(0xFFEF4444),
+        ));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -73,139 +93,201 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 12),
+              // ── Back ──
               IconButton(
-                onPressed: () {
-                  if (context.canPop()) {
-                    context.pop();
-                  } else {
-                    context.pushReplacement('/login');
-                  }
-                },
-                icon: const Icon(Icons.arrow_back),
-                color: AppColors.textPrimary,
+                onPressed: () => context.canPop()
+                    ? context.pop()
+                    : context.go('/welcome'),
+                icon: const Icon(Icons.arrow_back,
+                    color: Color(0xFF1A237E), size: 24),
+                padding: EdgeInsets.zero,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+
+              // ── Illustration ──
               Center(
                 child: Container(
-                  width: 112,
-                  height: 112,
+                  width: 80,
+                  height: 80,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(28),
+                    color: const Color(0xFFEEF2FF),
+                    borderRadius: BorderRadius.circular(40),
                   ),
-                  child: Icon(
-                    Icons.construction,
-                    size: 56,
-                    color: AppColors.primary,
-                  ),
+                  child: const Icon(Icons.home_repair_service_rounded,
+                      size: 42, color: Color(0xFF2B4B9B)),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
+
+              // ── Heading ──
               Row(
-                children: [
+                children: const [
                   Text(
-                    "Espace Prestataire",
+                    'Espace Prestataire ',
                     style: TextStyle(
-                      fontSize: 28,
+                      fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                      color: Color(0xFF1A237E),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.build,
-                    color: AppColors.primary,
-                    size: 24,
-                  ),
+                  Text('🔧', style: TextStyle(fontSize: 20)),
                 ],
               ),
               const SizedBox(height: 4),
-              Text(
-                "Connectez-vous à votre compte pro",
-                style: TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                ),
+              const Text(
+                'Connectez-vous à votre compte pro',
+                style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
               ),
-              const SizedBox(height: 32),
-              CustomTextField(
-                hint: "Email ou numéro de téléphone",
-                controller: _phoneController,
+              const SizedBox(height: 28),
+
+              // ── Identifier field ──
+              _field(
+                _identifierController,
+                'Email ou numéro de téléphone',
+                icon: Icons.person_outline,
                 keyboardType: TextInputType.emailAddress,
-                prefix: Icon(Icons.person, color: AppColors.textSecondary),
-                onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: 16),
-              CustomTextField(
-                hint: "Mot de passe",
-                controller: _passwordController,
-                obscureText: !_showPassword,
-                prefix: Icon(Icons.lock, color: AppColors.textSecondary),
+              const SizedBox(height: 14),
+
+              // ── Password field ──
+              _field(
+                _passwordController,
+                'Mot de passe',
+                icon: Icons.lock_outline,
+                obscure: !_showPassword,
                 suffix: IconButton(
+                  icon: Icon(
+                    _showPassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: const Color(0xFF94A3B8),
+                    size: 20,
+                  ),
                   onPressed: () =>
                       setState(() => _showPassword = !_showPassword),
-                  icon: Icon(
-                    _showPassword ? Icons.visibility_off : Icons.visibility,
-                    color: AppColors.textSecondary,
-                  ),
                 ),
-                onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
+
+              // ── Forgot password ──
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => context.push('/forgot-password'),
-                  child: Text(
-                    "Mot de passe oublié ?",
+                child: GestureDetector(
+                  onTap: () => context.go('/forgot-password'),
+                  child: const Text(
+                    'Mot de passe oublié ?',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
+                      color: Color(0xFF3F64B5),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
-              CustomButton(
-                text: _isLoading ? "Connexion en cours..." : "Se connecter",
-                onPressed: _isValid && !_isLoading ? _handleLogin : null,
-                disabled: !_isValid || _isLoading,
-                isLoading: _isLoading,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Pas encore de compte ? ",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
+              const SizedBox(height: 20),
+
+              // ── Login button ──
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: _isValid && !_isLoading ? _handleLogin : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isValid
+                        ? const Color(0xFF3F64B5)
+                        : const Color(0xFF94A3B8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30)),
+                    elevation: 0,
                   ),
-                  TextButton(
-                    onPressed: () => context.push('/provider/signup'),
-                    child: Text(
-                      "S'inscrire",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.5))
+                      : const Text('Se connecter',
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white)),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ── Signup link ──
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Pas encore de compte ? ",
+                        style: TextStyle(
+                            fontSize: 14, color: Color(0xFF64748B))),
+                    GestureDetector(
+                      onTap: () => context.go('/provider/signup'),
+                      child: const Text(
+                        "S'inscrire",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF3F64B5),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(height: 24),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _field(
+    TextEditingController controller,
+    String hint, {
+    IconData? icon,
+    TextInputType keyboardType = TextInputType.text,
+    bool obscure = false,
+    Widget? suffix,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: obscure,
+      onChanged: (_) => setState(() {}),
+      style: const TextStyle(fontSize: 15, color: Color(0xFF1A237E)),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle:
+            const TextStyle(fontSize: 14, color: Color(0xFFADB5C7)),
+        prefixIcon: icon != null
+            ? Icon(icon, color: const Color(0xFFADB5C7), size: 20)
+            : null,
+        suffixIcon: suffix,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide:
+              const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide:
+              const BorderSide(color: Color(0xFF3F64B5), width: 1.6),
         ),
       ),
     );

@@ -10,7 +10,7 @@ class NearbyProviderCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const NearbyProviderCard({
-    Key? key,
+    super.key,
     required this.name,
     required this.service,
     required this.rating,
@@ -18,23 +18,24 @@ class NearbyProviderCard extends StatelessWidget {
     required this.imageUrl,
     required this.onTap,
     this.isPremium = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 150,
-        margin: const EdgeInsets.only(right: 12),
+        width: 180,
+        margin: const EdgeInsets.only(right: 16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.shade200,
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 15,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -46,36 +47,54 @@ class NearbyProviderCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
+                    top: Radius.circular(20),
                   ),
                   child: Image.network(
                     imageUrl,
-                    height: 100,
+                    height: 120,
                     width: double.infinity,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) => Container(
-                      height: 100,
-                      color: Colors.grey.shade100,
-                      child: const Icon(Icons.person, size: 40),
+                      height: 120,
+                      color: const Color(0xFFF0F4F8),
+                      child: const Icon(Icons.person, size: 50, color: Colors.grey),
                     ),
                   ),
                 ),
                 if (isPremium)
                   Positioned(
-                    top: 8,
-                    right: 8,
+                    top: 10,
+                    right: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
+                        horizontal: 10,
+                        vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.amber,
-                        borderRadius: BorderRadius.circular(8),
+                        color: const Color(0xFFFFD700).withValues(alpha: 0.9),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      child: const Text(
-                        '👑 Premium',
-                        style: TextStyle(fontSize: 10),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.workspace_premium, size: 12, color: Colors.black87),
+                          SizedBox(width: 4),
+                          Text(
+                            'Premium',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -83,37 +102,46 @@ class NearbyProviderCard extends StatelessWidget {
             ),
             // Infos
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                      fontSize: 15,
+                      color: Colors.black87,
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     service,
                     style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 11,
+                      color: Colors.grey.shade500,
+                      fontSize: 12,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 14),
+                      const Icon(Icons.star, color: Colors.amber, size: 16),
+                      const SizedBox(width: 2),
                       Text(
-                        rating.toString(),
-                        style: const TextStyle(fontSize: 11),
+                        rating.toStringAsFixed(1),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
                       ),
                       const Spacer(),
                       Text(
                         '${distance.toStringAsFixed(1)} km',
                         style: TextStyle(
-                          color: Colors.grey.shade600,
+                          color: Colors.grey.shade500,
                           fontSize: 11,
                         ),
                       ),
