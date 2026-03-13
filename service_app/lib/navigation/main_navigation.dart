@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../screens/client/home_screen.dart';
 import '../screens/client/search_screen.dart';
 import '../screens/client/bookings_screen.dart';
+import '../screens/client/profile_screen.dart';
 import '../screens/chat/chat_list_screen.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -19,6 +20,7 @@ class _MainNavigationState extends State<MainNavigation> {
     const SearchScreen(),
     const ChatListScreen(currentUserRole: 'client'),
     const BookingsScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -51,6 +53,11 @@ class _MainNavigationState extends State<MainNavigation> {
             icon: Icon(Icons.calendar_today_outlined),
             activeIcon: Icon(Icons.calendar_today),
             label: 'Bookings',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),
