@@ -1,29 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
+import '../theme/app_colors.dart';
+import '../screens/chat/chat_list_screen.dart';
 
-class AdminSidebar extends StatefulWidget {
+// ... (Widget definition remains the same)
+
+class ProviderSidebar extends StatefulWidget {
   final String activeRoute;
   final bool isMobile;
   final VoidCallback? onToggle;
   final bool isOpen;
+  final String expertId;
 
-  const AdminSidebar({
+  const ProviderSidebar({
     super.key,
     required this.activeRoute,
     this.isMobile = false,
     this.onToggle,
     this.isOpen = true,
+    required this.expertId,
   });
 
   @override
-  State<AdminSidebar> createState() => _AdminSidebarState();
+  State<ProviderSidebar> createState() => _ProviderSidebarState();
 }
 
-class _AdminSidebarState extends State<AdminSidebar> {
-  static const Color _primary = Color(0xFF3D5A99);
-  static const Color _textPrimary = Color(0xFF0F172A);
-
+class _ProviderSidebarState extends State<ProviderSidebar> {
   @override
   Widget build(BuildContext context) {
     final double width = widget.isOpen || widget.isMobile ? 260 : 80;
@@ -31,12 +34,12 @@ class _AdminSidebarState extends State<AdminSidebar> {
     return Container(
       width: width,
       decoration: const BoxDecoration(
-        color: _textPrimary,
+        color: AppColors.primary,
         border: Border(right: BorderSide(color: Colors.white10)),
       ),
       child: Column(
         children: [
-          // Logo Section
+          // ... (Logo Section remains the same)
           Container(
             height: 64,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -49,10 +52,10 @@ class _AdminSidebarState extends State<AdminSidebar> {
                 if (widget.isMobile || widget.isOpen)
                   const Row(
                     children: [
-                      Icon(LucideIcons.shield, color: _primary, size: 28),
+                      Icon(LucideIcons.users, color: Colors.white, size: 28),
                       SizedBox(width: 8),
                       Text(
-                        'Admin',
+                        'Expert',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,
@@ -75,17 +78,19 @@ class _AdminSidebarState extends State<AdminSidebar> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
               children: [
-                _sidebarItem(LucideIcons.home, 'Tableau de bord', '/admin'),
-                _sidebarItem(LucideIcons.users, 'Utilisateurs', '/admin/users'),
-                _sidebarItem(LucideIcons.wrench, 'Prestataires', '/admin/providers'),
-                _sidebarItem(LucideIcons.calendarDays, 'Réservations', '/admin/reservations'),
-                _sidebarItem(LucideIcons.star, 'Avis & Réclamations', '/admin/reviews'),
-                _sidebarItem(LucideIcons.dollarSign, 'Finances', '/admin/finances'),
-                _sidebarItem(LucideIcons.barChart3, 'Statistiques', '/admin/statistics'),
-                _sidebarItem(LucideIcons.settings, 'Paramètres', '/admin/settings'),
+                _sidebarItem(LucideIcons.home, 'Tableau de bord', '/provider/:expertId/dashboard'),
+                _sidebarItem(LucideIcons.calendarDays, 'Mon Agenda', '/provider/:expertId/agenda'),
+                _sidebarItem(LucideIcons.messageSquare, 'Messages', '/provider/messages'),
+                _sidebarItem(LucideIcons.user, 'Profil', '/provider/:expertId/profile'),
+                _sidebarItem(LucideIcons.briefcase, 'Mes Services', '/provider/:expertId/services'),
+                _sidebarItem(LucideIcons.clipboardList, 'Réservations', '/provider/:expertId/bookings'),
+                _sidebarItem(LucideIcons.bell, 'Notifications', '/provider/:expertId/notifications'),
+                _sidebarItem(LucideIcons.creditCard, 'Abonnement', '/provider/:expertId/subscription'),
+                _sidebarItem(LucideIcons.settings, 'Paramètres', '/provider/:expertId/settings'),
               ],
             ),
           ),
+          // ... (Logout remains the same)
 
           // Logout
           Container(
@@ -108,17 +113,34 @@ class _AdminSidebarState extends State<AdminSidebar> {
         onTap: () {
           if (route == '/logout') {
             // Handle Logout
+            context.go('/login');
+            return;
+          }
+          if (route == '/provider/messages') {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ChatListScreen(
+                  currentUserRole: 'expert',
+                  expertId: widget.expertId,
+                ),
+              ),
+            );
             return;
           }
           if (widget.activeRoute != route) {
-            context.go(route);
+            final targetRoute = route.replaceAll(':expertId', widget.expertId);
+            context.go(targetRoute);
+          }
+          if (widget.isMobile) {
+            Navigator.pop(context); // Close drawer on mobile
           }
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
           decoration: BoxDecoration(
-            color: active ? _primary : Colors.transparent,
+            color: active ? Colors.white.withOpacity(0.2) : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
