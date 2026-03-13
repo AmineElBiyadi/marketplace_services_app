@@ -12,6 +12,7 @@ class InterventionModel {
   final String? codeValidationExpert;
   final DateTime? dateDebutIntervention;
   final DateTime? dateFinIntervention;
+  final String? motifeAnnulation;
   
   // Snapshots
   final Map<String, dynamic>? clientSnapshot;
@@ -34,6 +35,7 @@ class InterventionModel {
     this.codeValidationExpert,
     this.dateDebutIntervention,
     this.dateFinIntervention,
+    this.motifeAnnulation,
     this.clientSnapshot,
     this.expertSnapshot,
     this.tacheSnapshot,
@@ -56,6 +58,7 @@ class InterventionModel {
       codeValidationExpert: data['codeValidationExpert'],
       dateDebutIntervention: (data['dateDebutIntervention'] as Timestamp?)?.toDate(),
       dateFinIntervention: (data['dateFinIntervention'] as Timestamp?)?.toDate(),
+      motifeAnnulation: data['motifeAnnulation'],
       clientSnapshot: data['clientSnapshot'],
       expertSnapshot: data['expertSnapshot'],
       tacheSnapshot: data['tacheSnapshot'],
@@ -74,10 +77,11 @@ class InterventionModel {
       'statut': statut,
       'isUrgent': isUrgent,
       'prixNegocie': prixNegocie,
-      'codeValidationExpert': codeValidationExpert,
-      'dateDebutIntervention': dateDebutIntervention != null ? Timestamp.fromDate(dateDebutIntervention!) : null,
-      'dateFinIntervention': dateFinIntervention != null ? Timestamp.fromDate(dateFinIntervention!) : null,
-      'clientSnapshot': clientSnapshot,
+      if (codeValidationExpert != null) 'codeValidationExpert': codeValidationExpert,
+      if (dateDebutIntervention != null) 'dateDebutIntervention': Timestamp.fromDate(dateDebutIntervention!),
+      if (dateFinIntervention != null) 'dateFinIntervention': Timestamp.fromDate(dateFinIntervention!),
+      if (motifeAnnulation != null) 'motifeAnnulation': motifeAnnulation,
+      if (clientSnapshot != null) 'clientSnapshot': clientSnapshot,
       'expertSnapshot': expertSnapshot,
       'tacheSnapshot': tacheSnapshot,
       'adresseSnapshot': adresseSnapshot,
