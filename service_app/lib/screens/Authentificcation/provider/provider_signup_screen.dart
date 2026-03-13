@@ -1,26 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_colors.dart';
-import '../../../widgets/glass_container.dart';
-import '../../../widgets/custom_button.dart';
-import '../../../widgets/custom_text_field.dart';
+import '../../../utils/auth_errors.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
-
-
-const List<String> _categories = [
-  "Plomberie",
-  "Électricité",
-  "Ménage",
-  "Jardinage",
-  "Coiffure",
-  "Informatique",
-  "Peinture",
-  "Climatisation",
-];
 
 class ProviderSignupScreen extends StatefulWidget {
   const ProviderSignupScreen({super.key});
@@ -31,27 +17,30 @@ class ProviderSignupScreen extends StatefulWidget {
 
 class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
   int _step = 1;
+  static const int _totalSteps = 3;
 
-  // Step 1
+  // ── Step 1 ─────────────────────────────────────────────────
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   bool _showPassword = false;
+  bool _showConfirm = false;
   bool _agreed = false;
-  
+
   final _authService = AuthService();
   final _firestoreService = FirestoreService();
   bool _isLoading = false;
 
-
-  // Step 2
-  String _selectedCategory = "";
+  // ── Step 2 ─────────────────────────────────────────────────
+  List<Map<String, dynamic>> _services = [];
+  bool _isLoadingServices = false;
+  final List<String> _selectedServiceIds = [];
   final _descriptionController = TextEditingController();
   final _zoneController = TextEditingController();
 
-  // Step 3
+  // ── Step 3 ─────────────────────────────────────────────────
   String? _cinFrontName;
   String? _cinFrontBase64;
   String? _cinBackName;
@@ -60,43 +49,74 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
   String? _certificateBase64;
   final ImagePicker _picker = ImagePicker();
 
+  // ── Validators ─────────────────────────────────────────────
   bool get _step1Valid {
-    final hasContact = _phoneController.text.isNotEmpty || _emailController.text.isNotEmpty;
+    final hasContact = _phoneController.text.isNotEmpty ||
+        _emailController.text.isNotEmpty;
     return _nameController.text.isNotEmpty &&
         hasContact &&
-        _passwordController.text.isNotEmpty &&
+        _passwordController.text.length >= 6 &&
         _passwordController.text == _confirmController.text &&
         _agreed;
   }
 
   bool get _step2Valid =>
-      _selectedCategory.isNotEmpty &&
+      _selectedServiceIds.isNotEmpty &&
       _descriptionController.text.isNotEmpty &&
       _zoneController.text.isNotEmpty;
 
   bool get _step3Valid =>
-      _cinFrontBase64 != null && _cinBackBase64 != null && _certificateBase64 != null;
+      _cinFrontBase64 != null &&
+      _cinBackBase64 != null &&
+      _certificateBase64 != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadServices();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmController.dispose();
+    _descriptionController.dispose();
+    _zoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadServices() async {
+    setState(() => _isLoadingServices = true);
+    try {
+      final services = await _firestoreService.getServices();
+      if (mounted) setState(() => _services = services);
+    } catch (_) {} finally {
+      if (mounted) setState(() => _isLoadingServices = false);
+    }
+  }
 
   Future<void> _pickImage(Function(String, String) setter) async {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 30, // Aggressive compression (1MB limit in Firestore)
+        imageQuality: 30,
         maxWidth: 800,
         maxHeight: 800,
       );
       if (image != null) {
         final bytes = await image.readAsBytes();
-        final base64String = base64Encode(bytes);
-        setter(image.name, base64String);
-        setState(() {});
+        if (bytes.length > 700000) {
+          if (mounted) _showError('Fichier trop volumineux (max ~700 Ko).');
+          return;
+        }
+        setter(image.name, base64Encode(bytes));
+        if (mounted) setState(() {});
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image: $e')),
-        );
-      }
+      if (mounted) _showError('Erreur: $e');
     }
   }
 
@@ -107,56 +127,38 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         allowedExtensions: ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg'],
         withData: true,
       );
-
       if (result != null && result.files.single.bytes != null) {
         final bytes = result.files.single.bytes!;
-        
-        // Check size (Firestore limit is 1MB total per document, so warn if > 700KB)
         if (bytes.length > 700000) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(
-                content: Text("Fichier trop volumineux. La taille maximale est de ~700 Ko."),
-                backgroundColor: AppColors.destructive,
-              ),
-            );
-          }
+          if (mounted) _showError('Fichier trop volumineux (max ~700 Ko).');
           return;
         }
-
-        final base64String = base64Encode(bytes);
-        setter(result.files.single.name, base64String);
-        setState(() {});
+        setter(result.files.single.name, base64Encode(bytes));
+        if (mounted) setState(() {});
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick document: $e')),
-        );
-      }
+      if (mounted) _showError('Erreur: $e');
     }
   }
 
-  void _handleSignup(String planType) async {
-    // Only proceed if steps 1-3 are valid
-    if (!_step1Valid || !_step2Valid || !_step3Valid) return;
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: AppColors.destructive,
+    ));
+  }
 
+  void _handleSignup() async {
+    if (!_step1Valid || !_step2Valid || !_step3Valid) return;
     setState(() => _isLoading = true);
 
     try {
-      final hasPhone = _phoneController.text.trim().isNotEmpty;
-      final hasEmail = _emailController.text.trim().isNotEmpty;
-      final usePhone = hasPhone;
-
-      // --- Pre-validation Check ---
       String phoneToCheck = _phoneController.text.trim();
-      if (hasPhone) {
-        if (!phoneToCheck.startsWith('+')) {
-          if (phoneToCheck.startsWith('0')) {
-            phoneToCheck = '+212${phoneToCheck.substring(1)}';
-          } else {
-            phoneToCheck = '+$phoneToCheck';
-          }
+      if (phoneToCheck.isNotEmpty && !phoneToCheck.startsWith('+')) {
+        if (phoneToCheck.startsWith('0')) {
+          phoneToCheck = '+212${phoneToCheck.substring(1)}';
+        } else {
+          phoneToCheck = '+$phoneToCheck';
         }
       }
 
@@ -164,62 +166,59 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         phone: phoneToCheck,
         email: _emailController.text.trim(),
       );
-
       if (duplicateField != null) {
+        setState(() => _isLoading = false);
         if (mounted) {
-          setState(() => _isLoading = false);
-          final msg = duplicateField == 'phone'
+          _showError(duplicateField == 'phone'
               ? 'Ce numéro de téléphone est déjà utilisé.'
-              : 'Cet email est déjà utilisé.';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(msg),
-              backgroundColor: AppColors.destructive,
-            ),
-          );
+              : 'Cet email est déjà utilisé.');
         }
         return;
       }
-      // ----------------------------
 
-      if (usePhone) {
+      // extraData — no password sent to Firestore (Firebase Auth handles it)
+      final extraData = {
+        'name': _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'email': _emailController.text.trim(),
+        'serviceIds': _selectedServiceIds,
+        'description': _descriptionController.text.trim(),
+        'zone': _zoneController.text.trim(),
+        'cinFront': _cinFrontBase64,
+        'cinBack': _cinBackBase64,
+        'certificate': _certificateBase64,
+        'role': 'provider',
+      };
+
+      final hasPhone = _phoneController.text.trim().isNotEmpty;
+      final hasEmail = _emailController.text.trim().isNotEmpty;
+
+      if (hasPhone) {
+        // Create proxy Firebase Auth account for phone user
+        await _authService.signUpWithPhoneProxy(
+          phone: phoneToCheck,
+          password: _passwordController.text,
+        );
         await _authService.verifyPhoneNumber(
           phoneNumber: phoneToCheck,
-          onVerificationCompleted: (credential) {
-            if (mounted) setState(() => _isLoading = false);
+          onVerificationCompleted: (_) =>
+              setState(() => _isLoading = false),
+          onVerificationFailed: (e) {
+            setState(() => _isLoading = false);
+            if (mounted) _showError(friendlyAuthError(e));
           },
-          onVerificationFailed: (Exception e) {
+          onCodeSent: (verificationId, _) {
+            setState(() => _isLoading = false);
             if (mounted) {
-              setState(() => _isLoading = false);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Erreur: ${e.toString()}')),
-              );
-            }
-          },
-          onCodeSent: (String verificationId, int? resendToken) {
-            if (mounted) {
-              setState(() => _isLoading = false);
               context.push('/otp', extra: {
+                ...extraData,
                 'method': 'phone',
                 'verificationId': verificationId,
-                'name': _nameController.text.trim(),
-                'phone': _phoneController.text.trim(),
-                'email': _emailController.text.trim(),
-                'password': _passwordController.text,
-                'category': _selectedCategory,
-                'description': _descriptionController.text.trim(),
-                'zone': _zoneController.text.trim(),
-                'cinFront': _cinFrontBase64,
-                'cinBack': _cinBackBase64,
-                'certificate': _certificateBase64,
-                'plan': planType,
-                'role': 'provider',
               });
             }
           },
-          onCodeAutoRetrievalTimeout: (String verificationId) {
-            if (mounted) setState(() => _isLoading = false);
-          },
+          onCodeAutoRetrievalTimeout: (_) =>
+              setState(() => _isLoading = false),
         );
       } else if (hasEmail) {
         await _authService.signUpWithEmail(
@@ -228,46 +227,28 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         );
         setState(() => _isLoading = false);
         if (mounted) {
-          context.push('/otp', extra: {
-            'method': 'email',
-            'name': _nameController.text.trim(),
-            'phone': _phoneController.text.trim(),
-            'email': _emailController.text.trim(),
-            'password': _passwordController.text,
-            'category': _selectedCategory,
-            'description': _descriptionController.text.trim(),
-            'zone': _zoneController.text.trim(),
-            'cinFront': _cinFrontBase64,
-            'cinBack': _cinBackBase64,
-            'certificate': _certificateBase64,
-            'plan': planType,
-            'role': 'provider',
-          });
+          context.push('/otp',
+              extra: {...extraData, 'method': 'email'});
         }
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur inattendue: ${e.toString()}')),
-        );
-      }
+      setState(() => _isLoading = false);
+      if (mounted) _showError(friendlyAuthError(e));
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final progressWidth = (_step / 4) * 100;
-
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
+              const SizedBox(height: 12),
+              // ── Header ──
               Row(
                 children: [
                   IconButton(
@@ -275,46 +256,43 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
                       if (_step > 1) {
                         setState(() => _step--);
                       } else {
-                        if (context.canPop()) {
-                          context.pop();
-                        } else {
-                          context.pushReplacement('/provider/login');
-                        }
+                        context.canPop()
+                            ? context.pop()
+                            : context.go('/welcome');
                       }
                     },
-                    icon: const Icon(Icons.arrow_back),
-                    color: AppColors.textPrimary,
+                    icon: const Icon(Icons.arrow_back,
+                        color: Color(0xFF1A237E)),
+                    padding: EdgeInsets.zero,
                   ),
                   Expanded(
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: progressWidth / 100,
-                        backgroundColor: AppColors.divider,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(AppColors.primary),
-                        minHeight: 8,
+                        value: _step / _totalSteps,
+                        backgroundColor: const Color(0xFFE2E8F0),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            Color(0xFF3F64B5)),
+                        minHeight: 6,
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    "$_step/4",
-                    style: TextStyle(
+                    '$_step/$_totalSteps',
+                    style: const TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF64748B),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-
-              // Step Content
+              const SizedBox(height: 20),
+              // ── Step content ──
               if (_step == 1) _buildStep1(),
               if (_step == 2) _buildStep2(),
               if (_step == 3) _buildStep3(),
-              if (_step == 4) _buildStep4(),
             ],
           ),
         ),
@@ -322,581 +300,521 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
     );
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // STEP 1 — Personal info
+  // ══════════════════════════════════════════════════════════════
   Widget _buildStep1() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Center(
-          child: Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Icon(
-              Icons.construction,
-              size: 48,
-              color: AppColors.primary,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          "Informations personnelles",
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        _illustration(),
+        const SizedBox(height: 20),
+        const Text('Informations personnelles',
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1A237E))),
         const SizedBox(height: 4),
-        Text(
-          "Créez votre compte prestataire",
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-        ),
+        const Text('Créez votre compte prestataire',
+            style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
         const SizedBox(height: 24),
-        CustomTextField(
-          hint: "Nom complet",
-          controller: _nameController,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 16),
-        CustomTextField(
-          hint: "Téléphone",
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 16),
-        CustomTextField(
-          hint: "Email",
-          controller: _emailController,
-          keyboardType: TextInputType.emailAddress,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 16),
-        CustomTextField(
-          hint: "Mot de passe",
-          controller: _passwordController,
-          obscureText: !_showPassword,
-          suffix: IconButton(
-            onPressed: () => setState(() => _showPassword = !_showPassword),
-            icon: Icon(
-              _showPassword ? Icons.visibility_off : Icons.visibility,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 16),
-        CustomTextField(
-          hint: "Confirmer le mot de passe",
-          controller: _confirmController,
-          obscureText: true,
-          onChanged: (_) => setState(() {}),
-        ),
+        _field(_nameController, 'Nom complet', icon: Icons.person_outline),
+        const SizedBox(height: 14),
+        _field(_phoneController, 'Téléphone',
+            icon: Icons.phone_outlined,
+            keyboardType: TextInputType.phone),
+        const SizedBox(height: 14),
+        _field(_emailController, 'Email',
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress),
+        const SizedBox(height: 14),
+        _field(_passwordController, 'Mot de passe',
+            icon: Icons.lock_outline,
+            obscure: !_showPassword,
+            suffix: _eyeButton(_showPassword,
+                () => setState(() => _showPassword = !_showPassword))),
+        const SizedBox(height: 14),
+        _field(_confirmController, 'Confirmer le mot de passe',
+            icon: Icons.lock_outline,
+            obscure: !_showConfirm,
+            suffix: _eyeButton(_showConfirm,
+                () => setState(() => _showConfirm = !_showConfirm))),
         const SizedBox(height: 16),
         Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Checkbox(
-              value: _agreed,
-              onChanged: (v) => setState(() => _agreed = v ?? false),
-              activeColor: AppColors.primary,
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: Checkbox(
+                value: _agreed,
+                onChanged: (v) => setState(() => _agreed = v ?? false),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4)),
+                activeColor: const Color(0xFF3F64B5),
+                side:
+                    const BorderSide(color: Color(0xFFCBD5E1), width: 1.5),
+              ),
             ),
+            const SizedBox(width: 10),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  "J'accepte les ",
+              child: RichText(
+                text: const TextSpan(
                   style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
+                      fontSize: 12.5, color: Color(0xFF64748B)),
+                  children: [
+                    TextSpan(text: "J'accepte les "),
+                    TextSpan(
+                        text: "Conditions d'utilisation",
+                        style: TextStyle(
+                            color: Color(0xFF3F64B5),
+                            fontWeight: FontWeight.w600)),
+                    TextSpan(text: ' et la '),
+                    TextSpan(
+                        text: 'Politique de confidentialité',
+                        style: TextStyle(
+                            color: Color(0xFF3F64B5),
+                            fontWeight: FontWeight.w600)),
+                  ],
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        CustomButton(
-          text: "Continuer",
-          onPressed: _step1Valid ? () => setState(() => _step = 2) : null,
-          disabled: !_step1Valid,
-        ),
+        const SizedBox(height: 24),
+        _continueButton(
+            enabled: _step1Valid,
+            onPressed: () => setState(() => _step = 2)),
+        const SizedBox(height: 24),
       ],
     );
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // STEP 2 — Professional info
+  // ══════════════════════════════════════════════════════════════
   Widget _buildStep2() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Informations professionnelles",
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        const Text('Informations professionnelles',
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1A237E))),
         const SizedBox(height: 4),
-        Text(
-          "Décrivez votre activité",
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-        ),
+        const Text('Décrivez votre activité',
+            style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF3F64B5),
+                fontWeight: FontWeight.w500)),
         const SizedBox(height: 24),
-        Text(
-          "Catégorie de métier",
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          childAspectRatio: 3,
-          crossAxisSpacing: 8,
-          mainAxisSpacing: 8,
-          children: _categories.map((cat) {
-            final isSelected = _selectedCategory == cat;
-            return GestureDetector(
-              onTap: () => setState(() => _selectedCategory = cat),
-              child: GlassContainer(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                backgroundColor: isSelected
-                    ? AppColors.primary
-                    : AppColors.cardBackground,
-                child: Text(
-                  cat,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: isSelected
-                        ? AppColors.buttonText
-                        : AppColors.textPrimary,
+        const Text('Catégorie de métier',
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1A237E))),
+        const SizedBox(height: 10),
+        // Services grid
+        _isLoadingServices
+            ? const Center(child: CircularProgressIndicator())
+            : _services.isEmpty
+                ? const Text('Aucun service disponible',
+                    style: TextStyle(color: Color(0xFF64748B)))
+                : GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    childAspectRatio: 3.2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    children: _services.map((service) {
+                      final id = service['id'] as String;
+                      final nom = service['nom'] as String;
+                      final selected = _selectedServiceIds.contains(id);
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            if (selected) {
+                              _selectedServiceIds.remove(id);
+                            } else if (_selectedServiceIds.length < 3) {
+                              _selectedServiceIds.add(id);
+                            } else {
+                              _showError('Maximum 3 services autorisés.');
+                            }
+                          });
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? const Color(0xFF3F64B5)
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: selected
+                                  ? const Color(0xFF3F64B5)
+                                  : const Color(0xFFE2E8F0),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              nom,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: selected
+                                    ? Colors.white
+                                    : const Color(0xFF1A237E),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          "Description",
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        const SizedBox(height: 20),
+        const Text('Description',
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1A237E))),
         const SizedBox(height: 8),
         TextField(
           controller: _descriptionController,
           maxLines: 4,
+          onChanged: (_) => setState(() {}),
+          style: const TextStyle(
+              fontSize: 14, color: Color(0xFF1A237E)),
           decoration: InputDecoration(
-            hintText: "Décrivez votre expérience et vos spécialités...",
+            hintText: 'Décrivez votre expérience et vos spécialités...',
+            hintStyle: const TextStyle(
+                fontSize: 13, color: Color(0xFFADB5C7)),
             filled: true,
-            fillColor: AppColors.cardBackground,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.all(16),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide:
+                  const BorderSide(color: Color(0xFFE2E8F0), width: 1.2),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(
+                  color: Color(0xFF3F64B5), width: 1.6),
             ),
           ),
-          onChanged: (_) => setState(() {}),
         ),
-        const SizedBox(height: 16),
-        Text(
-          "Zone d'intervention",
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 8),
-        CustomTextField(
-          hint: "Ex: Casablanca, Rabat...",
-          controller: _zoneController,
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 12),
-        GlassContainer(
-          height: 120,
-          child: Center(
-            child: Text(
-              "Carte interactive (bientôt disponible)",
-              style: TextStyle(
+        const SizedBox(height: 20),
+        const Text("Zone d'intervention",
+            style: TextStyle(
                 fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1A237E))),
+        const SizedBox(height: 8),
+        _field(_zoneController, 'Ex: Casablanca, Rabat...',
+            icon: Icons.location_on_outlined),
+        const SizedBox(height: 12),
+        Container(
+          height: 80,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: const Center(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.map_outlined,
+                    size: 18, color: Color(0xFF3F64B5)),
+                SizedBox(width: 6),
+                Text(
+                  'Carte interactive (bientôt disponible)',
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF3F64B5),
+                      fontStyle: FontStyle.italic),
+                ),
+              ],
             ),
           ),
         ),
         const SizedBox(height: 24),
-        CustomButton(
-          text: "Continuer",
-          onPressed: _step2Valid ? () => setState(() => _step = 3) : null,
-          disabled: !_step2Valid,
-        ),
+        _continueButton(
+            enabled: _step2Valid,
+            onPressed: () => setState(() => _step = 3)),
+        const SizedBox(height: 24),
       ],
     );
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // STEP 3 — Documents
+  // ══════════════════════════════════════════════════════════════
   Widget _buildStep3() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          "Documents justificatifs",
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        const Text('Documents justificatifs',
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1A237E))),
         const SizedBox(height: 4),
-        Text(
-          "Téléchargez vos pièces pour vérification",
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-        ),
+        const Text('Téléchargez vos pièces pour vérification',
+            style: TextStyle(
+                fontSize: 14,
+                color: Color(0xFF3F64B5),
+                fontWeight: FontWeight.w500)),
         const SizedBox(height: 24),
-        _buildUploadCard(
-          "CIN - Recto",
-          _cinFrontName,
-          () => _pickImage((name, base64) {
-            _cinFrontName = name;
-            _cinFrontBase64 = base64;
+        _uploadCard(
+          label: 'CIN - Recto',
+          fileName: _cinFrontName,
+          icon: Icons.camera_alt_outlined,
+          onTap: () => _pickImage((name, b64) {
+            setState(() {
+              _cinFrontName = name;
+              _cinFrontBase64 = b64;
+            });
           }),
-          Icons.camera_alt,
         ),
         const SizedBox(height: 16),
-        _buildUploadCard(
-          "CIN - Verso",
-          _cinBackName,
-          () => _pickImage((name, base64) {
-            _cinBackName = name;
-            _cinBackBase64 = base64;
+        _uploadCard(
+          label: 'CIN - Verso',
+          fileName: _cinBackName,
+          icon: Icons.camera_alt_outlined,
+          onTap: () => _pickImage((name, b64) {
+            setState(() {
+              _cinBackName = name;
+              _cinBackBase64 = b64;
+            });
           }),
-          Icons.camera_alt,
         ),
         const SizedBox(height: 16),
-        _buildUploadCard(
-          "Certificat de bonne conduite",
-          _certificateName,
-          () => _pickDocument((name, base64) {
-            _certificateName = name;
-            _certificateBase64 = base64;
+        _uploadCard(
+          label: 'Certificat de bonne conduite',
+          fileName: _certificateName,
+          icon: Icons.upload_outlined,
+          onTap: () => _pickDocument((name, b64) {
+            setState(() {
+              _certificateName = name;
+              _certificateBase64 = b64;
+            });
           }),
-          Icons.upload_file,
         ),
-        const SizedBox(height: 16),
-        GlassContainer(
-          backgroundColor: AppColors.primary.withValues(alpha: 0.2), // Changed accent to primary
-          borderColor: AppColors.primary.withValues(alpha: 0.3), // Changed accent to primary
-          child: Row(
+        const SizedBox(height: 18),
+        // Info banner
+        Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFFBEB),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFFEDE68), width: 1),
+          ),
+          child: const Row(
             children: [
-              const Text("⏳", style: TextStyle(fontSize: 20)),
-              const SizedBox(width: 12),
+              Text('⏳', style: TextStyle(fontSize: 18)),
+              SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  "Vos documents seront vérifiés par notre équipe sous 24-48h.",
+                  'Vos documents seront vérifiés par notre équipe sous 24-48h.',
                   style: TextStyle(
-                    fontSize: 12,
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
+                      fontSize: 13, color: Color(0xFF854D0E)),
                 ),
               ),
             ],
           ),
         ),
         const SizedBox(height: 24),
-        CustomButton(
-          text: "Continuer",
-          onPressed: _step3Valid ? () => setState(() => _step = 4) : null,
-          disabled: !_step3Valid,
+        SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton(
+            onPressed: _step3Valid && !_isLoading ? _handleSignup : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _step3Valid
+                  ? const Color(0xFF3F64B5)
+                  : const Color(0xFF94A3B8),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30)),
+              elevation: 0,
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2.5))
+                : const Text('Continuer',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white)),
+          ),
         ),
+        const SizedBox(height: 24),
       ],
     );
   }
 
-  Widget _buildUploadCard(
-    String label,
-    String? value,
-    VoidCallback onTap,
-    IconData icon,
-  ) {
-    final isUploaded = value != null;
+  // ── Helpers ──────────────────────────────────────────────────
+
+  Widget _illustration() {
+    return Center(
+      child: Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+          color: const Color(0xFFEEF2FF),
+          borderRadius: BorderRadius.circular(40),
+        ),
+        child: const Icon(Icons.home_repair_service_rounded,
+            size: 42, color: Color(0xFF2B4B9B)),
+      ),
+    );
+  }
+
+  Widget _field(
+    TextEditingController controller,
+    String hint, {
+    IconData? icon,
+    TextInputType keyboardType = TextInputType.text,
+    bool obscure = false,
+    Widget? suffix,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: obscure,
+      onChanged: (_) => setState(() {}),
+      style: const TextStyle(fontSize: 15, color: Color(0xFF1A237E)),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle:
+            const TextStyle(fontSize: 14, color: Color(0xFFADB5C7)),
+        prefixIcon: icon != null
+            ? Icon(icon, color: const Color(0xFFADB5C7), size: 20)
+            : null,
+        suffixIcon: suffix,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide:
+              const BorderSide(color: Color(0xFFCBD5E1), width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(30),
+          borderSide:
+              const BorderSide(color: Color(0xFF3F64B5), width: 1.6),
+        ),
+      ),
+    );
+  }
+
+  Widget _eyeButton(bool visible, VoidCallback toggle) {
+    return IconButton(
+      icon: Icon(
+          visible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+          color: const Color(0xFF94A3B8),
+          size: 20),
+      onPressed: toggle,
+    );
+  }
+
+  Widget _continueButton(
+      {required bool enabled, required VoidCallback onPressed}) {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: enabled ? onPressed : null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor:
+              enabled ? const Color(0xFF3F64B5) : const Color(0xFF94A3B8),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30)),
+          elevation: 0,
+        ),
+        child: const Text('Continuer',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Colors.white)),
+      ),
+    );
+  }
+
+  Widget _uploadCard({
+    required String label,
+    required String? fileName,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    final uploaded = fileName != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
-          ),
-        ),
+        Text(label,
+            style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1A237E))),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: onTap,
-          child: GlassContainer(
-            height: 100,
-            borderColor: isUploaded
-                ? AppColors.primary
-                : AppColors.divider,
-            borderWidth: 2,
-            borderStyle: BorderStyle.solid,
-            backgroundColor: isUploaded
-                ? AppColors.primary.withValues(alpha: 0.05)
-                : AppColors.cardBackground,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: isUploaded
-                  ? [
-                      Icon(
-                        Icons.check_circle,
-                        size: 32,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        value!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ]
-                  : [
-                      Icon(
-                        icon,
-                        size: 32,
-                        color: AppColors.textSecondary,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Appuyez pour télécharger",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep4() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Choisissez votre pack",
-          style: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: AppColors.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          "Commencez gratuitement ou boostez votre visibilité",
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 24),
-        // Free Pack
-        GlassContainer(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.divider,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  "Basique",
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
+          child: Container(
+            width: double.infinity,
+            height: 90,
+            decoration: BoxDecoration(
+              color: uploaded
+                  ? const Color(0xFFEEF6FF)
+                  : const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: uploaded
+                    ? const Color(0xFF3F64B5)
+                    : const Color(0xFFE2E8F0),
+                width: 1.2,
               ),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
+            ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    "0 DH",
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
+                  Icon(
+                    uploaded ? Icons.check_circle_outline : icon,
+                    size: 28,
+                    color: uploaded
+                        ? const Color(0xFF3F64B5)
+                        : const Color(0xFF94A3B8),
                   ),
+                  const SizedBox(height: 6),
                   Text(
-                    "/mois",
+                    uploaded ? fileName! : 'Appuyez pour télécharger',
                     style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                      color: uploaded
+                          ? const Color(0xFF3F64B5)
+                          : const Color(0xFF94A3B8),
+                      fontWeight: uploaded
+                          ? FontWeight.w500
+                          : FontWeight.normal,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              _buildFeatureItem("Max 5 services", true),
-              _buildFeatureItem("Commission 10%", true),
-              _buildFeatureItem("Badge \"Basique\"", true),
-              const SizedBox(height: 16),
-              CustomButton(
-                text: _isLoading ? "Chargement..." : "Commencer avec Gratuit",
-                isOutlined: true,
-                onPressed: _isLoading ? null : () => _handleSignup('basique'),
-                isLoading: _isLoading,
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        // Premium Pack
-        Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.primary,
-                AppColors.primary.withValues(alpha: 0.8),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.primary, width: 2), // Changed accent to primary as accent isn't defined
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 20),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.2), // changed accent to primary
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Text(
-                        "Premium ⭐",
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary, // changed accent to primary
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      "99 DH",
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                    Text(
-                      "/mois",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white.withValues(alpha: 0.8),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildFeatureItem("Services illimités", true, isPremium: true),
-                _buildFeatureItem(
-                    "Commission 3% seulement", true, isPremium: true),
-                _buildFeatureItem("Profil boosté", true, isPremium: true),
-                _buildFeatureItem(
-                    "Statistiques avancées", true, isPremium: true),
-                _buildFeatureItem(
-                    "Badge \"Premium ⭐\"", true, isPremium: true),
-                const SizedBox(height: 16),
-                CustomButton(
-                  text: _isLoading ? "Chargement..." : "Passer Premium",
-                  backgroundColor: AppColors.primary, // Changed accent to primary
-                  textColor: Colors.white, // Changed primary to white for contrast
-                  onPressed: _isLoading ? null : () => _handleSignup('premium'),
-                  isLoading: _isLoading,
-                ),
-              ],
             ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildFeatureItem(String text, bool included, {bool isPremium = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(
-            Icons.check,
-            size: 16,
-            color: isPremium ? AppColors.primary : AppColors.primary, // Changed accent to primary
-          ),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 14,
-              color: isPremium ? Colors.white : AppColors.textSecondary,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../widgets/custom_text_field.dart';
+import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
@@ -18,6 +20,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   bool _showPassword = false;
   bool _isLoading = false;
   int _attempts = 0;
+  final _authService = AuthService();
   final _firestoreService = FirestoreService();
 
   bool get _isValid =>
@@ -44,25 +47,35 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final admin = await _firestoreService.loginAdmin(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+      // Admin accounts are not in Firebase Auth, they are only in Firestore 'admins' collection
+      final adminQuery = await _firestoreService.getFirestoreInstance()
+          .collection('admins')
+          .where('email', isEqualTo: _emailController.text.trim())
+          .limit(1)
+          .get();
 
-      if (admin != null) {
-        if (mounted) context.go('/admin/dashboard');
-      } else {
-        setState(() => _attempts++);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Identifiants incorrects. ${5 - _attempts} tentative(s) restante(s).',
-              ),
-              backgroundColor: AppColors.destructive,
-            ),
-          );
+      if (adminQuery.docs.isNotEmpty) {
+        final adminData = adminQuery.docs.first.data();
+        if (adminData['motDePasse'] == _passwordController.text) {
+          final adminId = adminQuery.docs.first.id;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('logged_admin_id', adminId);
+          if (mounted) context.go('/admin/dashboard');
+          return;
         }
+      }
+
+      // If we reach here, either the email wasn't found or the password didn't match
+      setState(() => _attempts++);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Identifiants incorrects. ${5 - _attempts} tentative(s) restante(s).',
+            ),
+            backgroundColor: AppColors.destructive,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
