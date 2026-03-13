@@ -10,7 +10,7 @@ class TopRatedCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const TopRatedCard({
-    Key? key,
+    super.key,
     required this.name,
     required this.services,
     required this.rating,
@@ -18,7 +18,7 @@ class TopRatedCard extends StatelessWidget {
     required this.onChat,
     required this.onTap,
     this.isPremium = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

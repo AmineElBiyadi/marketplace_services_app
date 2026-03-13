@@ -1013,19 +1013,39 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                 const Spacer(),
                 GestureDetector(
                   onTap: () => _showEditSheet(service), 
-                  child: const Icon(
-                    Icons.edit_outlined,
-                    size: 22,
-                    color: Color(0xFF64748B),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
+                        SizedBox(width: 6),
+                        Text("Edit", style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: 8),
                 GestureDetector(
                   onTap: () => _deleteService(service["idService"]),
-                  child: const Icon(
-                    Icons.delete_outline_rounded,
-                    size: 22,
-                    color: Colors.redAccent,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                        SizedBox(width: 6),
+                        Text("Delete", style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700, color: Colors.red)),
+                      ],
+                    ),
                   ),
                 ),
               ],

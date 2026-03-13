@@ -92,6 +92,10 @@ class _ProviderLayoutState extends State<ProviderLayout> {
   }
 
   int _getSelectedIndex(String route) {
+    if (route.endsWith('/messages')) {
+      return 4;
+    }
+    
     switch (route) {
       case '/provider/dashboard':
         return 0;
@@ -102,8 +106,14 @@ class _ProviderLayoutState extends State<ProviderLayout> {
       case '/provider/agenda':
         return 3;
       case '/provider/profile':
-        return 4;
+        return 5;
       default:
+        if (route.endsWith('/dashboard')) return 0;
+        if (route.endsWith('/services')) return 1;
+        if (route.endsWith('/bookings')) return 2;
+        if (route.endsWith('/agenda')) return 3;
+        if (route.endsWith('/messages')) return 4;
+        if (route.endsWith('/profile')) return 5;
         return 0;
     }
   }
