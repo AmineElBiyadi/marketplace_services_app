@@ -4,6 +4,7 @@ import '../../../theme/app_colors.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../widgets/custom_text_field.dart';
 import '../../../services/firestore_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class LoginScreen extends StatefulWidget {
@@ -42,6 +43,8 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (user != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('logged_client_id', user['id']);
         if (mounted) context.go('/home');
       } else {
         if (mounted) {

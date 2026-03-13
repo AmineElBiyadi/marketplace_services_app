@@ -264,7 +264,7 @@ class FirestoreService {
 
   // ─── Clients ───────────────────────────────────────────────
 
-  Future<void> registerClient({
+  Future<String> registerClient({
     required String name,
     required String phone,
     required String email,
@@ -299,6 +299,8 @@ class FirestoreService {
       'etatCompte': 'ACTIVE',
       'idUtilisateur': userRef.id,
     });
+    
+    return userRef.id;
   }
 
   /// Returns user data map on success, null on failure.
