@@ -35,7 +35,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     final expert = await _firestoreService.getExpertProfile(_expertId);
     if (expert != null) {
       setState(() {
-        _isOnline = expert.etatCompte == 'ACTIVE';
+        _isOnline = expert.estDisponible;
         _expertName = expert.user?.nom ?? expert.user?.email.split('@')[0] ?? "Expert";
       });
     }

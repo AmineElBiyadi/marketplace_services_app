@@ -3,6 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/booking.dart';
 import '../models/expert.dart';
 import '../models/user.dart';
+import '../models/service.dart';
+import '../models/task_model.dart';
+import '../models/task_expert_model.dart';
+import '../models/expert_service_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -117,7 +121,7 @@ class FirestoreService {
 
   Future<void> updateExpertAvailability(String expertId, bool isOnline) async {
     await _firestore.collection('experts').doc(expertId).update({
-      'etatCompte': isOnline ? 'ACTIVE' : 'DESACTIVE',
+      'estDisponible': isOnline,
     });
   }
 
@@ -320,6 +324,390 @@ class FirestoreService {
     final data = userDoc.data()!;
     data['id'] = uid;
     return data;
+  }
+
+  // ─── Provider Services & Tasks ─────────────────────────────
+
+  Future<List<ServiceModel>> getServiceCategories() async {
+    try {
+      final snapshot = await _firestore.collection('services').get();
+      return snapshot.docs.map((doc) => ServiceModel.fromFirestore(doc)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Future<List<TaskModel>> getTasksForCategory(String serviceId, {String? expertId}) async {
+    try {
+      // Fetch standard tasks (idExpert == "")
+      final standardSnapshot = await _firestore
+          .collection('taches')
+          .where('idService', isEqualTo: serviceId)
+          .where('idExpert', isEqualTo: "")
+          .get();
+      
+      List<TaskModel> tasks = standardSnapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
+
+      // Fetch expert's specific tasks if id is provided
+      if (expertId != null) {
+        final expertSnapshot = await _firestore
+            .collection('taches')
+            .where('idService', isEqualTo: serviceId)
+            .where('idExpert', isEqualTo: expertId)
+            .get();
+        tasks.addAll(expertSnapshot.docs.map((doc) => TaskModel.fromFirestore(doc)));
+      }
+
+      return tasks;
+    } catch (e) {
+      print("Error fetching tasks for category: $e");
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getExpertServicesDetailed(String expertId) async {
+    try {
+      final seSnapshot = await _firestore
+          .collection('serviceExperts')
+          .where('idExpert', isEqualTo: expertId)
+          .get();
+
+      List<Map<String, dynamic>> expertServices = [];
+
+      for (var seDoc in seSnapshot.docs) {
+        final seData = seDoc.data();
+        final serviceId = seData['idService'];
+        
+        // Get service category details
+        final serviceDoc = await _firestore.collection('services').doc(serviceId).get();
+        final serviceData = serviceDoc.data();
+        final serviceName = serviceData != null ? (serviceData['nom'] ?? 'Unknown Service') : 'Unknown Service';
+
+        // Get images for the service expert
+        final imgSnapshot = await _firestore
+            .collection('imagesExemplaires')
+            .where('idServiceExpert', isEqualTo: seDoc.id)
+            .get();
+        List<String> serviceImages = imgSnapshot.docs.map((d) => d.data()['image'] as String).toList();
+
+        // Get linked tasks for the expert instances
+        final tasksSnapshot = await _firestore
+            .collection('tacheExperts')
+            .where('idExpert', isEqualTo: expertId)
+            .where('idService', isEqualTo: serviceId)
+            .get();
+        
+        List<Map<String, dynamic>> tasksData = [];
+        for (var tDoc in tasksSnapshot.docs) {
+          final task = TaskExpertModel.fromFirestore(tDoc);
+          final tid = tDoc.id;
+
+          // Fallback context: In older versions, images were saved per idTacheExpert
+          if (serviceImages.isEmpty) {
+            final oldImgSnapshot = await _firestore
+                .collection('imagesExemplaires')
+                .where('idTacheExpert', isEqualTo: tid)
+                .get();
+            serviceImages.addAll(oldImgSnapshot.docs.map((d) => d.data()['image'] as String));
+          }
+
+          tasksData.add({
+            ...task.toMap(),
+            'id': tid,
+            'idTache': task.idTache,
+          });
+        }
+        
+        // Ensure no duplicate images from fallback
+        serviceImages = serviceImages.toSet().toList();
+
+        expertServices.add({
+          'id': seDoc.id,
+          'idService': serviceId,
+          'serviceName': serviceName,
+          'description': seData['description'] ?? '',
+          'estActive': seData['estActive'] ?? true,
+          'anneeExperience': seData['anneeExperience'] ?? 0,
+          'images': serviceImages,
+          'tasks': tasksData,
+        });
+      }
+      return expertServices;
+    } catch (e) {
+      print("Error fetching expert services: $e");
+      return [];
+    }
+  }
+
+  Future<void> addExpertService({
+    required String expertId,
+    required String serviceId,
+    required String description,
+    required List<TaskModel> selectedTasks,
+    required List<String> customTasks,
+    required List<String> base64Images,
+  }) async {
+    final batch = _firestore.batch();
+
+    // 1. Add to serviceExperts
+    final seRef = _firestore.collection('serviceExperts').doc();
+    batch.set(seRef, {
+      'idExpert': expertId,
+      'idService': serviceId,
+      'description': description,
+      'estActive': true,
+      'estCertifie': false,
+      'anneeExperience': 0,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    // 2. Add instances of predefined tasks to 'tacheExperts'
+    for (var task in selectedTasks) {
+      final taskExpertRef = _firestore.collection('tacheExperts').doc();
+      batch.set(taskExpertRef, {
+        'idExpert': expertId,
+        'idService': serviceId,
+        'idTache': task.id,
+        'nom': task.nom,
+        'description': description,
+        'estActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // 3. Add custom tasks to BOTH 'taches' (as definition) AND 'tacheExperts' (as instance)
+    for (var taskName in customTasks) {
+      final taskDefRef = _firestore.collection('taches').doc();
+      batch.set(taskDefRef, {
+        'idExpert': expertId,
+        'idService': serviceId,
+        'nom': taskName,
+        'description': description,
+        'estActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      final taskExpertRef = _firestore.collection('tacheExperts').doc();
+      batch.set(taskExpertRef, {
+        'idExpert': expertId,
+        'idService': serviceId,
+        'idTache': taskDefRef.id,
+        'nom': taskName,
+        'description': description,
+        'estActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // 4. Add all images linked to the service expert instance
+    for (var base64 in base64Images) {
+      final imgRef = _firestore.collection('imagesExemplaires').doc();
+      batch.set(imgRef, {
+        'image': base64,
+        'idServiceExpert': seRef.id,
+        'idTacheExpert': '', // Fallback empty
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Increment service count in utilisateurs
+    final userQuery = await _firestore.collection('utilisateurs').where('idExpert', isEqualTo: expertId).limit(1).get();
+    if(userQuery.docs.isEmpty) {
+        // Find user by id directly if idExpert lookup failed
+        final userDoc = await _firestore.collection('utilisateurs').doc(expertId).get();
+        if(userDoc.exists) {
+            batch.update(userDoc.reference, {
+                'servicesCount': FieldValue.increment(1)
+            });
+        }
+    } else {
+        batch.update(userQuery.docs.first.reference, {
+            'servicesCount': FieldValue.increment(1)
+        });
+    }
+
+
+    await batch.commit();
+  }
+
+  Future<void> toggleServiceExpertsActive(String docId, bool status) async {
+    await _firestore.collection('serviceExperts').doc(docId).update({
+      'estActive': status,
+    });
+  }
+
+  Future<void> deleteExpertService(String expertId, String serviceId) async {
+    final batch = _firestore.batch();
+
+    // Delete from serviceExperts
+    final seQuery = await _firestore
+        .collection('serviceExperts')
+        .where('idExpert', isEqualTo: expertId)
+        .where('idService', isEqualTo: serviceId)
+        .get();
+    for (var doc in seQuery.docs) batch.delete(doc.reference);
+
+    // Delete task instances from 'tacheExperts'
+    final tQuery = await _firestore
+        .collection('tacheExperts')
+        .where('idExpert', isEqualTo: expertId)
+        .where('idService', isEqualTo: serviceId)
+        .get();
+    
+    for (var doc in tQuery.docs) {
+      // Delete images linked via legacy idTacheExpert
+      final imgQuery = await _firestore
+          .collection('imagesExemplaires')
+          .where('idTacheExpert', isEqualTo: doc.id)
+          .get();
+      for (var imgDoc in imgQuery.docs) batch.delete(imgDoc.reference);
+      
+      batch.delete(doc.reference);
+    }
+    
+    // Delete images linked via idServiceExpert
+    final seList = seQuery.docs;
+    if (seList.isNotEmpty) {
+      final seImgQuery = await _firestore
+          .collection('imagesExemplaires')
+          .where('idServiceExpert', isEqualTo: seList.first.id)
+          .get();
+      for (var doc in seImgQuery.docs) batch.delete(doc.reference);
+    }
+
+    // Delete custom task definitions from 'taches'
+    final customTQuery = await _firestore
+        .collection('taches')
+        .where('idExpert', isEqualTo: expertId)
+        .where('idService', isEqualTo: serviceId)
+        .get();
+    for (var doc in customTQuery.docs) batch.delete(doc.reference);
+
+    // Decrement service count in utilisateurs
+    final userQuery = await _firestore.collection('utilisateurs').where('idExpert', isEqualTo: expertId).limit(1).get();
+    if(userQuery.docs.isEmpty) {
+        final userDoc = await _firestore.collection('utilisateurs').doc(expertId).get();
+        if(userDoc.exists) {
+            batch.update(userDoc.reference, {
+                'servicesCount': FieldValue.increment(-1)
+            });
+        }
+    } else {
+        batch.update(userQuery.docs.first.reference, {
+            'servicesCount': FieldValue.increment(-1)
+        });
+    }
+
+    await batch.commit();
+  }
+
+  Future<void> updateExpertService({
+    required String expertId,
+    required String serviceExpertDocId,
+    required String serviceId,
+    required String description,
+    required List<TaskModel> selectedTasks,
+    required List<String> customTasks,
+    required List<String> base64Images,
+    required List<String> existingImagesToDelete,
+  }) async {
+    final batch = _firestore.batch();
+    
+    // 0. Update serviceExpert description
+    batch.update(_firestore.collection('serviceExperts').doc(serviceExpertDocId), {
+      'description': description,
+    });
+    
+    // 1. Delete tasks currently linked to this service
+    final existingTasksQuery = await _firestore
+        .collection('tacheExperts')
+        .where('idExpert', isEqualTo: expertId)
+        .where('idService', isEqualTo: serviceId)
+        .get();
+        
+    for (var doc in existingTasksQuery.docs) {
+        batch.delete(doc.reference);
+        // Clear out legacy images
+        final imgQuery = await _firestore
+          .collection('imagesExemplaires')
+          .where('idTacheExpert', isEqualTo: doc.id)
+          .get();
+        for (var imgDoc in imgQuery.docs) batch.delete(imgDoc.reference);
+    }
+    
+    // Clear out service-level images
+    final currentServiceImages = await _firestore
+        .collection('imagesExemplaires')
+        .where('idServiceExpert', isEqualTo: serviceExpertDocId)
+        .get();
+    for (var imgDoc in currentServiceImages.docs) batch.delete(imgDoc.reference);
+
+    // 2. Add predefined tasks
+    for (var task in selectedTasks) {
+      final taskExpertRef = _firestore.collection('tacheExperts').doc();
+      batch.set(taskExpertRef, {
+        'idExpert': expertId,
+        'idService': serviceId,
+        'idTache': task.id,
+        'nom': task.nom,
+        'description': description,
+        'estActive': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // 3. Add custom tasks
+    for (var taskName in customTasks) {
+      final taskDefRef = _firestore.collection('taches').doc();
+      batch.set(taskDefRef, {
+        'idExpert': expertId,
+        'idService': serviceId,
+        'nom': taskName,
+        'description': description,
+        'estActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      final taskExpertRef = _firestore.collection('tacheExperts').doc();
+      batch.set(taskExpertRef, {
+        'idExpert': expertId,
+        'idService': serviceId,
+        'idTache': taskDefRef.id,
+        'nom': taskName,
+        'description': description,
+        'estActive': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+    
+    // 4. Add all images linked to the service expert instance
+    for (var base64 in base64Images) {
+      final imgRef = _firestore.collection('imagesExemplaires').doc();
+      batch.set(imgRef, {
+        'image': base64,
+        'idServiceExpert': serviceExpertDocId,
+        'idTacheExpert': '', // Fallback empty
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    await batch.commit();
+  }
+
+  Future<Map<String, dynamic>?> getExpertById(String expertId) async {
+    try {
+      final doc = await _firestore.collection('experts').doc(expertId).get();
+      if (doc.exists) {
+        return {...doc.data()!, 'id': doc.id};
+      }
+    } catch (e) {
+      print("Error getting expert: $e");
+    }
+    return null;
   }
 
   // ─── Providers / Experts ───────────────────────────────────
