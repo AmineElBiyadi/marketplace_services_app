@@ -3,7 +3,10 @@ import 'package:go_router/go_router.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../widgets/custom_text_field.dart';
+import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
+import '../../../services/hash_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
@@ -18,6 +21,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   bool _showPassword = false;
   bool _isLoading = false;
   int _attempts = 0;
+  final _authService = AuthService();
   final _firestoreService = FirestoreService();
 
   bool get _isValid =>
@@ -44,25 +48,47 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final admin = await _firestoreService.loginAdmin(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+      // 1. Hash the password input
+      final hashedPassword = HashService.hashPassword(_passwordController.text);
 
-      if (admin != null) {
-        if (mounted) context.go('/admin/dashboard');
-      } else {
-        setState(() => _attempts++);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Identifiants incorrects. ${5 - _attempts} tentative(s) restante(s).',
-              ),
-              backgroundColor: AppColors.destructive,
-            ),
-          );
+      // 2. Find the user in 'utilisateurs' using email and hashed password
+      final userQuery = await _firestoreService.getFirestoreInstance()
+          .collection('utilisateurs')
+          .where('email', isEqualTo: _emailController.text.trim())
+          .where('motDePasse', isEqualTo: hashedPassword)
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isNotEmpty) {
+        final userId = userQuery.docs.first.id;
+
+        // 3. Verify this user is an admin by checking the 'admins' collection
+        final adminQuery = await _firestoreService.getFirestoreInstance()
+            .collection('admins')
+            .where('idUtilisateur', isEqualTo: userId)
+            .limit(1)
+            .get();
+
+        if (adminQuery.docs.isNotEmpty) {
+          final adminId = adminQuery.docs.first.id;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('logged_admin_id', adminId);
+          if (mounted) context.go('/admin');
+          return;
         }
+      }
+
+      // If we reach here, either the email wasn't found or the password didn't match
+      setState(() => _attempts++);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Identifiants incorrects. ${5 - _attempts} tentative(s) restante(s).',
+            ),
+            backgroundColor: AppColors.destructive,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
