@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/expert.dart';
+import '../../services/firestore_service.dart';
+import '../../widgets/smart_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ExpertProfileScreen extends StatefulWidget {
@@ -17,9 +19,13 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
+  final FirestoreService _firestoreService = FirestoreService();
+
   List<Map<String, dynamic>> _services = [];
   List<Map<String, dynamic>> _reviews = [];
+  List<String> _portfolioImages = []; // base64 strings
   bool _isLoadingExtra = true;
+  late Expert _expert;
 
   static const Color _kPrimary = Color(0xFF3D5A99);
   static const Color _kBg = Color(0xFFF5F3EC);
@@ -28,6 +34,7 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
   @override
   void initState() {
     super.initState();
+    _expert = widget.expert;
     _tabController = TabController(length: 4, vsync: this);
     _loadExtraData();
   }
@@ -40,15 +47,20 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
 
   Future<void> _loadExtraData() async {
     try {
-      final servicesSnap = await FirebaseFirestore.instance
-          .collection('experts')
-          .doc(widget.expert.id)
-          .collection('services')
-          .get();
+      // 1. Services réels depuis serviceExperts + services
+      final servicesDetailed =
+          await _firestoreService.getExpertServicesDetailed(widget.expert.id);
 
-      if (servicesSnap.docs.isNotEmpty) {
+      if (servicesDetailed.isNotEmpty) {
         setState(() {
-          _services = servicesSnap.docs.map((d) => d.data()).toList();
+          _services = servicesDetailed
+              .map((s) => {
+                    'title': s['serviceName'] ?? '',
+                    'description': s['description'] ?? '',
+                    'duration': '',
+                    'anneeExperience': s['anneeExperience'] ?? 0,
+                  })
+              .toList();
         });
       } else {
         setState(() {
@@ -58,33 +70,41 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
         });
       }
 
-      final reviewsSnap = await FirebaseFirestore.instance
-          .collection('experts')
-          .doc(widget.expert.id)
-          .collection('avis')
-          .orderBy('date', descending: true)
-          .limit(10)
-          .get();
+      // 2. Reviews depuis la collection interventions
+      final reviews =
+          await _firestoreService.getExpertReviews(widget.expert.id);
 
-      setState(() {
-        _reviews = reviewsSnap.docs.map((d) => d.data()).toList();
-        _isLoadingExtra = false;
-      });
-    } catch (_) {
-      setState(() => _isLoadingExtra = false);
+      // 3. Images portfolio depuis imagesExemplaires
+      final portfolioImages =
+          await _firestoreService.getExpertPortfolioImages(widget.expert.id);
+
+      // 4. Refresh basic expert info (rating, etc.)
+      final refreshed = await _firestoreService.getExpertDetailed(widget.expert.id);
+
+      if (mounted) {
+        setState(() {
+          if (refreshed != null) _expert = refreshed;
+          _reviews = reviews;
+          _portfolioImages = portfolioImages;
+          _isLoadingExtra = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading expert extra data: \$e');
+      if (mounted) setState(() => _isLoadingExtra = false);
     }
   }
 
-  String get _responseTime => widget.expert.isPremium ? '~10 min' : '~15 min';
+  String get _responseTime => _expert.isPremium ? '~10 min' : '~15 min';
 
   String get _reviewCount {
-    if (_reviews.isNotEmpty) return '${_reviews.length} reviews';
-    return '(${(widget.expert.noteMoyenne * 25).toInt()} reviews)';
+    if (_reviews.isNotEmpty) return '(${_reviews.length} avis)';
+    return '(0 avis)';
   }
 
   @override
   Widget build(BuildContext context) {
-    final expert = widget.expert;
+    final expert = _expert;
 
     return Scaffold(
       body: Center(
@@ -155,16 +175,11 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
                                           ),
                                         ],
                                       ),
-                                      child: ClipRRect(
+                                      child: SmartImage(
+                                        source: expert.photo,
+                                        width: 80,
+                                        height: 80,
                                         borderRadius: BorderRadius.circular(14),
-                                        child: expert.photo.isNotEmpty
-                                            ? Image.network(
-                                          expert.photo,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (_, __, ___) =>
-                                          const _AvatarPlaceholder(),
-                                        )
-                                            : const _AvatarPlaceholder(),
                                       ),
                                     ),
                                     const SizedBox(width: 16),
@@ -297,7 +312,10 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
                         isLoading: _isLoadingExtra,
                         expert: expert,
                       ),
-                      _PortfolioTab(expertId: expert.id),
+                      _PortfolioTab(
+                        images: _portfolioImages,
+                        isLoading: _isLoadingExtra,
+                      ),
                       _ReviewsTab(
                         reviews: _reviews,
                         rating: expert.noteMoyenne,
@@ -504,52 +522,20 @@ class _ServicesTab extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-class _PortfolioTab extends StatefulWidget {
-  final String expertId;
+class _PortfolioTab extends StatelessWidget {
+  /// Liste d'images en base64 récupérées depuis [imagesExemplaires]
+  final List<String> images;
+  final bool isLoading;
 
-  const _PortfolioTab({required this.expertId});
-
-  @override
-  State<_PortfolioTab> createState() => _PortfolioTabState();
-}
-
-class _PortfolioTabState extends State<_PortfolioTab> {
-  List<String> _photos = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPortfolio();
-  }
-
-  Future<void> _loadPortfolio() async {
-    try {
-      final snap = await FirebaseFirestore.instance
-          .collection('experts')
-          .doc(widget.expertId)
-          .collection('portfolio')
-          .get();
-
-      setState(() {
-        _photos = snap.docs
-            .map((d) => (d.data()['url'] ?? '') as String)
-            .where((u) => u.isNotEmpty)
-            .toList();
-        _isLoading = false;
-      });
-    } catch (_) {
-      setState(() => _isLoading = false);
-    }
-  }
+  const _PortfolioTab({required this.images, required this.isLoading});
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (isLoading) {
       return const Center(
           child: CircularProgressIndicator(color: Color(0xFF3D5A99)));
     }
-    if (_photos.isEmpty) {
+    if (images.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -571,20 +557,33 @@ class _PortfolioTabState extends State<_PortfolioTab> {
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
       ),
-      itemCount: _photos.length,
+      itemCount: images.length,
       itemBuilder: (context, index) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image.network(
-            _photos[index],
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => ColoredBox(
-              color: Colors.grey.shade200,
-              child: Icon(Icons.image_outlined, color: Colors.grey.shade400),
-            ),
+        final raw = images[index];
+        return GestureDetector(
+          onTap: () => _showFullImage(context, raw),
+          child: SmartImage(
+            source: raw,
+            borderRadius: BorderRadius.circular(12),
           ),
         );
       },
+    );
+  }
+
+  void _showFullImage(BuildContext context, String raw) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(8),
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: InteractiveViewer(
+            child: SmartImage(source: raw, fit: BoxFit.contain),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -745,6 +744,7 @@ class _InfoTab extends StatefulWidget {
 
 class _InfoTabState extends State<_InfoTab> {
   static const Color _kPrimary = Color(0xFF3D5A99);
+  final FirestoreService _firestoreService = FirestoreService();
 
   String? _description;
 
@@ -756,12 +756,8 @@ class _InfoTabState extends State<_InfoTab> {
 
   Future<void> _loadDescription() async {
     try {
-      // Read 'Experience' field directly from Firestore experts collection
-      final doc = await FirebaseFirestore.instance
-          .collection('experts')
-          .doc(widget.expert.id)
-          .get();
-      final raw = doc.data()?['Experience'] as String?;
+      final data = await _firestoreService.getExpertById(widget.expert.id);
+      final raw = data?['Experience'] as String?;
       if (mounted && raw != null && raw.isNotEmpty) {
         setState(() => _description = raw);
       }
