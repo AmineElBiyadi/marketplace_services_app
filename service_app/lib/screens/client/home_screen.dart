@@ -12,6 +12,7 @@ import '../../widgets/home/nearby_provider_card.dart';
 import '../../widgets/home/top_rated_card.dart';
 import 'expert_details_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:go_router/go_router.dart';
 import '../chat/chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -31,6 +32,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   String _clientNom = '';
   String? _selectedCategory;
+  List<String> _villesExperts = [];
+  String? _selectedVille;
 
   /// Position GPS de l'utilisateur (null si permission refusée)
   Position? _userPosition;
@@ -97,11 +100,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final position = await _locationService.getCurrentPosition();
     if (mounted) setState(() => _userPosition = position);
 
-    // 3. Liste des experts
+    // 3. Liste des experts et des villes
     final experts = await _firestoreService.getExperts();
+    final villes = await _firestoreService.getVillesExperts();
     if (mounted) {
       setState(() {
         _experts = experts;
+        _villesExperts = villes;
         _isLoading = false;
       });
       _applyFilters();
@@ -112,9 +117,15 @@ class _HomeScreenState extends State<HomeScreen> {
   void _applyFilters() {
     setState(() {
       _filteredExperts = _experts.where((e) {
-        if (_selectedCategory == null) return true;
-        return e.services.any((s) =>
-            s.toLowerCase().contains(_selectedCategory!.toLowerCase()));
+        if (_selectedCategory != null && !e.services.any((s) => s.toLowerCase().contains(_selectedCategory!.toLowerCase()))) {
+          return false;
+        }
+        if (_selectedVille != null && _selectedVille!.isNotEmpty) {
+          if (!e.ville.toLowerCase().contains(_selectedVille!.toLowerCase())) {
+            return false;
+          }
+        }
+        return true;
       }).toList();
     });
   }
@@ -128,16 +139,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Opens (or creates) a chat with the given expert and navigates to ChatScreen
   Future<void> _openChat(Expert expert) async {
-    print(">>> _openChat TAPPED for expert: ${expert.nom}");
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
-      print(">>> currentUser is NULL! Early return.");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez vous connecter pour chater')),
       );
       return;
     }
-    print(">>> currentUser is: ${currentUser.uid}");
 
     // Fetch current user's name for the snapshot
     final userDoc = await FirebaseFirestore.instance
@@ -255,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         tileColor: isSelected
-                            ? const Color(0xFF3D5A99).withOpacity(0.1)
+                            ? const Color(0xFF3D5A99).withValues(alpha: 0.1)
                             : null,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -314,26 +322,47 @@ class _HomeScreenState extends State<HomeScreen> {
                         bottomRight: Radius.circular(36),
                       ),
                     ),
-                    child: Column(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Hi ${_clientNom.isNotEmpty ? _clientNom : 'Client'},',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Hi ${_clientNom.isNotEmpty ? _clientNom : 'Client'},',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'What service are you looking for?',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        const Text(
-                          'What service are you looking for?',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w400,
-                          ),
+                        IconButton(
+                          icon: const Icon(Icons.logout, color: Colors.white),
+                          tooltip: 'Se déconnecter',
+                          onPressed: () async {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.clear();
+                            await FirebaseAuth.instance.signOut();
+                            if (context.mounted) {
+                              // We use pushing replacement or go to clear the stack if needed
+                              context.go('/login');
+                            }
+                          },
                         ),
                       ],
                     ),
@@ -416,7 +445,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                               ),
                               TextButton(
-                                onPressed: () {},
+                                onPressed: () => _showVilleDropdown(context),
                                 child: const Row(
                                   children: [
                                     Text('Map ', style: TextStyle(color: Color(0xFF4A69B1), fontWeight: FontWeight.bold)),
@@ -495,7 +524,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         rating: expert.noteMoyenne,
                                         imageUrl: expert.photo,
                                         isPremium: expert.isPremium,
-                                        onChat: () {},
+                                        onChat: () => _openChat(expert),
                                         onTap: () => Navigator.push(
                                           context,
                                           MaterialPageRoute(

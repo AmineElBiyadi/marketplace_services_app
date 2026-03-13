@@ -1,6 +1,6 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../screens/Authentificcation/client/login_screen.dart' as client_login;
+import '../screens/Authentificcation/client/forgot_password_screen.dart' as client_forgot_password;
 import '../screens/Authentificcation/client/signup_screen.dart' as client_signup;
 import '../screens/Authentificcation/client/otp_screen.dart' as client_otp;
 import '../screens/Authentificcation/provider/provider_login_screen.dart' as provider_login;
@@ -20,7 +20,7 @@ import '../screens/provider/provider_dashboard_screen.dart';
 import '../screens/provider/provider_reservations_screen.dart';
 import '../screens/provider/provider_services_screen.dart';
 import '../navigation/main_navigation.dart';
-
+import '../screens/splash_screen.dart';
 // ─── Route name constants ──────────────────────────────────────────
 class AppRoutes {
   static const String home = '/home';
@@ -54,8 +54,13 @@ class AppRoutes {
 
 // ─── GoRouter configuration ────────────────────────────────────────
 final GoRouter router = GoRouter(
-  initialLocation: AppRoutes.login,
+  initialLocation: '/',
   routes: [
+    // ── Entry ──
+    GoRoute(
+      path: '/',
+      builder: (context, state) => const SplashScreen(),
+    ),
     // ── Client ──
     GoRoute(
       path: AppRoutes.login,
@@ -82,10 +87,8 @@ final GoRouter router = GoRouter(
     ),
     GoRoute(
       path: AppRoutes.forgotPassword,
-      builder: (context, state) => Scaffold(
-        appBar: AppBar(title: const Text('Mot de passe oublié')),
-        body: const Center(child: Text('Forgot Password Screen')),
-      ),
+      builder: (context, state) =>
+          const client_forgot_password.ForgotPasswordScreen(),
     ),
 
     // ── Provider ──
