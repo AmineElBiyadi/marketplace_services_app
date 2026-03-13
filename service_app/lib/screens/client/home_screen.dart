@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../models/expert.dart';
+import '../../models/chat_model.dart';
 import '../../services/firestore_service.dart';
 import '../../services/location_service.dart';
 import '../../widgets/home/category_card.dart';
@@ -10,6 +11,10 @@ import '../../widgets/home/nearby_provider_card.dart';
 import '../../widgets/home/top_rated_card.dart';
 import 'expert_details_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../services/chat_service.dart';
+import '../chat/chat_screen.dart';
+
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,7 +25,12 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
+
   final LocationService _locationService = LocationService();
+
+  final ChatService _chatService = ChatService();
+  final TextEditingController _searchController = TextEditingController();
+
 
   List<Expert> _experts = [];
   List<Expert> _filteredExperts = [];
@@ -332,38 +342,39 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        _isLoading
-                            ? const Center(child: CircularProgressIndicator(color: Color(0xFF4A69B1)))
-                            : topRated.isEmpty
-                                ? const Center(child: Padding(
-                                    padding: EdgeInsets.all(40.0),
-                                    child: Text('Aucun prestataire trouvé'),
-                                  ))
-                                : ListView.builder(
-                                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                                    shrinkWrap: true,
-                                    physics: const NeverScrollableScrollPhysics(),
-                                    itemCount: topRated.length,
-                                    itemBuilder: (context, index) {
-                                      final expert = topRated[index];
-                                      return TopRatedCard(
-                                        name: expert.nom,
-                                        services: expert.services.join(', '),
-                                        rating: expert.noteMoyenne,
-                                        imageUrl: expert.photo,
-                                        isPremium: expert.isPremium,
-                                        onChat: () {},
-                                        onTap: () => Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => ExpertProfileScreen(expert: expert),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                        const SizedBox(height: 40),
-                      ],
+                    // ── TOP RATED ──
+                    const Text('Top Rated',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 12),
+
+                    _isLoading
+                        ? const Center(
+                        child: CircularProgressIndicator())
+                        : _filteredExperts.isEmpty
+                        ? const Center(
+                        child: Text(
+                            'Aucun prestataire trouvé'))
+                        : ListView.builder(
+                      shrinkWrap: true,
+                      physics:
+                      const NeverScrollableScrollPhysics(),
+                      itemCount: _filteredExperts.length,
+                      itemBuilder: (context, index) {
+                        final expert =
+                        _filteredExperts[index];
+                        return TopRatedCard(
+                          name: expert.nom,
+                          services:
+                          expert.services.join(', '),
+                          rating: expert.noteMoyenne,
+                          imageUrl: expert.photo,
+                          isPremium: expert.isPremium,
+                          onChat: () => _openChat(expert),
+                          onTap: () {},
+                        );
+                      },
                     ),
                   ),
                 ],
