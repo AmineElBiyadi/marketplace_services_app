@@ -3,8 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
 import '../screens/chat/chat_list_screen.dart';
-
-// ... (Widget definition remains the same)
+import '../services/firestore_service.dart';
 
 class ProviderSidebar extends StatefulWidget {
   final String activeRoute;
@@ -27,6 +26,19 @@ class ProviderSidebar extends StatefulWidget {
 }
 
 class _ProviderSidebarState extends State<ProviderSidebar> {
+  final FirestoreService _firestoreService = FirestoreService();
+  bool _isPremium = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _firestoreService
+        .isExpertPremium(widget.expertId)
+        .listen((premium) {
+          if (mounted) setState(() => _isPremium = premium);
+        });
+  }
+
   @override
   Widget build(BuildContext context) {
     final double width = widget.isOpen || widget.isMobile ? 260 : 80;
@@ -39,7 +51,7 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
       ),
       child: Column(
         children: [
-          // ... (Logo Section remains the same)
+          // Logo Section
           Container(
             height: 64,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -78,19 +90,25 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
               children: [
-                _sidebarItem(LucideIcons.home, 'Tableau de bord', '/provider/dashboard'),
-                _sidebarItem(LucideIcons.calendarDays, 'Mon Agenda', '/provider/agenda'),
+                _sidebarItem(LucideIcons.home, 'Tableau de bord', '/provider/:expertId/dashboard'),
+                // Agenda tab: only visible for premium experts
+                if (_isPremium)
+                  _sidebarItem(
+                    LucideIcons.calendarDays,
+                    'Mon Agenda',
+                    '/provider/:expertId/agenda',
+                    badge: '⭐',
+                  ),
                 _sidebarItem(LucideIcons.messageSquare, 'Messages', '/provider/messages'),
-                _sidebarItem(LucideIcons.user, 'Profil', '/provider/profile'),
-                _sidebarItem(LucideIcons.briefcase, 'Mes Services', '/provider/services'),
-                _sidebarItem(LucideIcons.clipboardList, 'Réservations', '/provider/bookings'),
-                _sidebarItem(LucideIcons.bell, 'Notifications', '/provider/notifications'),
-                _sidebarItem(LucideIcons.creditCard, 'Abonnement', '/provider/subscription'),
-                _sidebarItem(LucideIcons.settings, 'Paramètres', '/provider/settings'),
+                _sidebarItem(LucideIcons.user, 'Profil', '/provider/:expertId/profile'),
+                _sidebarItem(LucideIcons.briefcase, 'Mes Services', '/provider/:expertId/services'),
+                _sidebarItem(LucideIcons.clipboardList, 'Réservations', '/provider/:expertId/bookings'),
+                _sidebarItem(LucideIcons.bell, 'Notifications', '/provider/:expertId/notifications'),
+                _sidebarItem(LucideIcons.creditCard, 'Abonnement', '/provider/:expertId/subscription'),
+                _sidebarItem(LucideIcons.settings, 'Paramètres', '/provider/:expertId/settings'),
               ],
             ),
           ),
-          // ... (Logout remains the same)
 
           // Logout
           Container(
@@ -103,7 +121,7 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
     );
   }
 
-  Widget _sidebarItem(IconData icon, String label, String route, {bool isDestructive = false}) {
+  Widget _sidebarItem(IconData icon, String label, String route, {bool isDestructive = false, String? badge}) {
     final bool active = widget.activeRoute == route;
     final bool showLabel = widget.isOpen || widget.isMobile;
 
@@ -112,7 +130,6 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
       child: InkWell(
         onTap: () {
           if (route == '/logout') {
-            // Handle Logout
             context.go('/login');
             return;
           }
@@ -129,10 +146,11 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
             return;
           }
           if (widget.activeRoute != route) {
-            context.go(route);
+            final targetRoute = route.replaceAll(':expertId', widget.expertId);
+            context.go(targetRoute);
           }
           if (widget.isMobile) {
-            Navigator.pop(context); // Close drawer on mobile
+            Navigator.pop(context);
           }
         },
         borderRadius: BorderRadius.circular(12),
@@ -148,22 +166,26 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
               Icon(
                 icon,
                 size: 20,
-                color: isDestructive 
-                    ? Colors.redAccent 
+                color: isDestructive
+                    ? Colors.redAccent
                     : (active ? Colors.white : Colors.white60),
               ),
               if (showLabel) ...[
                 const SizedBox(width: 12),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isDestructive 
-                        ? Colors.redAccent 
-                        : (active ? Colors.white : Colors.white60),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: isDestructive
+                          ? Colors.redAccent
+                          : (active ? Colors.white : Colors.white60),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
+                if (badge != null)
+                  Text(badge, style: const TextStyle(fontSize: 12)),
               ],
             ],
           ),

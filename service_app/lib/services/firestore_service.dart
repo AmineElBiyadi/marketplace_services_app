@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'hash_service.dart';
 import '../models/booking.dart';
 import '../models/expert.dart';
@@ -59,6 +60,26 @@ class FirestoreService {
             snapshot.docs.map((doc) => InterventionModel.fromFirestore(doc)).toList());
   }
 
+  Stream<List<InterventionModel>> getExpertInterventionsByMonth(String expertId, DateTime month) {
+    final firstDay = DateTime(month.year, month.month, 1);
+    final lastDay = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
+
+    return _firestore
+        .collection('interventions')
+        .where('idExpert', isEqualTo: expertId)
+        .snapshots()
+        .map((snapshot) {
+          final list = snapshot.docs.map((doc) => InterventionModel.fromFirestore(doc)).toList();
+          
+          // Filter by date range only — show ALL statuses so expert sees full agenda
+          return list.where((interv) {
+            final date = interv.dateDebutIntervention;
+            if (date == null) return false;
+            return !date.isBefore(firstDay) && !date.isAfter(lastDay);
+          }).toList();
+        });
+  }
+
   Future<Map<String, dynamic>> getExpertKPIs(String expertId) async {
     try {
       final interventions = await _firestore
@@ -109,6 +130,231 @@ class FirestoreService {
         'revenue': '0 DH',
         'views': '0',
       };
+    }
+  }
+
+  Stream<bool> isExpertPremium(String expertId) {
+    return _firestore
+        .collection('abonnements')
+        .where('idExpert', isEqualTo: expertId)
+        .where('statut', isEqualTo: 'ACTIVE')
+        .snapshots()
+        .map((snapshot) => snapshot.docs.isNotEmpty);
+  }
+
+  /// Returns the full active subscription document, or null if not premium.
+  Stream<Map<String, dynamic>?> getActiveSubscription(String expertId) {
+    return _firestore
+        .collection('abonnements')
+        .where('idExpert', isEqualTo: expertId)
+        .where('statut', isEqualTo: 'ACTIVE')
+        .limit(1)
+        .snapshots()
+        .map((snapshot) {
+          if (snapshot.docs.isEmpty) return null;
+          final doc = snapshot.docs.first;
+          return {'id': doc.id, ...doc.data()};
+        });
+  }
+
+  Future<void> cancelSubscription(String subscriptionId) async {
+    await _firestore.collection('abonnements').doc(subscriptionId).update({
+      'statut': 'DESACTIVE',
+      'dateFin': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<String?> getExpertIdByUserId(String userId) async {
+    try {
+      final query = await _firestore
+          .collection('experts')
+          .where('idUtilisateur', isEqualTo: userId)
+          .limit(1)
+          .get();
+      if (query.docs.isNotEmpty) {
+        return query.docs.first.id;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<String?> getExpertIdByEmail(String email) async {
+    debugPrint("[FirestoreService] Resolving Expert ID for email: $email");
+    try {
+      QuerySnapshot userQuery;
+      
+      if (email.endsWith('@proxy.app.com')) {
+        final phonePart = email.split('@')[0];
+        debugPrint("[FirestoreService] Phone-based proxy detected: $phonePart");
+        
+        userQuery = await _firestore
+            .collection('utilisateurs')
+            .where('telephone', isEqualTo: phonePart)
+            .limit(1)
+            .get();
+            
+        if (userQuery.docs.isEmpty) {
+          userQuery = await _firestore
+              .collection('utilisateurs')
+              .where('telephone', isEqualTo: '+$phonePart')
+              .limit(1)
+              .get();
+        }
+      } else {
+        userQuery = await _firestore
+            .collection('utilisateurs')
+            .where('email', isEqualTo: email)
+            .limit(1)
+            .get();
+      }
+
+      if (userQuery.docs.isEmpty) {
+        debugPrint("[FirestoreService] No user document found for $email");
+        return null;
+      }
+      
+      final userId = userQuery.docs.first.id;
+      debugPrint("[FirestoreService] Found User ID: $userId");
+
+      final expertQuery = await _firestore
+          .collection('experts')
+          .where('idUtilisateur', isEqualTo: userId)
+          .limit(1)
+          .get();
+          
+      if (expertQuery.docs.isNotEmpty) {
+        final expertId = expertQuery.docs.first.id;
+        debugPrint("[FirestoreService] Resolved Expert ID: $expertId");
+        return expertId;
+      }
+      
+      debugPrint("[FirestoreService] No expert document found for User ID: $userId");
+      return null;
+    } catch (e) {
+      debugPrint("[FirestoreService] ERROR in getExpertIdByEmail: $e");
+      return null;
+    }
+  }
+
+  Future<String?> getExpertIdFromSession() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
+    if (user.email != null) return await getExpertIdByEmail(user.email!);
+    
+    // Fallback search by UID if email is null (though email should be present for providers)
+    final q = await _firestore.collection('experts').where('idUtilisateur', isEqualTo: user.uid).limit(1).get();
+    if (q.docs.isNotEmpty) return q.docs.first.id;
+    
+    return null;
+  }
+
+  Future<void> subscribeToPremium(String expertId) async {
+    try {
+      await _firestore.collection('abonnements').add({
+        'idExpert': expertId,
+        'statut': 'ACTIVE',
+        'dateDebut': FieldValue.serverTimestamp(),
+        'type': 'PREMIUM',
+        'montant': 99,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> saveCardInfo({
+    required String expertId,
+    required String cardNumber,
+    required String expiryDate,
+    required String cvv,
+  }) async {
+    final last4 = cardNumber.replaceAll(' ', '').length >= 4
+        ? cardNumber.replaceAll(' ', '').substring(cardNumber.replaceAll(' ', '').length - 4)
+        : '????';
+    final maskedNumber = '**** **** **** $last4';
+
+    await _firestore.collection('cartesBancaires').add({
+      'idExpert': expertId,
+      'CardNumber': maskedNumber,
+      'CVV': '***',
+      'ExpirationDate': expiryDate,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Returns list of subscription payment records derived from the active subscription.
+  /// Generates one entry per month elapsed since subscription start.
+  Future<List<Map<String, dynamic>>> getPaymentHistory(String expertId) async {
+    try {
+      final snap = await _firestore
+          .collection('abonnements')
+          .where('idExpert', isEqualTo: expertId)
+          .orderBy('createdAt', descending: true)
+          .limit(1)
+          .get();
+
+      if (snap.docs.isEmpty) return [];
+
+      final data = snap.docs.first.data();
+      final createdAtRaw = data['createdAt'];
+      if (createdAtRaw == null) return [];
+
+      final DateTime start = (createdAtRaw is Timestamp)
+          ? createdAtRaw.toDate()
+          : DateTime.now();
+      final now = DateTime.now();
+
+      int monthsElapsed = (now.year - start.year) * 12 + (now.month - start.month) + 1;
+      if (monthsElapsed < 1) monthsElapsed = 1;
+      if (monthsElapsed > 24) monthsElapsed = 24; // cap at 2 years display
+
+      final List<Map<String, dynamic>> history = [];
+      for (int i = 0; i < monthsElapsed; i++) {
+        final d = DateTime(start.year, start.month + i, 1);
+        history.insert(0, {
+          'date': '1 ${_monthName(d.month)} ${d.year}',
+          'amount': '99 DH',
+          'status': d.isBefore(DateTime(now.year, now.month + 1)) ? 'Payé' : 'À venir',
+        });
+      }
+      return history;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static String _monthName(int m) {
+    const months = ['Jan', 'Fév', 'Mars', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+    return months[(m - 1).clamp(0, 11)];
+  }
+
+  /// Fetch client snapshot data from Firestore using the clientId from an intervention.
+  Future<Map<String, dynamic>?> getClientSnapshot(String clientId) async {
+    try {
+      // First get the client doc to find idUtilisateur
+      final clientDoc = await _firestore.collection('clients').doc(clientId).get();
+      if (!clientDoc.exists) return null;
+
+      final idUtilisateur = clientDoc.data()?['idUtilisateur'];
+      if (idUtilisateur == null) return null;
+
+      // Fetch user data
+      final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
+      if (!userDoc.exists) return null;
+
+      final data = userDoc.data()!;
+      return {
+        'nom': data['nom'] ?? 'Client',
+        'telephone': data['telephone'] ?? '',
+        'photo': data['image_profile'],
+      };
+    } catch (e) {
+      return null;
     }
   }
 
@@ -327,7 +573,6 @@ class FirestoreService {
           .get();
 
       if (clientQuery.docs.isNotEmpty) {
-        // Sign in shadow Firebase Auth user for chat
         final authEmail = (data['email'] != null && data['email'].toString().isNotEmpty) 
             ? data['email'] 
             : '${phone.replaceAll('+', '')}@proxy.app.com';
@@ -337,42 +582,28 @@ class FirestoreService {
             email: authEmail,
             password: password,
           );
-        } catch (e) {
-          // If login fails (e.g., legacy user who doesn't have an Auth record yet), 
-          // attempt to create the record seamlessly
-          print(">>> Failed to sync Firebase Auth user: $e");
+        } catch (_) {
           try {
-            // First attempt to signIn with the padded password in case it was created previously
             await FirebaseAuth.instance.signInWithEmailAndPassword(
               email: authEmail,
               password: '${password}Proxy123!',
             );
-          } catch (e) {
+          } catch (_) {
             try {
               await FirebaseAuth.instance.createUserWithEmailAndPassword(
                 email: authEmail,
                 password: password,
               );
-            } on FirebaseAuthException catch (e) {
-            if (e.code == 'weak-password') {
-              // Firebase Auth requires at least 6 characters. If the user's custom password 
-              // is shorter, we pad it just for the background Firebase Auth sign-in.
+            } catch (_) {
               try {
-                final paddedPassword = '${password}Proxy123!';
                 await FirebaseAuth.instance.createUserWithEmailAndPassword(
                   email: authEmail,
-                  password: paddedPassword,
+                  password: '${password}Proxy123!',
                 );
               } catch (_) {}
-            } else {
-              print(">>> Failed to CREATE Firebase Auth user during loginClient: $e");
             }
-          } catch (e) {
-            print(">>> Failed to CREATE Firebase Auth user during loginClient: $e");
           }
         }
-      }
-        
         return data;
       }
     }
@@ -450,7 +681,6 @@ class FirestoreService {
           .get();
 
       if (expertQuery.docs.isNotEmpty) {
-        // Sign in shadow Firebase Auth user for chat
         final authEmail = (data['email'] != null && data['email'].toString().isNotEmpty) 
             ? data['email'] 
             : '${phone.replaceAll('+', '')}@proxy.app.com';
@@ -460,38 +690,29 @@ class FirestoreService {
             email: authEmail,
             password: password,
           );
-        } catch (e) {
-          print(">>> Failed to sync Firebase Auth user in loginProvider: $e");
+        } catch (_) {
           try {
-            // First attempt to signIn with the padded password in case it was created previously
             await FirebaseAuth.instance.signInWithEmailAndPassword(
               email: authEmail,
               password: '${password}Proxy123!',
             );
-          } catch (e) {
+          } catch (_) {
             try {
               await FirebaseAuth.instance.createUserWithEmailAndPassword(
                 email: authEmail,
                 password: password,
               );
-            } on FirebaseAuthException catch (e) {
-               if (e.code == 'weak-password') {
-                  try {
-                    await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                      email: authEmail,
-                      password: '${password}Proxy123!',
-                    );
-                  } catch (_) {}
-               } else {
-                  print(">>> Failed to CREATE Firebase Auth user during loginProvider: $e");
-               }
-            } catch (e) {
-              print(">>> Failed to CREATE Firebase Auth user during loginProvider: $e");
+            } catch (_) {
+              try {
+                await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                  email: authEmail,
+                  password: '${password}Proxy123!',
+                );
+              } catch (_) {}
             }
           }
         }
         
-        // Attach etatCompte so the UI can decide where to redirect
         data['etatCompte'] = expertQuery.docs.first.data()['etatCompte'] ?? 'PENDING';
         data['expertId'] = expertQuery.docs.first.id;
         return data;

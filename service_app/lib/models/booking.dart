@@ -44,6 +44,22 @@ class InterventionModel {
 
   factory InterventionModel.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    
+    // Handle different date formats
+    DateTime? date;
+    if (data['dateDebutIntervention'] is Timestamp) {
+      date = (data['dateDebutIntervention'] as Timestamp).toDate();
+    } else if (data['dateIntervention'] is Map) {
+      final di = data['dateIntervention'] as Map;
+      final dateStr = di['date']; // "YYYY-MM-DD"
+      final timeStr = di['heure']; // "HH:mm"
+      if (dateStr != null && timeStr != null) {
+        try {
+          date = DateTime.parse("$dateStr $timeStr");
+        } catch (_) {}
+      }
+    }
+
     return InterventionModel(
       id: doc.id,
       idClient: data['idClient'] ?? '',
@@ -54,7 +70,7 @@ class InterventionModel {
       isUrgent: data['isUrgent'] ?? false,
       prixNegocie: (data['prixNegocie'] as num?)?.toDouble() ?? 0.0,
       codeValidationExpert: data['codeValidationExpert'],
-      dateDebutIntervention: (data['dateDebutIntervention'] as Timestamp?)?.toDate(),
+      dateDebutIntervention: date,
       dateFinIntervention: (data['dateFinIntervention'] as Timestamp?)?.toDate(),
       clientSnapshot: data['clientSnapshot'],
       expertSnapshot: data['expertSnapshot'],

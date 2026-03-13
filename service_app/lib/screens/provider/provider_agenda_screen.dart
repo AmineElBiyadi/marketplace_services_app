@@ -1,42 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import '../../theme/app_colors.dart';
 import '../../layouts/provider_layout.dart';
-
-class Booking {
-  final int id;
-  final int day; // 0-6
-  final int startHour;
-  final int endHour;
-  final String client;
-  final String service;
-
-  Booking({
-    required this.id,
-    required this.day,
-    required this.startHour,
-    required this.endHour,
-    required this.client,
-    required this.service,
-  });
-
-  Booking copyWith({
-    int? day,
-    int? startHour,
-    int? endHour,
-    String? client,
-    String? service,
-  }) {
-    return Booking(
-      id: id,
-      day: day ?? this.day,
-      startHour: startHour ?? this.startHour,
-      endHour: endHour ?? this.endHour,
-      client: client ?? this.client,
-      service: service ?? this.service,
-    );
-  }
-}
+import '../../services/firestore_service.dart';
+import '../../models/booking.dart';
 
 class ProviderAgendaScreen extends StatefulWidget {
   final String expertId;
@@ -47,54 +16,167 @@ class ProviderAgendaScreen extends StatefulWidget {
 }
 
 class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
+  final FirestoreService _firestoreService = FirestoreService();
   final List<String> _weekDaysShort = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
   final List<int> _hours = List.generate(12, (i) => i + 7); // 7h - 18h
 
-  List<Booking> _bookings = [
-    Booking(id: 1, day: 0, startHour: 9, endHour: 11, client: "Amina B.", service: "Plomberie"),
-    Booking(id: 2, day: 1, startHour: 14, endHour: 16, client: "Omar H.", service: "Ménage"),
-    Booking(id: 3, day: 3, startHour: 10, endHour: 12, client: "Sara M.", service: "Jardinage"),
-    Booking(id: 4, day: 4, startHour: 8, endHour: 9, client: "Karim L.", service: "Réparation"),
-  ];
+  DateTime _gridDate = DateTime.now();
+  DateTime _queryDate = DateTime.now();
+  Stream<List<InterventionModel>>? _interventionsStream;
+  List<InterventionModel> _cachedInterventions = [];
+  // Track which month the cache belongs to — prevents stale cross-month data
+  String _cacheMonth = '';
+  String? _resolvedExpertId;
 
-  void _openAdd() {
-    _showAddEditDialog();
+  @override
+  void initState() {
+    super.initState();
+    _queryDate = DateTime(_gridDate.year, _gridDate.month, 1);
+    _resolveAndInit();
   }
 
-  void _openEdit(Booking b) {
-    _showAddEditDialog(booking: b);
+  Future<void> _resolveAndInit() async {
+    debugPrint("[ProviderAgendaScreen] Resolving session...");
+    final expertId = await _firestoreService.getExpertIdFromSession();
+    debugPrint("[ProviderAgendaScreen] Resolved Expert ID: $expertId");
+    
+    if (expertId != null && mounted) {
+      // Store ID first, then subscribe to stream, OUTSIDE of setState nesting
+      _resolvedExpertId = expertId;
+      _subscribeToStream(); // builds the stream
+      setState(() {}); // trigger rebuild
+    }
   }
 
-  void _handleDelete(int id) {
-    setState(() {
-      _bookings.removeWhere((element) => element.id == id);
-    });
+  void _subscribeToStream() {
+    if (_resolvedExpertId == null) return;
+    final newMonthKey = '${_queryDate.year}-${_queryDate.month}';
+    // Clear cache immediately when switching to a different month
+    if (_cacheMonth != newMonthKey) {
+      _cachedInterventions = [];
+      _cacheMonth = newMonthKey;
+    }
+    _interventionsStream = _firestoreService.getExpertInterventionsByMonth(_resolvedExpertId!, _queryDate);
   }
+
+  void _previousMonth() {
+    _queryDate = DateTime(_queryDate.year, _queryDate.month - 1, 1);
+    _gridDate = _queryDate;
+    _subscribeToStream();
+    setState(() {});
+  }
+
+  void _nextMonth() {
+    _queryDate = DateTime(_queryDate.year, _queryDate.month + 1, 1);
+    _gridDate = _queryDate;
+    _subscribeToStream();
+    setState(() {});
+  }
+
+  void _previousWeek() {
+    _gridDate = _gridDate.subtract(const Duration(days: 7));
+    if (_gridDate.month != _queryDate.month || _gridDate.year != _queryDate.year) {
+      _queryDate = DateTime(_gridDate.year, _gridDate.month, 1);
+      _cachedInterventions = [];
+      _subscribeToStream();
+    }
+    setState(() {});
+  }
+
+  void _nextWeek() {
+    _gridDate = _gridDate.add(const Duration(days: 7));
+    if (_gridDate.month != _queryDate.month || _gridDate.year != _queryDate.year) {
+      _queryDate = DateTime(_gridDate.year, _gridDate.month, 1);
+      _cachedInterventions = [];
+      _subscribeToStream();
+    }
+    setState(() {});
+  }
+
+  DateTime get _startOfWeek {
+    int daysToSubtract = _gridDate.weekday - 1;
+    return DateTime(_gridDate.year, _gridDate.month, _gridDate.day).subtract(Duration(days: daysToSubtract));
+  }
+
+  DateTime get _endOfWeek => _startOfWeek.add(const Duration(days: 6, hours: 23, minutes: 59));
 
   @override
   Widget build(BuildContext context) {
+    if (_resolvedExpertId == null) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: AppColors.primary),
+              SizedBox(height: 16),
+              Text("Vérification de votre session...", style: TextStyle(color: Colors.grey)),
+            ],
+          ),
+        ),
+      );
+    }
+
     return ProviderLayout(
       activeRoute: '/provider/agenda',
-      expertId: widget.expertId,
+      expertId: _resolvedExpertId!,
       child: Column(
         children: [
           _buildHeader(),
+          _buildWeekPicker(),
           Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                children: [
-                  const Text(
-                    "Semaine du 8 au 14 Mars 2026",
-                    style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildCalendarGrid(),
-                  const SizedBox(height: 24),
-                  _buildUpcomingList(),
-                ],
-              ),
-            ),
+            child: _interventionsStream == null 
+              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              : StreamBuilder<List<InterventionModel>>(
+                  stream: _interventionsStream,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(child: Text("Erreur: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
+                    }
+                    
+                    // Only update cache if the data belongs to the current query month
+                    if (snapshot.hasData) {
+                      final newMonthKey = '${_queryDate.year}-${_queryDate.month}';
+                      if (_cacheMonth == newMonthKey) {
+                        _cachedInterventions = snapshot.data!;
+                      }
+                    }
+    
+                    final bool isWaiting = snapshot.connectionState == ConnectionState.waiting;
+                    
+                    final allInterventions = _cachedInterventions;
+                    debugPrint("[ProviderAgendaScreen] UI Render - All: ${allInterventions.length}");
+
+                    if (isWaiting && allInterventions.isEmpty) {
+                      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                    }
+
+                    final weekInterventions = allInterventions.where((i) {
+                      if (i.dateDebutIntervention == null) return false;
+                      final start = _startOfWeek.subtract(const Duration(seconds: 1));
+                      final end = _endOfWeek.add(const Duration(seconds: 1));
+                      return i.dateDebutIntervention!.isAfter(start) &&
+                             i.dateDebutIntervention!.isBefore(end);
+                    }).toList();
+                    debugPrint("[ProviderAgendaScreen] UI Render - Week: ${weekInterventions.length}");
+    
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Column(
+                        children: [
+                          _buildCalendarGrid(weekInterventions),
+                          const SizedBox(height: 24),
+                          _buildSummaryList(allInterventions),
+                          if (isWaiting)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: LinearProgressIndicator(minHeight: 2, color: AppColors.primary, backgroundColor: Colors.transparent),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
           ),
         ],
       ),
@@ -109,31 +191,56 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
         border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text(
             "Mon Agenda",
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
           ),
-          ElevatedButton.icon(
-            onPressed: _openAdd,
-            icon: const Icon(LucideIcons.plus, size: 16),
-            label: const Text("Ajouter"),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-            ),
+          const Spacer(),
+          Text(
+            DateFormat('MMMM yyyy', 'fr').format(_queryDate).toUpperCase(),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: _previousMonth,
+            icon: const Icon(LucideIcons.chevronLeft, size: 20, color: AppColors.primary),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          IconButton(
+            onPressed: _nextMonth,
+            icon: const Icon(LucideIcons.chevronRight, size: 20, color: AppColors.primary),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCalendarGrid() {
+  Widget _buildWeekPicker() {
+    final start = DateFormat('dd MMM', 'fr').format(_startOfWeek);
+    final end = DateFormat('dd MMM yyyy', 'fr').format(_endOfWeek);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      color: Colors.grey[50],
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(onPressed: _previousWeek, icon: const Icon(LucideIcons.arrowLeft, size: 16)),
+          Text(
+            "Semaine du $start au $end",
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey),
+          ),
+          IconButton(onPressed: _nextWeek, icon: const Icon(LucideIcons.arrowRight, size: 16)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarGrid(List<InterventionModel> interventions) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -143,26 +250,37 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          // Week header
+          // Week days header
           Container(
             decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0)))),
             child: Row(
               children: [
                 const SizedBox(width: 44),
-                ..._weekDaysShort.map((d) => Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text(
-                      d,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                ...List.generate(7, (index) {
+                  final dayDate = _startOfWeek.add(Duration(days: index));
+                  final isToday = dayDate.day == DateTime.now().day && dayDate.month == DateTime.now().month && dayDate.year == DateTime.now().year;
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
+                        children: [
+                          Text(
+                            _weekDaysShort[index],
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isToday ? AppColors.primary : const Color(0xFF1E293B)),
+                          ),
+                          Text(
+                            "${dayDate.day}",
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: isToday ? AppColors.primary : Colors.grey),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                )),
+                  );
+                }),
               ],
             ),
           ),
-          // Time slots
+          // Hourly grid
           Stack(
             children: [
               Column(
@@ -188,41 +306,54 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                   ),
                 )).toList(),
               ),
-              // Bookings overlay
-              ..._bookings.map((booking) {
-                final double top = (booking.startHour - 7) * 60.0;
-                final double height = (booking.endHour - booking.startHour) * 60.0 - 4;
-                final double widthFactor = 1 / 7;
+              // Positioning interventions
+              ...interventions.map((interv) {
+                final date = interv.dateDebutIntervention!;
+                final dayInWeek = date.weekday - 1; 
+                final startHour = date.hour;
+                final startMin = date.minute;
+                final endHour = interv.dateFinIntervention?.hour ?? (startHour + 1);
+                final endMin = interv.dateFinIntervention?.minute ?? 0;
+
+                if (startHour < 7 || startHour >= 19) return const SizedBox.shrink();
+
+                final double top = (startHour - 7) * 60.0 + (startMin / 60.0 * 60.0);
+                final double durationInHours = (endHour + endMin / 60.0) - (startHour + startMin / 60.0);
+                final double height = (durationInHours * 60.0) - 4;
 
                 return Positioned(
                   top: top + 2,
-                  left: 44 + (booking.day * (MediaQuery.of(context).size.width - 76) / 7),
+                  left: 44 + (dayInWeek * (MediaQuery.of(context).size.width - 76) / 7),
                   width: (MediaQuery.of(context).size.width - 76) / 7 - 4,
-                  height: height,
+                  height: height.isNegative ? 20 : height,
                   child: GestureDetector(
-                    onTap: () => _openEdit(booking),
+                    onTap: () => _showInterventionDetails(interv),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: _getStatusColor(interv.statut).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: const Border(left: BorderSide(color: AppColors.primary, width: 2)),
+                        border: Border(left: BorderSide(color: _getStatusColor(interv.statut), width: 3)),
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
+                        ],
                       ),
                       padding: const EdgeInsets.all(4),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            booking.service,
-                            style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: AppColors.primary),
+                            interv.tacheSnapshot?['serviceNom'] ?? 'Intervention',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _getStatusColor(interv.statut)),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          Text(
-                            booking.client,
-                            style: TextStyle(fontSize: 7, color: AppColors.primary.withOpacity(0.7)),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          if (height > 30)
+                            Text(
+                              interv.clientSnapshot?['nom'] ?? '',
+                              style: TextStyle(fontSize: 10, color: _getStatusColor(interv.statut).withOpacity(0.9), fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                         ],
                       ),
                     ),
@@ -236,26 +367,33 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
     );
   }
 
-  Widget _buildUpcomingList() {
-    final sortedBookings = List<Booking>.from(_bookings)
-      ..sort((a, b) => a.day.compareTo(b.day) != 0 ? a.day.compareTo(b.day) : a.startHour.compareTo(b.startHour));
+  Widget _buildSummaryList(List<InterventionModel> interventions) {
+    // Sort all interventions for the month by date
+    final sorted = List<InterventionModel>.from(interventions)
+      ..sort((a, b) => (a.dateDebutIntervention ?? DateTime.now()).compareTo(b.dateDebutIntervention ?? DateTime.now()));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Événements cette semaine",
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Toutes les interventions du mois",
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+            ),
+            _badge("${interventions.length}", AppColors.primary),
+          ],
         ),
         const SizedBox(height: 12),
-        if (sortedBookings.isEmpty)
+        if (sorted.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 32),
-            child: Center(child: Text("Aucun événement cette semaine", style: TextStyle(color: Colors.grey, fontSize: 13))),
+            child: Center(child: Text("Aucune intervention ce mois", style: TextStyle(color: Colors.grey, fontSize: 13))),
           )
         else
-          ...sortedBookings.map((b) => GestureDetector(
-            onTap: () => _openEdit(b),
+          ...sorted.map((interv) => GestureDetector(
+            onTap: () => _showInterventionDetails(interv),
             child: Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(12),
@@ -270,10 +408,10 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
+                      color: _getStatusColor(interv.statut).withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(LucideIcons.clock, color: AppColors.primary, size: 18),
+                    child: Icon(LucideIcons.calendar, color: _getStatusColor(interv.statut), size: 18),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -281,25 +419,17 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          b.service,
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                          overflow: TextOverflow.ellipsis,
+                          interv.tacheSnapshot?['serviceNom'] ?? 'Service',
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B), fontSize: 13),
                         ),
                         Text(
-                          "${_weekDaysShort[b.day]} • ${b.startHour}:00 - ${b.endHour}:00 ${b.client.isNotEmpty ? '• ${b.client}' : ''}",
+                          "${DateFormat('dd/MM HH:mm', 'fr').format(interv.dateDebutIntervention!)} • ${interv.clientSnapshot?['nom'] ?? 'Client'}",
                           style: const TextStyle(fontSize: 11, color: Colors.grey),
                         ),
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => _handleDelete(b.id),
-                    icon: const Icon(LucideIcons.trash2, color: Colors.red, size: 18),
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.red.withOpacity(0.1),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
+                  _badge(interv.statut, _getStatusColor(interv.statut)),
                 ],
               ),
             ),
@@ -308,223 +438,174 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
     );
   }
 
-  void _showAddEditDialog({Booking? booking}) {
-    final bool isEdit = booking != null;
-    final idController = TextEditingController(text: isEdit ? booking.id.toString() : "");
-    final serviceController = TextEditingController(text: isEdit ? booking.service : "");
-    final clientController = TextEditingController(text: isEdit ? booking.client : "");
-    int selectedDay = isEdit ? booking.day : 0;
-    int selectedStart = isEdit ? booking.startHour : 8;
-    int selectedEnd = isEdit ? booking.endHour : 10;
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'ACCEPTEE': return Colors.green;
+      case 'TERMINEE': return Colors.blue;
+      case 'EN_ATTENTE': return Colors.orange;
+      case 'REFUSEE': return Colors.red;
+      case 'ANNULEE': return Colors.grey;
+      default: return AppColors.primary;
+    }
+  }
 
+  Widget _badge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(8)),
+      child: Text(text, style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.w700)),
+    );
+  }
+
+  void _showInterventionDetails(InterventionModel interv) {
     showDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Text(
-                isEdit ? "Modifier l'événement" : "Ajouter un événement",
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildLabel("Service / Titre"),
-                    TextField(
-                      controller: serviceController,
-                      decoration: _inputDecoration("Ex: Plomberie"),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildLabel("Client (optionnel)"),
-                    TextField(
-                      controller: clientController,
-                      decoration: _inputDecoration("Ex: Amina B."),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildLabel("Jour"),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: List.generate(7, (index) => GestureDetector(
-                        onTap: () => setDialogState(() => selectedDay = index),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: selectedDay == index ? AppColors.primary : const Color(0xFFF1F5F9),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: selectedDay == index ? AppColors.primary : const Color(0xFFE2E8F0)),
-                          ),
-                          child: Text(
-                            _weekDaysShort[index],
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: selectedDay == index ? Colors.white : Colors.grey,
-                            ),
-                          ),
-                        ),
-                      )),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel("Début"),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<int>(
-                                    value: selectedStart,
-                                    isExpanded: true,
-                                    items: _hours.map((h) => DropdownMenuItem(value: h, child: Text("$h:00"))).toList(),
-                                    onChanged: (val) {
-                                      if (val != null) {
-                                        setDialogState(() {
-                                          selectedStart = val;
-                                          if (selectedEnd <= selectedStart) selectedEnd = selectedStart + 1;
-                                        });
-                                      }
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel("Fin"),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<int>(
-                                    value: selectedEnd,
-                                    isExpanded: true,
-                                    items: _hours.where((h) => h > selectedStart).map((h) => DropdownMenuItem(value: h, child: Text("$h:00"))).toList(),
-                                    onChanged: (val) {
-                                      if (val != null) setDialogState(() => selectedEnd = val);
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        if (isEdit) ...[
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () {
-                                _handleDelete(booking.id);
-                                Navigator.pop(context);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red.withOpacity(0.1),
-                                foregroundColor: Colors.red,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(LucideIcons.trash2, size: 16),
-                                  SizedBox(width: 4),
-                                  Text("Supprimer", style: TextStyle(fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {
-                              if (serviceController.text.trim().isEmpty) return;
-                              setState(() {
-                                if (isEdit) {
-                                  final index = _bookings.indexWhere((element) => element.id == booking.id);
-                                  _bookings[index] = booking.copyWith(
-                                    service: serviceController.text,
-                                    client: clientController.text,
-                                    day: selectedDay,
-                                    startHour: selectedStart,
-                                    endHour: selectedEnd,
-                                  );
-                                } else {
-                                  _bookings.add(Booking(
-                                    id: DateTime.now().millisecondsSinceEpoch,
-                                    service: serviceController.text,
-                                    client: clientController.text,
-                                    day: selectedDay,
-                                    startHour: selectedStart,
-                                    endHour: selectedEnd,
-                                  ));
-                                }
-                              });
-                              Navigator.pop(context);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            child: Text(isEdit ? "Modifier" : "Ajouter", style: const TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        titlePadding: EdgeInsets.zero,
+        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+        title: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: _getStatusColor(interv.statut).withOpacity(0.1),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Row(
+            children: [
+              Icon(LucideIcons.info, color: _getStatusColor(interv.statut)),
+              const SizedBox(width: 12),
+              const Text("Détails de l'intervention", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ],
+          ),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _modalHeader(interv),
+              const Divider(height: 32),
+              _detailRow("Service", interv.tacheSnapshot?['serviceNom']),
+              _detailRow("Date", DateFormat('dd MMMM yyyy', 'fr').format(interv.dateDebutIntervention!)),
+              _detailRow("Horaire", "${DateFormat('HH:mm').format(interv.dateDebutIntervention!)} - ${DateFormat('HH:mm').format(interv.dateFinIntervention ?? interv.dateDebutIntervention!.add(const Duration(hours: 1)))}"),
+              _detailRow("Prix", "${interv.prixNegocie} DH"),
+              _detailRow("Statut", interv.statut),
+              const SizedBox(height: 8),
+              Text("ID Document: ${interv.id}", style: const TextStyle(fontSize: 9, color: Colors.grey, fontStyle: FontStyle.italic)),
+              const SizedBox(height: 12),
+              const Text("CLIENT", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1.2)),
+              const SizedBox(height: 8),
+              _clientCard(interv.clientSnapshot),
+              const SizedBox(height: 20),
+              const Text("ADRESSE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1.2)),
+              const SizedBox(height: 8),
+              _locationCard(interv.adresseSnapshot),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Fermer", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Action logic could go here (e.g. call client)
+              Navigator.pop(context);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white, elevation: 0),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildLabel(String text) {
+  Widget _modalHeader(InterventionModel interv) {
+    return Row(
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+          child: const Icon(LucideIcons.wrench, color: AppColors.primary, size: 28),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(interv.tacheSnapshot?['serviceNom'] ?? 'Intervention', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+              const SizedBox(height: 4),
+              _badge(interv.statut, _getStatusColor(interv.statut)),
+            ],
+          ),
+        )
+      ],
+    );
+  }
+
+  Widget _clientCard(Map<String, dynamic>? client) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey[200]!)),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: AppColors.primary.withOpacity(0.1),
+            backgroundImage: (client?['photo'] != null && (client?['photo'].toString().startsWith('http') ?? false)) ? NetworkImage(client!['photo']) : null,
+            child: (client?['photo'] == null || !(client?['photo'].toString().startsWith('http') ?? false)) ? const Icon(LucideIcons.user, size: 20, color: AppColors.primary) : null,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(client?['nom'] ?? 'Client inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(client?['telephone'] ?? 'Pas de numéro', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              ],
+            ),
+          ),
+          IconButton(onPressed: () {}, icon: const Icon(LucideIcons.phone, size: 18, color: Colors.green)),
+        ],
+      ),
+    );
+  }
+
+  Widget _locationCard(Map<String, dynamic>? addr) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey[200]!)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 2),
+            child: Icon(LucideIcons.mapPin, size: 18, color: Colors.red),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              "${addr?['Rue'] ?? ''}, ${addr?['Ville'] ?? ''} ${addr?['CodePostal'] ?? ''}",
+              style: const TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF1E293B)),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, dynamic value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(text, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
-    );
-  }
-
-  InputDecoration _inputDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary)),
-      filled: true,
-      fillColor: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500)),
+          Text(value?.toString() ?? 'N/A', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+        ],
+      ),
     );
   }
 }
