@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../smart_image.dart';
 
 class TopRatedCard extends StatelessWidget {
   final String name;
@@ -41,20 +42,11 @@ class TopRatedCard extends StatelessWidget {
         child: Row(
           children: [
             // Photo
-            ClipRRect(
+            SmartImage(
+              source: imageUrl,
+              width: 60,
+              height: 60,
               borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl,
-                width: 60,
-                height: 60,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 60,
-                  height: 60,
-                  color: Colors.grey.shade100,
-                  child: const Icon(Icons.person),
-                ),
-              ),
             ),
             const SizedBox(width: 12),
             // Infos
