@@ -10,6 +10,7 @@ class ExpertModel {
   final bool casierJudiciaire;
   final String? carteNationale;
   final int profileViews;
+  final bool estDisponible;
   
   // Potential joined data
   final UserModel? user;
@@ -23,6 +24,7 @@ class ExpertModel {
     required this.casierJudiciaire,
     this.carteNationale,
     this.profileViews = 0,
+    this.estDisponible = true,
     this.user,
   });
 
@@ -37,6 +39,7 @@ class ExpertModel {
       casierJudiciaire: data['CasierJudiciaire'] ?? false,
       carteNationale: data['CarteNationale'],
       profileViews: data['profileViews'] ?? 0,
+      estDisponible: data['estDisponible'] ?? true,
       user: user,
     );
   }
@@ -50,6 +53,7 @@ class ExpertModel {
       'CasierJudiciaire': casierJudiciaire,
       'CarteNationale': carteNationale,
       'profileViews': profileViews,
+      'estDisponible': estDisponible,
     };
   }
 }
