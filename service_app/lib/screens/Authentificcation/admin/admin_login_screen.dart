@@ -5,6 +5,7 @@ import '../../../widgets/custom_button.dart';
 import '../../../widgets/custom_text_field.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
+import '../../../services/hash_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminLoginScreen extends StatefulWidget {
@@ -47,20 +48,32 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Admin accounts are not in Firebase Auth, they are only in Firestore 'admins' collection
-      final adminQuery = await _firestoreService.getFirestoreInstance()
-          .collection('admins')
+      // 1. Hash the password input
+      final hashedPassword = HashService.hashPassword(_passwordController.text);
+
+      // 2. Find the user in 'utilisateurs' using email and hashed password
+      final userQuery = await _firestoreService.getFirestoreInstance()
+          .collection('utilisateurs')
           .where('email', isEqualTo: _emailController.text.trim())
+          .where('motDePasse', isEqualTo: hashedPassword)
           .limit(1)
           .get();
 
-      if (adminQuery.docs.isNotEmpty) {
-        final adminData = adminQuery.docs.first.data();
-        if (adminData['motDePasse'] == _passwordController.text) {
+      if (userQuery.docs.isNotEmpty) {
+        final userId = userQuery.docs.first.id;
+
+        // 3. Verify this user is an admin by checking the 'admins' collection
+        final adminQuery = await _firestoreService.getFirestoreInstance()
+            .collection('admins')
+            .where('idUtilisateur', isEqualTo: userId)
+            .limit(1)
+            .get();
+
+        if (adminQuery.docs.isNotEmpty) {
           final adminId = adminQuery.docs.first.id;
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('logged_admin_id', adminId);
-          if (mounted) context.go('/admin/dashboard');
+          if (mounted) context.go('/admin');
           return;
         }
       }
