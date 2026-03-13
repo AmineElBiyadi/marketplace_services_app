@@ -385,13 +385,16 @@ class AdminDashboardService {
     return result;
   }
 
-  // ─── Actions ──────────────────────────────────────────────────────────────
+  Future<void> updateProviderStatus(String expertId, String status) async {
+    await _db.collection('experts').doc(expertId).update({'etatCompte': status});
+  }
+
   Future<void> approveProvider(String expertId) async {
-    await _db.collection('experts').doc(expertId).update({'etatCompte': 'ACTIVE'});
+    await updateProviderStatus(expertId, 'ACTIVE');
   }
 
   Future<void> rejectProvider(String expertId) async {
-    await _db.collection('experts').doc(expertId).update({'etatCompte': 'SUSPENDUE'});
+    await updateProviderStatus(expertId, 'SUSPENDUE');
   }
 
   // ─── Reservations by category ─────────────────────────────────────────────
@@ -421,7 +424,7 @@ class AdminDashboardService {
       
       String status = 'Actif';
       if (adminCheck.docs.isNotEmpty) {
-        type = 'Admin';
+        continue; // Skip admins
       } else if (expertCheck.docs.isNotEmpty) {
         type = 'Prestataire';
         status = expertCheck.docs.first.data()['etatCompte'] == 'ACTIVE' ? 'Actif' : 'Suspendu';
@@ -432,7 +435,8 @@ class AdminDashboardService {
         'name': name,
         'type': type,
         'date': _formatRelativeDate(data['created_At']),
-        'fullDate': data['created_At'] is Timestamp ? DateFormat('dd/MM/yyyy').format((data['created_At'] as Timestamp).toDate()) : 'N/A',
+        'createdAt': data['created_At'] is Timestamp ? DateFormat('dd/MM/yyyy HH:mm').format((data['created_At'] as Timestamp).toDate()) : 'N/A',
+        'updatedAt': data['updated_At'] is Timestamp ? DateFormat('dd/MM/yyyy HH:mm').format((data['updated_At'] as Timestamp).toDate()) : (data['created_At'] is Timestamp ? DateFormat('dd/MM/yyyy HH:mm').format((data['created_At'] as Timestamp).toDate()) : 'N/A'),
         'phone': data['telephone'] ?? '',
         'imageUrl': data['image_profile'],
         'status': status,
@@ -447,6 +451,14 @@ class AdminDashboardService {
     final snap = await _db.collection('experts').get();
     final List<Map<String, dynamic>> result = [];
     
+    // Fetch all services and tasks lookup maps once to avoid multiple hits if possible, 
+    // but for simple implementation we fetch per provider or as needed.
+    final servicesSnap = await _db.collection('services').get();
+    final Map<String, String> serviceNames = {for (var doc in servicesSnap.docs) doc.id: doc.data()['nom'] ?? ''};
+    
+    final tasksSnap = await _db.collection('taches').get();
+    final Map<String, String> taskNames = {for (var doc in tasksSnap.docs) doc.id: doc.data()['nom'] ?? ''};
+
     for (final doc in snap.docs) {
       final data = doc.data() as Map<String, dynamic>;
       final userId = data['idUtilisateur'] as String?;
@@ -462,18 +474,35 @@ class AdminDashboardService {
         }
       }
 
-      String category = 'Non défini';
-      final seSnap = await _db.collection('serviceExperts').where('idExpert', isEqualTo: doc.id).limit(1).get();
-      if (seSnap.docs.isNotEmpty) {
-        final serviceId = seSnap.docs.first.data()['idService'];
-        if (serviceId != null) {
-          final serviceDoc = await _db.collection('services').doc(serviceId).get();
-          if (serviceDoc.exists) category = serviceDoc.data()?['nom'] ?? 'Autre';
-        }
+      // Services Join
+      final List<String> services = [];
+      final seSnap = await _db.collection('serviceExperts').where('idExpert', isEqualTo: doc.id).get();
+      for (var seDoc in seSnap.docs) {
+        final sid = seDoc.data()['idService'];
+        if (serviceNames.containsKey(sid)) services.add(serviceNames[sid]!);
       }
 
-      final status = data['etatCompte'] == 'ACTIVE' ? 'Validé' : (data['etatCompte'] == 'SUSPENDUE' ? 'Suspendu' : 'En attente');
-      final pack = data['packId'] == 'premium' ? 'Premium' : 'Gratuit';
+      // Tasks Join
+      final List<String> tasks = [];
+      final teSnap = await _db.collection('tachesExpert').where('idExpert', isEqualTo: doc.id).get();
+      for (var teDoc in teSnap.docs) {
+        final tid = teDoc.data()['idTache'];
+        if (taskNames.containsKey(tid)) tasks.add(taskNames[tid]!);
+      }
+
+      // Interventions Count
+      final intervSnap = await _db.collection('interventions').where('idExpert', isEqualTo: doc.id).get();
+      final int interventionsCount = intervSnap.docs.length;
+
+      // Subscription check
+      final subSnap = await _db.collection('abonnements')
+          .where('idExpert', isEqualTo: doc.id)
+          .where('statut', isEqualTo: 'ACTIVE')
+          .get();
+      final bool hasActiveSubscription = subSnap.docs.isNotEmpty;
+
+      final status = data['etatCompte'] ?? 'DESACTIVE';
+      final pack = hasActiveSubscription ? 'Premium' : 'Gratuit';
       
       // Calculate average rating
       double rating = 0.0;
@@ -489,15 +518,23 @@ class AdminDashboardService {
       result.add({
         'id': doc.id,
         'name': name,
-        'category': category,
+        'services': services,
+        'tasks': tasks,
         'pack': pack,
+        'hasSubscription': hasActiveSubscription,
         'rating': rating,
-        'services': seSnap.docs.length, // approximation
-        'status': status,
+        'interventionsCount': interventionsCount,
+        'status': status, // Raw status for buttons: ACTIVE, DESACTIVE, SUSPENDUE
         'date': _formatRelativeDate(data['createdAt']),
         'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
         'imageUrl': imageUrl,
         'zone': data['region'] ?? 'N/A',
+        // New detailed fields
+        'CarteNationale': data['CarteNationale'] ?? 'Non fourni',
+        'CasierJudiciaire': data['CasierJudiciaire'] ?? 'Non fourni',
+        'Experience': data['Experience'] ?? 'Non fourni',
+        'profileViews': data['profileViews'] ?? 0,
+        'rayonTravaille': data['rayonTravaille'] ?? 0,
       });
     }
     return result;

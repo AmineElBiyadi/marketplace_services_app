@@ -36,7 +36,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     if (expert != null) {
       setState(() {
         _isOnline = expert.etatCompte == 'ACTIVE';
-        _expertName = expert.user?.email.split('@')[0] ?? "Expert"; // Fallback name
+        _expertName = expert.user?.nom ?? expert.user?.email.split('@')[0] ?? "Expert";
       });
     }
   }
@@ -44,7 +44,8 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return ProviderLayout(
-      currentIndex: 0,
+      activeRoute: '/provider/dashboard',
+      expertId: _expertId,
       child: CustomScrollView(
         slivers: [
           // Header
