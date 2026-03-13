@@ -196,10 +196,13 @@ class FirestoreService {
               .toDouble();
         }
 
+        String finalPhoto = (userData['image_profile'] ?? '').toString();
+        debugPrint("Expert: $expertId -> photo: $finalPhoto");
+
         experts.add(Expert(
           id: expertId,
           nom: userData['nom'] ?? userData['email'] ?? 'Expert',
-          photo: userData['image_profile'] ?? userData['photo'] ?? expertData['photo'] ?? '',
+          photo: finalPhoto,
           telephone: userData['telephone'] ?? expertData['telephone'] ?? '',
           noteMoyenne: noteMoyenne,
           isPremium: isPremium,
@@ -349,30 +352,19 @@ class FirestoreService {
             : '${phone.replaceAll('+', '')}@proxy.app.com';
             
         try {
+          // First attempt to signIn with the padded password in case it was created previously
           await FirebaseAuth.instance.signInWithEmailAndPassword(
             email: authEmail,
-            password: password,
+            password: '${password}Proxy123!',
           );
         } catch (e) {
-          // If login fails (e.g., legacy user who doesn't have an Auth record yet), 
-          // attempt to create the record seamlessly
-          print(">>> Failed to sync Firebase Auth user: $e");
           try {
-            // First attempt to signIn with the padded password in case it was created previously
-            await FirebaseAuth.instance.signInWithEmailAndPassword(
+            await FirebaseAuth.instance.createUserWithEmailAndPassword(
               email: authEmail,
-              password: '${password}Proxy123!',
+              password: password,
             );
-          } catch (e) {
-            try {
-              await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                email: authEmail,
-                password: password,
-              );
-            } on FirebaseAuthException catch (e) {
+          } on FirebaseAuthException catch (e) {
             if (e.code == 'weak-password') {
-              // Firebase Auth requires at least 6 characters. If the user's custom password 
-              // is shorter, we pad it just for the background Firebase Auth sign-in.
               try {
                 final paddedPassword = '${password}Proxy123!';
                 await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -387,7 +379,6 @@ class FirestoreService {
             print(">>> Failed to CREATE Firebase Auth user during loginClient: $e");
           }
         }
-      }
         
         return data;
       }
@@ -846,10 +837,12 @@ class FirestoreService {
         ville = '${adresse['Ville'] ?? ''}, ${adresse['Quartier'] ?? ''}';
       }
 
+      final finalPhoto = (userData['image_profile'] ?? '').toString();
+
       return Expert(
         id: expertId,
         nom: userData['nom'] ?? userData['email'] ?? 'Expert',
-        photo: userData['image_profile'] ?? userData['photo'] ?? expertData['photo'] ?? '',
+        photo: finalPhoto,
         telephone: userData['telephone'] ?? expertData['telephone'] ?? '',
         noteMoyenne: noteMoyenne,
         isPremium: isPremium,
