@@ -19,6 +19,8 @@ import '../screens/admin/admin_settings_screen.dart';
 import '../screens/provider/provider_dashboard_screen.dart';
 import '../screens/provider/provider_reservations_screen.dart';
 import '../screens/provider/provider_services_screen.dart';
+import '../screens/provider/provider_agenda_screen.dart';
+import '../screens/provider/provider_subscription_screen.dart';
 import '../navigation/main_navigation.dart';
 import '../screens/splash_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -173,7 +175,7 @@ final GoRouter router = GoRouter(
       path: AppRoutes.providerAgenda,
       builder: (context, state) {
         final expertId = state.pathParameters['expertId'] ?? '';
-        return ProviderDashboardScreen(expertId: expertId); // Fallback to dashboard for now
+        return ProviderAgendaScreen(expertId: expertId);
       },
     ),
     GoRoute(
@@ -188,6 +190,13 @@ final GoRouter router = GoRouter(
       builder: (context, state) {
         final expertId = state.pathParameters['expertId'] ?? '';
         return ChatListScreen(currentUserRole: 'expert', expertId: expertId);
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.providerSubscription,
+      builder: (context, state) {
+        final expertId = state.pathParameters['expertId'] ?? '';
+        return ProviderSubscriptionScreen(expertId: expertId);
       },
     ),
 
