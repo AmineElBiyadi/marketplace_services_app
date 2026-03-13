@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/booking.dart';
@@ -332,6 +333,103 @@ class FirestoreService {
 
       return villes.toList();
     } catch (e) {
+      return [];
+    }
+  }
+
+  // ─── Reviews (Avis) depuis evaluations ──────────────────
+
+  /// Récupère les reviews réelles d'un expert depuis la collection [evaluations].
+  Future<List<Map<String, dynamic>>> getExpertReviews(String expertId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('evaluations')
+          .where('idExpert', isEqualTo: expertId)
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      final List<Map<String, dynamic>> reviews = [];
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        
+        // Récupérer le nom du client
+        String clientNom = 'Client';
+        final idClient = data['idClient'] as String?;
+        if (idClient != null && idClient.isNotEmpty) {
+          try {
+            final clientDoc = await _firestore
+                .collection('utilisateurs')
+                .doc(idClient)
+                .get();
+            if (clientDoc.exists) {
+              clientNom = clientDoc.data()?['nom'] ?? 'Client';
+            }
+          } catch (_) {}
+        }
+
+        reviews.add({
+          'clientNom': clientNom,
+          'note': (data['note'] ?? 0.0).toDouble(),
+          'commentaire': data['commentaire'] ?? data['comment'] ?? '',
+          'date': data['createdAt'],
+        });
+      }
+      return reviews;
+    } catch (e) {
+      debugPrint('Error fetching reviews: $e');
+      return [];
+    }
+  }
+
+  // ─── Portfolio images depuis imagesExemplaires ─────────────
+
+  /// Récupère toutes les images de portfolio d'un expert.
+  Future<List<String>> getExpertPortfolioImages(String expertId) async {
+    try {
+      final List<String> images = [];
+
+      // 1. Essayer via idExpert direct dans imagesExemplaires
+      final directExpSnap = await _firestore
+          .collection('imagesExemplaires')
+          .where('idExpert', isEqualTo: expertId)
+          .get();
+      for (final doc in directExpSnap.docs) {
+        final img = doc.data()['image'] as String?;
+        if (img != null && img.isNotEmpty) images.add(img);
+      }
+
+      // 2. Toujours essayer via serviceExperts
+      final seSnapshot = await _firestore
+          .collection('serviceExperts')
+          .where('idExpert', isEqualTo: expertId)
+          .get();
+
+
+      for (final seDoc in seSnapshot.docs) {
+        final queries = [
+          _firestore
+              .collection('imagesExemplaires')
+              .where('idServiceExpert', isEqualTo: seDoc.id)
+              .get(),
+          _firestore
+              .collection('imagesExemplaires')
+              .where('serviceExpertId', isEqualTo: seDoc.id)
+              .get(),
+        ];
+
+        for (var q in queries) {
+          final snap = await q;
+          for (final doc in snap.docs) {
+            final img = doc.data()['image'] as String?;
+            if (img != null && img.isNotEmpty) images.add(img);
+          }
+        }
+      }
+
+      return images.toSet().toList(); // dédoublonnage
+    } catch (e) {
+      debugPrint('Error fetching portfolio images: $e');
       return [];
     }
   }
