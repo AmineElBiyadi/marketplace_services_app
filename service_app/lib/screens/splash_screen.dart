@@ -25,8 +25,27 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     final user = FirebaseAuth.instance.currentUser;
+    final String currentPath = GoRouterState.of(context).uri.path;
+
     if (user == null) {
-      context.go('/welcome');
+      // Define paths that unauthenticated users are allowed to access directly
+      final publicPaths = [
+        '/welcome',
+        '/login',
+        '/signup',
+        '/otp',
+        '/forgot-password',
+        '/provider/login',
+        '/provider/signup',
+        '/admin/login',
+      ];
+
+      // If the user requested a specific public page, let them stay there
+      if (currentPath != '/' && publicPaths.contains(currentPath)) {
+        context.go(currentPath);
+      } else {
+        context.go('/welcome');
+      }
       return;
     }
 
@@ -54,6 +73,13 @@ class _SplashScreenState extends State<SplashScreen> {
         }
       }
       return;
+    }
+
+    // Admin session check is handled directly by admin login/dashboard
+    // If they have an active admin session, GoRouter's redirect guard handles the rest.
+    if (currentPath.startsWith('/admin')) {
+        context.go(currentPath);
+        return;
     }
 
     // Firebase Auth user exists but no Firestore record — send to welcome
