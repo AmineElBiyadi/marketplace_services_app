@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
-import '../screens/chat/chat_list_screen.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class ProviderBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -44,6 +44,9 @@ class ProviderBottomNav extends StatelessWidget {
               context.go('/provider/$expertId/agenda');
               break;
             case 4:
+              context.go('/provider/$expertId/messages');
+              break;
+            case 5:
               context.go('/provider/$expertId/profile');
               break;
           }
@@ -62,6 +65,8 @@ class ProviderBottomNav extends StatelessWidget {
               icon: Icon(Icons.calendar_today_outlined), activeIcon: Icon(Icons.calendar_today), label: 'Bookings'),
           BottomNavigationBarItem(
               icon: Icon(Icons.event_outlined), activeIcon: Icon(Icons.event), label: 'Agenda'),
+          BottomNavigationBarItem(
+              icon: Icon(LucideIcons.messageSquare), activeIcon: Icon(Icons.message), label: 'Messages'),
           BottomNavigationBarItem(
               icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
         ],

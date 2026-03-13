@@ -230,7 +230,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           ),
           const SizedBox(width: 12),
           Text(
-            _isOnline ? "Disponible" : "Indisponible",
+            _isOnline ? "Available" : "Unavailable",
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -578,8 +578,8 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.grey[50]!, width: 1),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.grey[100]!, width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.02),
@@ -647,13 +647,6 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                 ),
               ],
             ),
-          ),
-          Row(
-            children: [
-              _circleActionButton(Icons.check_rounded, const Color(0xFFF0FDF4), Colors.green),
-              const SizedBox(width: 12),
-              _circleActionButton(Icons.close_rounded, const Color(0xFFFEF2F2), Colors.red),
-            ],
           ),
         ],
       ),
