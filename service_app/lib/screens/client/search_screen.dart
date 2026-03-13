@@ -6,6 +6,7 @@ import '../../services/firestore_service.dart';
 import '../../services/location_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'expert_details_screen.dart';
+import '../../widgets/smart_image.dart';
 
 // ─────────────────────────────────────────────
 //  CONSTANTES
@@ -628,25 +629,11 @@ class _ExpertCard extends StatelessWidget {
               child: Row(
                 children: [
                   // Avatar
-                  ClipRRect(
+                  SmartImage(
+                    source: expert.photo,
+                    width: 68,
+                    height: 68,
                     borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      expert.photo,
-                      width: 68,
-                      height: 68,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 68,
-                        height: 68,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(Icons.person,
-                            size: 32,
-                            color: Colors.grey.shade400),
-                      ),
-                    ),
                   ),
                   const SizedBox(width: 12),
 

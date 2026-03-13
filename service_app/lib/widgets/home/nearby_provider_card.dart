@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../smart_image.dart';
 
 class NearbyProviderCard extends StatelessWidget {
   final String name;
@@ -45,20 +46,12 @@ class NearbyProviderCard extends StatelessWidget {
             // Photo + badge Premium
             Stack(
               children: [
-                ClipRRect(
+                SmartImage(
+                  source: imageUrl,
+                  height: 120,
+                  width: double.infinity,
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(20),
-                  ),
-                  child: Image.network(
-                    imageUrl,
-                    height: 120,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      height: 120,
-                      color: const Color(0xFFF0F4F8),
-                      child: const Icon(Icons.person, size: 50, color: Colors.grey),
-                    ),
                   ),
                 ),
                 if (isPremium)
@@ -139,7 +132,7 @@ class NearbyProviderCard extends StatelessWidget {
                       ),
                       const Spacer(),
                       Text(
-                        '${distance.toStringAsFixed(1)} km',
+                        distance < 0 ? '-- km' : '${distance.toStringAsFixed(1)} km',
                         style: TextStyle(
                           color: Colors.grey.shade500,
                           fontSize: 11,

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../screens/client/home_screen.dart';
-import '../screens/search_screen.dart';
-import '../screens/bookings_screen.dart';
-import '../screens/profile_screen.dart';
+import '../screens/client/search_screen.dart';
+import '../screens/client/bookings_screen.dart';
 import '../screens/chat/chat_list_screen.dart';
 
 class MainNavigation extends StatefulWidget {
