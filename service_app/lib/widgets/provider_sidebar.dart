@@ -90,20 +90,16 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
               children: [
-<<<<<<< HEAD
-                _sidebarItem(LucideIcons.home, 'Tableau de bord', '/provider/:expertId/dashboard'),
+                _sidebarItem(LucideIcons.home, 'Dashboard', '/provider/:expertId/dashboard'),
                 // Agenda tab: only visible for premium experts
                 if (_isPremium)
                   _sidebarItem(
                     LucideIcons.calendarDays,
-                    'Mon Agenda',
+                    'My Agenda',
                     '/provider/:expertId/agenda',
                     badge: '⭐',
                   ),
-=======
-                _sidebarItem(LucideIcons.home, 'Dashboard', '/provider/:expertId/dashboard'),
-                _sidebarItem(LucideIcons.calendarDays, 'My Agenda', '/provider/:expertId/agenda'),
->>>>>>> a22adabeb4cfdb3a6446dfacc1ef4b31007eca54
+
                 _sidebarItem(LucideIcons.messageSquare, 'Messages', '/provider/messages'),
                 _sidebarItem(LucideIcons.user, 'Profile', '/provider/:expertId/profile'),
                 _sidebarItem(LucideIcons.briefcase, 'My Services', '/provider/:expertId/services'),
