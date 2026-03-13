@@ -47,31 +47,35 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await _authService.signInWithEmail(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+      // Admin accounts are not in Firebase Auth, they are only in Firestore 'admins' collection
+      final adminQuery = await _firestoreService.getFirestoreInstance()
+          .collection('admins')
+          .where('email', isEqualTo: _emailController.text.trim())
+          .limit(1)
+          .get();
 
-      final uid = _authService.currentUser!.uid;
-      final admin = await _firestoreService.getAdminByUid(uid);
-
-      if (admin != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('logged_admin_id', uid);
-        if (mounted) context.go('/admin/dashboard');
-      } else {
-        await _authService.signOut();
-        setState(() => _attempts++);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Identifiants incorrects. ${5 - _attempts} tentative(s) restante(s).',
-              ),
-              backgroundColor: AppColors.destructive,
-            ),
-          );
+      if (adminQuery.docs.isNotEmpty) {
+        final adminData = adminQuery.docs.first.data();
+        if (adminData['motDePasse'] == _passwordController.text) {
+          final adminId = adminQuery.docs.first.id;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('logged_admin_id', adminId);
+          if (mounted) context.go('/admin/dashboard');
+          return;
         }
+      }
+
+      // If we reach here, either the email wasn't found or the password didn't match
+      setState(() => _attempts++);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Identifiants incorrects. ${5 - _attempts} tentative(s) restante(s).',
+            ),
+            backgroundColor: AppColors.destructive,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {

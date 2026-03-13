@@ -21,6 +21,10 @@ import '../screens/provider/provider_reservations_screen.dart';
 import '../screens/provider/provider_services_screen.dart';
 import '../navigation/main_navigation.dart';
 import '../screens/splash_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
+
 // ─── Route name constants ──────────────────────────────────────────
 class AppRoutes {
   static const String home = '/home';
@@ -54,7 +58,44 @@ class AppRoutes {
 
 // ─── GoRouter configuration ────────────────────────────────────────
 final GoRouter router = GoRouter(
-  initialLocation: '/',
+  redirect: (context, state) async {
+    final path = state.uri.path;
+    
+    // Define paths that unauthenticated users are allowed to access directly
+    final publicPaths = [
+      '/',              // Splash screen handles its own logic
+      AppRoutes.login,
+      AppRoutes.signup,
+      AppRoutes.otp,
+      AppRoutes.forgotPassword,
+      AppRoutes.providerLogin,
+      AppRoutes.providerSignup,
+      AppRoutes.providerPending,
+      AppRoutes.adminLogin,
+      '/welcome',
+    ];
+
+    // Protect admin routes separately
+    if (path.startsWith('/admin') && path != AppRoutes.adminLogin) {
+      final prefs = await SharedPreferences.getInstance();
+      final adminId = prefs.getString('logged_admin_id');
+      if (adminId == null || adminId.isEmpty) {
+        return AppRoutes.adminLogin;
+      }
+      return null; // Admin is logged in, allow access
+    }
+
+    // Protect all other routes (client/provider) using Firebase Auth
+    if (!publicPaths.contains(path)) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        // User is not logged in and tried to access a protected route
+        return '/welcome';
+      }
+    }
+
+    return null; // No redirect needed
+  },
   routes: [
     // ── Entry ──
     GoRoute(

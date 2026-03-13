@@ -8,6 +8,8 @@ class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  FirebaseFirestore getFirestoreInstance() => _firestore;
+
   // ─── Expert Profile ────────────────────────────────────────
 
   Future<ExpertModel?> getExpertProfile(String expertId) async {
