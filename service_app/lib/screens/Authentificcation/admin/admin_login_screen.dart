@@ -3,7 +3,9 @@ import 'package:go_router/go_router.dart';
 import '../../../theme/app_colors.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../widgets/custom_text_field.dart';
+import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
@@ -18,6 +20,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   bool _showPassword = false;
   bool _isLoading = false;
   int _attempts = 0;
+  final _authService = AuthService();
   final _firestoreService = FirestoreService();
 
   bool get _isValid =>
@@ -44,14 +47,20 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final admin = await _firestoreService.loginAdmin(
+      await _authService.signInWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
+      final uid = _authService.currentUser!.uid;
+      final admin = await _firestoreService.getAdminByUid(uid);
+
       if (admin != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('logged_admin_id', uid);
         if (mounted) context.go('/admin/dashboard');
       } else {
+        await _authService.signOut();
         setState(() => _attempts++);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
