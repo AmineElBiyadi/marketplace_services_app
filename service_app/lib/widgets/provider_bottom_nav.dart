@@ -35,39 +35,35 @@ class ProviderBottomNav extends StatelessWidget {
               context.go('/provider/$expertId/dashboard');
               break;
             case 1:
-              context.go('/provider/$expertId/agenda');
+              context.go('/provider/$expertId/services');
               break;
             case 2:
-              // Messages: push ChatListScreen for the expert
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChatListScreen(
-                    currentUserRole: 'expert',
-                    expertId: expertId,
-                  ),
-                ),
-              );
+              context.go('/provider/$expertId/bookings');
               break;
             case 3:
+              context.go('/provider/$expertId/agenda');
+              break;
+            case 4:
               context.go('/provider/$expertId/profile');
               break;
           }
         },
         type: BottomNavigationBarType.fixed,
         selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textSecondary,
+        unselectedItemColor: const Color(0xFF64748B),
+        selectedFontSize: 12,
+        unselectedFontSize: 12,
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined), label: 'Home'),
+              icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_month_outlined), label: 'Agenda'),
+              icon: Icon(Icons.work_outline), activeIcon: Icon(Icons.work), label: 'Services'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble_outline),
-              activeIcon: Icon(Icons.chat_bubble),
-              label: 'Messages'),
+              icon: Icon(Icons.calendar_today_outlined), activeIcon: Icon(Icons.calendar_today), label: 'Bookings'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline), label: 'Profile'),
+              icon: Icon(Icons.event_outlined), activeIcon: Icon(Icons.event), label: 'Agenda'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );
