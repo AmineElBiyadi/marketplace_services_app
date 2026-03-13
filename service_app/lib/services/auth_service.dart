@@ -10,11 +10,10 @@ class AuthService {
 
   User? get currentUser => _auth.currentUser;
 
-
   // ─── Google Sign-In ────────────────────────────────────────
   Future<UserCredential?> signInWithGoogle() async {
     final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) return null; // user cancelled
+    if (googleUser == null) return null;
 
     final GoogleSignInAuthentication googleAuth =
         await googleUser.authentication;
@@ -44,7 +43,7 @@ class AuthService {
     );
   }
 
-  Future<UserCredential> signInWithPhone({
+  Future<UserCredential> linkPhoneCredential({
     required String verificationId,
     required String smsCode,
   }) async {
@@ -52,13 +51,16 @@ class AuthService {
       verificationId: verificationId,
       smsCode: smsCode,
     );
-    return await _auth.signInWithCredential(credential);
+    return await _auth.currentUser!.linkWithCredential(credential);
   }
 
-  // ─── Email ─────────────────────────────────────────────────
+  // ─── Email / Password ──────────────────────────────────────
+
+  /// Creates a new Firebase Auth account with email + password and sends
+  /// a verification email. Used during client/provider email-based signup.
   Future<User?> signUpWithEmail({
     required String email,
-    required String password, // A temporary or random password can be used if we only rely on Firestore, but using the actual one is fine here
+    required String password,
   }) async {
     final cred = await _auth.createUserWithEmailAndPassword(
       email: email,
@@ -68,13 +70,61 @@ class AuthService {
     return cred.user;
   }
 
+  /// Creates a proxy Firebase Auth account for phone-only users.
+  /// The proxy email is derived from the phone number and is never shown to the user.
+  /// This allows phone users to also set a password (needed for login + password reset).
+  Future<User?> signUpWithPhoneProxy({
+    required String phone,
+    required String password,
+  }) async {
+    final normalized = phone.replaceAll(RegExp(r'[^\d]'), '');
+    final proxyEmail = '$normalized@proxy.marketplace.app';
+    final cred = await _auth.createUserWithEmailAndPassword(
+      email: proxyEmail,
+      password: password,
+    );
+    return cred.user;
+  }
+
+  /// Signs in with email + password (for email-based users).
+  Future<UserCredential> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    return await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+  }
+
+  /// Signs in using the proxy email derived from the phone number.
+  Future<UserCredential> signInWithPhoneProxy({
+    required String phone,
+    required String password,
+  }) async {
+    final normalized = phone.replaceAll(RegExp(r'[^\d]'), '');
+    final proxyEmail = '$normalized@proxy.marketplace.app';
+    return await _auth.signInWithEmailAndPassword(
+      email: proxyEmail,
+      password: password,
+    );
+  }
+
   Future<bool> checkEmailVerified() async {
     User? user = _auth.currentUser;
     if (user != null) {
       await user.reload();
-      return user.emailVerified; // Assuming getter is available
+      return user.emailVerified;
     }
     return false;
+  }
+
+  /// Sends a real Firebase password-reset email.
+  /// For phone-only users (proxy email), this is a no-op and returns false.
+  Future<bool> sendPasswordResetEmail(String email) async {
+    if (email.contains('@proxy.marketplace.app')) return false;
+    await _auth.sendPasswordResetEmail(email: email);
+    return true;
   }
 
   // ─── Sign Out ──────────────────────────────────────────────
@@ -89,23 +139,24 @@ class AuthService {
   String getErrorMessage(FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':
-        return 'No account found with this email.';
+        return 'Aucun compte trouvé avec cet identifiant.';
       case 'wrong-password':
-        return 'Incorrect password. Please try again.';
+      case 'invalid-credential':
+        return 'Mot de passe incorrect. Veuillez réessayer.';
       case 'email-already-in-use':
-        return 'An account already exists with this email.';
+        return 'Un compte existe déjà avec cet email.';
       case 'invalid-email':
-        return 'Please enter a valid email address.';
+        return 'Adresse email invalide.';
       case 'weak-password':
-        return 'Password must be at least 6 characters.';
+        return 'Le mot de passe doit comporter au moins 6 caractères.';
       case 'too-many-requests':
-        return 'Too many attempts. Please try again later.';
+        return 'Trop de tentatives. Veuillez réessayer plus tard.';
       case 'invalid-verification-code':
-        return 'Invalid OTP code. Please try again.';
+        return 'Code OTP invalide. Veuillez réessayer.';
       case 'invalid-phone-number':
-        return 'Please enter a valid phone number.';
+        return 'Numéro de téléphone invalide.';
       default:
-        return e.message ?? 'An unexpected error occurred.';
+        return e.message ?? 'Une erreur inattendue s\'est produite.';
     }
   }
 }

@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'hash_service.dart';
 import '../models/booking.dart';
 import '../models/expert.dart';
 import '../models/user.dart';
@@ -10,9 +9,11 @@ import '../models/task_model.dart';
 import '../models/task_expert_model.dart';
 import '../models/expert_service_model.dart';
 
-
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  FirebaseFirestore getFirestoreInstance() => _firestore;
 
   // ─── Expert Profile ────────────────────────────────────────
 
@@ -492,9 +493,20 @@ class FirestoreService {
     required String email,
   }) async {
     if (phone.isNotEmpty) {
+      String localPhone = phone;
+      String normalizedPhone = phone;
+      if (phone.startsWith('+212')) {
+        localPhone = '0${phone.substring(4)}';
+      } else if (phone.startsWith('0')) {
+        normalizedPhone = '+212${phone.substring(1)}';
+      } else if (!phone.startsWith('+')) {
+        normalizedPhone = '+212$phone';
+        localPhone = '0$phone';
+      }
+
       final phoneQuery = await _firestore
           .collection('utilisateurs')
-          .where('telephone', isEqualTo: phone)
+          .where('telephone', whereIn: {phone, localPhone, normalizedPhone}.toList())
           .limit(1)
           .get();
       if (phoneQuery.docs.isNotEmpty) return 'phone';
@@ -514,32 +526,21 @@ class FirestoreService {
 
   // ─── Clients ───────────────────────────────────────────────
 
-  Future<void> registerClient({
+  /// Registers a new client in Firestore using the current Firebase Auth UID.
+  /// No password is stored — Firebase Auth handles that.
+  Future<String> registerClient({
     required String name,
     required String phone,
     required String email,
-    required String password,
   }) async {
-    final hashedPassword = HashService.hashPassword(password);
-    
-    // Create a shadow Firebase Auth user for chat functionality
-    final authEmail = email.isNotEmpty ? email : '${phone.replaceAll('+', '')}@proxy.app.com';
-    try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: authEmail,
-        password: password,
-      );
-    } catch (e) {
-      // Ignore if user already exists in Auth, or handle separately
-    }
+    final uid = _auth.currentUser!.uid;
 
-    final userRef = await _firestore.collection('utilisateurs').add({
+    await _firestore.collection('utilisateurs').doc(uid).set({
       'created_At': FieldValue.serverTimestamp(),
       'updated_At': FieldValue.serverTimestamp(),
       'email': email,
       'image_profile': null,
       'location': null,
-      'motDePasse': hashedPassword,
       'nom': name,
       'telephone': phone,
       'token': '',
@@ -547,34 +548,22 @@ class FirestoreService {
 
     await _firestore.collection('clients').add({
       'etatCompte': 'ACTIVE',
-      'idUtilisateur': userRef.id,
+      'idUtilisateur': uid,
     });
+
+    return uid;
   }
 
-  /// Returns user data map on success, null on failure.
-  Future<Map<String, dynamic>?> loginClient({
-    required String phone,
-    required String password,
-  }) async {
-    final hashedPassword = HashService.hashPassword(password);
-    final isEmail = phone.contains('@');
+  /// Fetches client data by Firebase Auth UID. Returns user data + role info, or null.
+  Future<Map<String, dynamic>?> getClientByUid(String uid) async {
+    final userDoc = await _firestore.collection('utilisateurs').doc(uid).get();
+    if (!userDoc.exists) return null;
 
-    final query = await _firestore
-        .collection('utilisateurs')
-        .where(isEmail ? 'email' : 'telephone', isEqualTo: phone)
-        .where('motDePasse', isEqualTo: hashedPassword)
+    final clientQuery = await _firestore
+        .collection('clients')
+        .where('idUtilisateur', isEqualTo: uid)
         .limit(1)
         .get();
-
-    if (query.docs.isNotEmpty) {
-      final data = query.docs.first.data();
-      data['id'] = query.docs.first.id;
-
-      final clientQuery = await _firestore
-          .collection('clients')
-          .where('idUtilisateur', isEqualTo: data['id'])
-          .limit(1)
-          .get();
 
       if (clientQuery.docs.isNotEmpty) {
         final authEmail = (data['email'] != null && data['email'].toString().isNotEmpty) 
@@ -1000,33 +989,42 @@ class FirestoreService {
 
   // ─── Providers / Experts ───────────────────────────────────
 
+  /// Returns a list of all services from the `services` collection.
+  Future<List<Map<String, dynamic>>> getServices() async {
+    final query = await _firestore.collection('services').get();
+    return query.docs.map((doc) => {
+      'id': doc.id,
+      'nom': doc.data()['nom'] ?? '',
+      'description': doc.data()['description'] ?? '',
+    }).toList();
+  }
+
+  /// Registers a new provider in Firestore using the current Firebase Auth UID.
   Future<void> registerProvider({
     required String name,
     required String phone,
     required String email,
-    required String password,
-    required String category,
+    required List<String> serviceIds,
     required String description,
     required String zone,
     required String? cinFrontBase64,
     required String? cinBackBase64,
     required String? certificateBase64,
   }) async {
-    final hashedPassword = HashService.hashPassword(password);
+    final uid = _auth.currentUser!.uid;
 
-    final userRef = await _firestore.collection('utilisateurs').add({
+    await _firestore.collection('utilisateurs').doc(uid).set({
       'created_At': FieldValue.serverTimestamp(),
       'updated_At': FieldValue.serverTimestamp(),
       'email': email,
       'image_profile': null,
       'location': null,
-      'motDePasse': hashedPassword,
       'nom': name,
       'telephone': phone,
       'token': '',
     });
 
-    await _firestore.collection('experts').add({
+    final expertRef = await _firestore.collection('experts').add({
       'CarteNationale': cinFrontBase64 ?? '',
       'CarteNationaleVerso': cinBackBase64 ?? '',
       'CasierJudiciaire':
@@ -1034,40 +1032,36 @@ class FirestoreService {
       'CertificatDocs': certificateBase64 ?? '',
       'Experience': description,
       'etatCompte': 'PENDING',
-      'idUtilisateur': userRef.id,
+      'idUtilisateur': uid,
       'rayonTravaille': int.tryParse(zone) ?? 30,
       'zoneTexte': zone,
-      'categorie': category,
-      'views': 0,
-      'estDisponible': true,
+      'estDisponible': false,
+      'profileViews': 0,
     });
+
+    for (final serviceId in serviceIds.take(3)) {
+      await _firestore.collection('serviceExperts').add({
+        'idExpert': expertRef.id,
+        'idService': serviceId,
+        'anneeExperience': 0,
+        'estActive': true,
+        'estCertifie': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
   }
 
-  /// Returns user data + 'etatCompte' from experts collection on success.
-  /// etatCompte can be 'PENDING', 'ACTIVE', 'DESACTIVE'.
-  Future<Map<String, dynamic>?> loginProvider({
-    required String phone,
-    required String password,
-  }) async {
-    final hashedPassword = HashService.hashPassword(password);
-    final isEmail = phone.contains('@');
+  /// Fetches provider data by Firebase Auth UID.
+  /// Returns user data + 'etatCompte' and 'expertId', or null if not a provider.
+  Future<Map<String, dynamic>?> getProviderByUid(String uid) async {
+    final userDoc = await _firestore.collection('utilisateurs').doc(uid).get();
+    if (!userDoc.exists) return null;
 
-    final query = await _firestore
-        .collection('utilisateurs')
-        .where(isEmail ? 'email' : 'telephone', isEqualTo: phone)
-        .where('motDePasse', isEqualTo: hashedPassword)
+    final expertQuery = await _firestore
+        .collection('experts')
+        .where('idUtilisateur', isEqualTo: uid)
         .limit(1)
         .get();
-
-    if (query.docs.isNotEmpty) {
-      final data = query.docs.first.data();
-      data['id'] = query.docs.first.id;
-
-      final expertQuery = await _firestore
-          .collection('experts')
-          .where('idUtilisateur', isEqualTo: data['id'])
-          .limit(1)
-          .get();
 
       if (expertQuery.docs.isNotEmpty) {
         final authEmail = (data['email'] != null && data['email'].toString().isNotEmpty) 
@@ -1112,33 +1106,21 @@ class FirestoreService {
 
   // ─── Admins ────────────────────────────────────────────────
 
-  Future<Map<String, dynamic>?> loginAdmin({
-    required String email,
-    required String password,
-  }) async {
-    final hashedPassword = HashService.hashPassword(password);
+  /// Fetches admin data by Firebase Auth UID.
+  Future<Map<String, dynamic>?> getAdminByUid(String uid) async {
+    final userDoc = await _firestore.collection('utilisateurs').doc(uid).get();
+    if (!userDoc.exists) return null;
 
-    final query = await _firestore
-        .collection('utilisateurs')
-        .where('email', isEqualTo: email)
-        .where('motDePasse', isEqualTo: hashedPassword)
+    final adminQuery = await _firestore
+        .collection('admins')
+        .where('idUtilisateur', isEqualTo: uid)
         .limit(1)
         .get();
 
-    if (query.docs.isNotEmpty) {
-      final data = query.docs.first.data();
-      data['id'] = query.docs.first.id;
+    if (adminQuery.docs.isEmpty) return null;
 
-      final adminQuery = await _firestore
-          .collection('admins')
-          .where('idUtilisateur', isEqualTo: data['id'])
-          .limit(1)
-          .get();
-
-      if (adminQuery.docs.isNotEmpty) {
-        return data;
-      }
-    }
-    return null;
+    final data = userDoc.data()!;
+    data['id'] = uid;
+    return data;
   }
 }

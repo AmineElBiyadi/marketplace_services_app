@@ -1,0 +1,12 @@
+# Firebase service account key
+services-app-70555-firebase-adminsdk-fbsvc-3d42f1831d.json
+
+# Node.js dependencies
+node_modules/
+
+# NPM files
+package-lock.json
+package.json
+
+# Scripts
+firestore_init_maroc.js

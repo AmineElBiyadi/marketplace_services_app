@@ -90,6 +90,7 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
               children: [
+<<<<<<< HEAD
                 _sidebarItem(LucideIcons.home, 'Tableau de bord', '/provider/:expertId/dashboard'),
                 // Agenda tab: only visible for premium experts
                 if (_isPremium)
@@ -99,13 +100,17 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
                     '/provider/:expertId/agenda',
                     badge: '⭐',
                   ),
+=======
+                _sidebarItem(LucideIcons.home, 'Dashboard', '/provider/:expertId/dashboard'),
+                _sidebarItem(LucideIcons.calendarDays, 'My Agenda', '/provider/:expertId/agenda'),
+>>>>>>> a22adabeb4cfdb3a6446dfacc1ef4b31007eca54
                 _sidebarItem(LucideIcons.messageSquare, 'Messages', '/provider/messages'),
-                _sidebarItem(LucideIcons.user, 'Profil', '/provider/:expertId/profile'),
-                _sidebarItem(LucideIcons.briefcase, 'Mes Services', '/provider/:expertId/services'),
-                _sidebarItem(LucideIcons.clipboardList, 'Réservations', '/provider/:expertId/bookings'),
+                _sidebarItem(LucideIcons.user, 'Profile', '/provider/:expertId/profile'),
+                _sidebarItem(LucideIcons.briefcase, 'My Services', '/provider/:expertId/services'),
+                _sidebarItem(LucideIcons.clipboardList, 'Reservations', '/provider/:expertId/bookings'),
                 _sidebarItem(LucideIcons.bell, 'Notifications', '/provider/:expertId/notifications'),
-                _sidebarItem(LucideIcons.creditCard, 'Abonnement', '/provider/:expertId/subscription'),
-                _sidebarItem(LucideIcons.settings, 'Paramètres', '/provider/:expertId/settings'),
+                _sidebarItem(LucideIcons.creditCard, 'Subscription', '/provider/:expertId/subscription'),
+                _sidebarItem(LucideIcons.settings, 'Settings', '/provider/:expertId/settings'),
               ],
             ),
           ),
@@ -114,7 +119,7 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: const BoxDecoration(border: Border(top: BorderSide(color: Colors.white10))),
-            child: _sidebarItem(LucideIcons.logOut, 'Déconnexion', '/logout', isDestructive: true),
+            child: _sidebarItem(LucideIcons.logOut, 'Log Out', '/logout', isDestructive: true),
           ),
         ],
       ),
