@@ -59,8 +59,9 @@ class _LoginScreenState extends State<LoginScreen> {
       // Try client first
       final clientData = await _firestoreService.getClientByUid(uid);
       if (clientData != null) {
+        final clientId = clientData['clientId'] ?? '';
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('logged_client_id', uid);
+        await prefs.setString('logged_client_id', clientId);
         if (mounted) context.go('/home');
         return;
       }

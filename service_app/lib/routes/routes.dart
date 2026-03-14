@@ -20,9 +20,10 @@ import '../screens/provider/provider_dashboard_screen.dart';
 import '../screens/provider/provider_reservations_screen.dart';
 import '../screens/provider/provider_services_screen.dart';
 import '../navigation/main_navigation.dart';
+import '../screens/client/bookings_screen.dart';
+import '../screens/client/booking_detail_screen.dart';
 import '../screens/splash_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/chat/chat_list_screen.dart';
 
@@ -132,6 +133,13 @@ final GoRouter router = GoRouter(
       path: AppRoutes.forgotPassword,
       builder: (context, state) =>
           const client_forgot_password.ForgotPasswordScreen(),
+    ),
+    GoRoute(
+      path: '/booking-detail/:bookingId',
+      builder: (context, state) {
+        final bookingId = state.pathParameters['bookingId'] ?? '';
+        return BookingDetailScreen(bookingId: bookingId);
+      },
     ),
 
     // ── Provider ──
