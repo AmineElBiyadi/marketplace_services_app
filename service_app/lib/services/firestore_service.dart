@@ -742,12 +742,12 @@ class FirestoreService {
       'token': '',
     });
 
-    await _firestore.collection('clients').add({
+    final clientDoc = await _firestore.collection('clients').add({
       'etatCompte': 'ACTIVE',
       'idUtilisateur': uid,
     });
 
-    return uid;
+    return clientDoc.id;
   }
 
   /// Fetches client data by Firebase Auth UID. Returns user data + role info, or null.
@@ -764,7 +764,8 @@ class FirestoreService {
     if (clientQuery.docs.isEmpty) return null;
 
     final data = userDoc.data()!;
-    data['id'] = uid;
+    data['id'] = uid; // This remains the 'utilisateurs' UID for backwards compatibility
+    data['clientId'] = clientQuery.docs.first.id; // Correct clients collection document ID
     return data;
   }
 
