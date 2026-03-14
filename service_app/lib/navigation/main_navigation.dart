@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/client/home_screen.dart';
-import '../screens/search_screen.dart';
-import '../screens/bookings_screen.dart';
-import '../screens/profile_screen.dart';
+import '../screens/client/search_screen.dart';
+import '../screens/client/bookings_screen.dart';
+import '../screens/client/profile_screen.dart';
 import '../screens/chat/chat_list_screen.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -49,6 +49,7 @@ class _MainNavigationState extends State<MainNavigation> {
       const SearchScreen(),
       const ChatListScreen(currentUserRole: 'client'),
       BookingsScreen(clientId: _clientId),
+      const ProfileScreen(),
     ];
 
     return Scaffold(
