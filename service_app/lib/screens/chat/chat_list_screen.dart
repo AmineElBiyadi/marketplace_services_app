@@ -55,14 +55,14 @@ class ChatListScreen extends StatelessWidget {
                           size: 48, color: Colors.orange),
                       const SizedBox(height: 12),
                       const Text(
-                        'Index Firestore manquant',
+                        'Missing Firestore Index',
                         style: TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Consultez la console Flutter pour un lien direct '
-                        'pour créer l\'index automatiquement.',
+                        'Check the Flutter console for a direct link '
+                        'to create the index automatically.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: Colors.grey),
                       ),
@@ -71,7 +71,7 @@ class ChatListScreen extends StatelessWidget {
                 ),
               );
             }
-            return Center(child: Text('Erreur: $err'));
+            return Center(child: Text('Error: $err'));
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
@@ -83,15 +83,15 @@ class ChatListScreen extends StatelessWidget {
                       size: 70, color: Colors.grey[300]),
                   const SizedBox(height: 16),
                   const Text(
-                    'Aucune conversation pour l\'instant.',
+                    'No conversations yet.',
                     style: TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     currentUserRole == 'client'
-                        ? 'Contactez un expert depuis l\'accueil.'
-                        : 'Les clients vous contacteront ici.',
+                        ? 'Contact an expert from the home screen.'
+                        : 'Clients will contact you here.',
                     style: const TextStyle(color: Colors.grey),
                   ),
                 ],
@@ -117,7 +117,7 @@ class ChatListScreen extends StatelessWidget {
                   : chat.clientSnapshot.photo;
 
               final lastText =
-                  chat.dernierMessage?.contenu ?? 'Aucun message';
+                  chat.dernierMessage?.contenu ?? 'No messages';
               final lastTime = chat.updatedAt.toDate();
               final unread = chat.nbMessagesNonLus;
 
@@ -131,7 +131,7 @@ class ChatListScreen extends StatelessWidget {
                     horizontal: 16, vertical: 6),
                 leading: _buildAvatar(otherPhoto, otherName, chat.estOuvert),
                 title: Text(
-                  otherName.isNotEmpty ? otherName : 'Utilisateur',
+                  otherName.isNotEmpty ? otherName : 'User',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Row(
@@ -216,9 +216,9 @@ class ChatListScreen extends StatelessWidget {
     final now = DateTime.now();
     final diff = now.difference(dt);
     if (diff.inDays == 0) return DateFormat('HH:mm').format(dt);
-    if (diff.inDays == 1) return 'Hier';
-    if (diff.inDays < 7) return DateFormat('EEE', 'fr').format(dt);
-    return DateFormat('dd/MM/yy').format(dt);
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return DateFormat('EEE').format(dt);
+    return DateFormat('MM/dd/yy').format(dt);
   }
 
   Widget _buildAvatar(String photo, String name, bool isOpen) {
