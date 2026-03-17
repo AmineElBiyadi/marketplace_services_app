@@ -1,10 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/expert.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/smart_image.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../chat/chat_list_screen.dart';
 
 class ExpertProfileScreen extends StatefulWidget {
   final Expert expert;
@@ -28,7 +27,8 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
   late Expert _expert;
 
   static const Color _kPrimary = Color(0xFF3D5A99);
-  static const Color _kBg = Color(0xFFF5F3EC);
+  static const Color _kBg = Color(0xFFF9F6EE); // matches screenshot off-white
+  static const Color _kTextBlue = Color(0xFF3D5A99);
   static const Color _kGold = Color(0xFFFFC107);
 
   @override
@@ -52,15 +52,27 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
           await _firestoreService.getExpertServicesDetailed(widget.expert.id);
 
       if (servicesDetailed.isNotEmpty) {
+        List<Map<String, dynamic>> flatList = [];
+        for (var s in servicesDetailed) {
+          final tasks = s['tasks'] as List<dynamic>? ?? [];
+          if (tasks.isNotEmpty) {
+            for (var t in tasks) {
+              flatList.add({
+                'title': (t['nom'] != null && t['nom'].toString().isNotEmpty) ? t['nom'] : (s['serviceName'] ?? ''),
+                'description': (t['description'] != null && t['description'].toString().isNotEmpty) ? t['description'] : (s['description'] ?? ''),
+                'duration': '1-2h',
+              });
+            }
+          } else {
+            flatList.add({
+              'title': s['serviceName'] ?? '',
+              'description': s['description'] ?? '',
+              'duration': '1h',
+            });
+          }
+        }
         setState(() {
-          _services = servicesDetailed
-              .map((s) => {
-                    'title': s['serviceName'] ?? '',
-                    'description': s['description'] ?? '',
-                    'duration': '',
-                    'anneeExperience': s['anneeExperience'] ?? 0,
-                  })
-              .toList();
+          _services = flatList;
         });
       } else {
         setState(() {
@@ -98,8 +110,18 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
   String get _responseTime => _expert.isPremium ? '~10 min' : '~15 min';
 
   String get _reviewCount {
-    if (_reviews.isNotEmpty) return '(${_reviews.length} avis)';
-    return '(0 avis)';
+    if (_reviews.isNotEmpty) return '(${_reviews.length} reviews)';
+    return '(0 reviews)';
+  }
+
+  /// Calcule la note moyenne à partir des reviews réellement chargées.
+  double get _computedRating {
+    if (_reviews.isEmpty) return _expert.noteMoyenne;
+    double total = 0;
+    for (final r in _reviews) {
+      total += ((r['note'] ?? 0) as num).toDouble();
+    }
+    return total / _reviews.length;
   }
 
   @override
@@ -107,290 +129,290 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
     final expert = _expert;
 
     return Scaffold(
+      backgroundColor: _kBg,
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
-          child: NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              SliverAppBar(
-                expandedHeight: 160,
-                pinned: true,
-                backgroundColor: _kPrimary,
-                leading: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: CircleAvatar(
-                    backgroundColor: Colors.white.withValues(alpha: 0.9),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back,
-                          color: Colors.black87, size: 18),
-                      onPressed: () => context.pop(),
-                      padding: EdgeInsets.zero,
+          child: Stack(
+            children: [
+              // ── Scrollable content ─────────────────────────────
+              NestedScrollView(
+                headerSliverBuilder: (context, innerBoxIsScrolled) => [
+                  SliverAppBar(
+                    expandedHeight: 160,
+                    pinned: true,
+                    backgroundColor: _kPrimary,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(24),
+                        bottomRight: Radius.circular(24),
+                      ),
                     ),
-                  ),
-                ),
-                flexibleSpace: const FlexibleSpaceBar(
-                  background: ColoredBox(color: _kPrimary),
-                ),
-              ),
-            ],
-            body: CustomScrollView(
-              slivers: [
-                // Profile card
-                SliverToBoxAdapter(
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(height: 60, color: _kPrimary),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: _kBg,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(24),
-                              topRight: Radius.circular(24),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              const SizedBox(height: 16),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    // Avatar
-                                    Container(
-                                      width: 80,
-                                      height: 80,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(16),
-                                        border: Border.all(color: Colors.white, width: 3),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.12),
-                                            blurRadius: 12,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: SmartImage(
-                                        source: expert.photo,
-                                        width: 80,
-                                        height: 80,
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    // Name + category
-                                    Expanded(
-                                      child: Padding(
-                                        padding: const EdgeInsets.only(top: 4),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    expert.nom,
-                                                    style: const TextStyle(
-                                                      fontSize: 20,
-                                                      fontWeight: FontWeight.bold,
-                                                      color: Colors.black87,
-                                                    ),
-                                                  ),
-                                                ),
-                                                if (expert.isPremium)
-                                                  const Text('👑',
-                                                      style: TextStyle(fontSize: 18)),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              expert.services.isNotEmpty
-                                                  ? expert.services.first
-                                                  : '',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.grey.shade600,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              children: [
-                                                const Icon(Icons.star,
-                                                    color: _kGold, size: 16),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  expert.noteMoyenne.toStringAsFixed(1),
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 14,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  _reviewCount,
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.grey.shade500,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Icon(Icons.access_time,
-                                                    size: 14,
-                                                    color: Colors.grey.shade500),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  _responseTime,
-                                                  style: TextStyle(
-                                                    fontSize: 12,
-                                                    color: Colors.grey.shade500,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
+                    // Back button — remains visible even when collapsed
+                    leading: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: CircleAvatar(
+                        backgroundColor: Colors.white,
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back,
+                              color: _kTextBlue, size: 20),
+                          onPressed: () => context.pop(),
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ),
+                    flexibleSpace: const FlexibleSpaceBar(
+                      background: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: _kPrimary,
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(24),
+                            bottomRight: Radius.circular(24),
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
-    
-                // Tabs
-                SliverToBoxAdapter(
-                  child: ColoredBox(
-                    color: _kBg,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: TabBar(
-                          controller: _tabController,
-                          labelColor: _kPrimary,
-                          unselectedLabelColor: Colors.grey.shade500,
-                          indicator: BoxDecoration(
-                            color: _kPrimary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          indicatorSize: TabBarIndicatorSize.tab,
-                          labelStyle: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 13),
-                          tabs: const [
-                            Tab(text: 'Services'),
-                            Tab(text: 'Portfolio'),
-                            Tab(text: 'Reviews'),
-                            Tab(text: 'Info'),
+                ],
+                body: CustomScrollView(
+                  slivers: [
+                    // Spacer so content doesn't hide behind the avatar overlay
+                    const SliverToBoxAdapter(child: SizedBox(height: 56)),
+
+                    // Name + rating row
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Name + premium badge
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                // Leave space for the avatar (98 px wide incl. margins)
+                                const SizedBox(width: 106),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              expert.nom,
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.w900,
+                                                color: _kTextBlue,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          if (expert.isPremium)
+                                            const Padding(
+                                              padding: EdgeInsets.only(left: 4),
+                                              child: Icon(Icons.workspace_premium,
+                                                  color: Colors.amber, size: 22),
+                                            ),
+                                        ],
+                                      ),
+                                      Text(
+                                        expert.services.isNotEmpty
+                                            ? expert.services.first
+                                            : '',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: _kTextBlue.withValues(alpha: 0.7),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            // Rating + response time
+                            Row(
+                              children: [
+                                const Icon(Icons.star, color: _kTextBlue, size: 18),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _computedRating.toStringAsFixed(1),
+                                  style: const TextStyle(
+                                    color: _kTextBlue,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _reviewCount,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: _kTextBlue.withValues(alpha: 0.6),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Icon(Icons.access_time,
+                                    size: 16,
+                                    color: _kTextBlue.withValues(alpha: 0.5)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _responseTime,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: _kTextBlue.withValues(alpha: 0.8),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
                     ),
-                  ),
+
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
+                    // Tabs
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 8),
+                        child: Container(
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _kPrimary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: TabBar(
+                            controller: _tabController,
+                            labelColor: _kTextBlue,
+                            unselectedLabelColor:
+                                _kTextBlue.withValues(alpha: 0.6),
+                            indicator: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            indicatorSize: TabBarIndicatorSize.tab,
+                            dividerColor: Colors.transparent,
+                            labelStyle: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 13),
+                            unselectedLabelStyle: const TextStyle(
+                                fontWeight: FontWeight.w500, fontSize: 13),
+                            tabs: const [
+                              Tab(text: 'Services'),
+                              Tab(text: 'Portfolio'),
+                              Tab(text: 'Reviews'),
+                              Tab(text: 'Info'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Tab content
+                    SliverFillRemaining(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          _ServicesTab(
+                            services: _services,
+                            isLoading: _isLoadingExtra,
+                            expert: expert,
+                          ),
+                          _PortfolioTab(
+                            images: _portfolioImages,
+                            isLoading: _isLoadingExtra,
+                          ),
+                          _ReviewsTab(
+                            reviews: _reviews,
+                            rating: _computedRating,
+                            isLoading: _isLoadingExtra,
+                          ),
+                          _InfoTab(expert: expert),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-    
-                // Tab content
-                SliverFillRemaining(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _ServicesTab(
-                        services: _services,
-                        isLoading: _isLoadingExtra,
-                        expert: expert,
+              ),
+
+              // ── Avatar overlay — always on top of the blue bar ──
+              Positioned(
+                top: 115, // bottom of collapsed header ≈ kToolbarHeight (56)
+                left: 24,
+                child: Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
                       ),
-                      _PortfolioTab(
-                        images: _portfolioImages,
-                        isLoading: _isLoadingExtra,
-                      ),
-                      _ReviewsTab(
-                        reviews: _reviews,
-                        rating: expert.noteMoyenne,
-                        isLoading: _isLoadingExtra,
-                      ),
-                      _InfoTab(expert: expert),
                     ],
                   ),
+                  padding: const EdgeInsets.all(4),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: SmartImage(
+                      source: expert.photo,
+                      width: 82,
+                      height: 82,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
 
-
       // Bottom action bar
-      bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 12,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
+      bottomNavigationBar: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          child: Row(
-            children: [
-              // Contact Button (Call)
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    final Uri launchUri = Uri(
-                      scheme: 'tel',
-                      path: widget.expert.telephone,
-                    );
-                    if (await canLaunchUrl(launchUri)) {
-                      await launchUrl(launchUri);
-                    }
-                  },
-                  icon: const Icon(Icons.call, color: Colors.white, size: 20),
-                  label: const Text(
-                    'Contact this provider',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4CAF50), // Green for contact
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    elevation: 0,
-                  ),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+          child: ElevatedButton.icon(
+            onPressed: () {
+              // Naviguer vers la page Messages (liste des conversations)
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ChatListScreen(currentUserRole: 'client'),
                 ),
+              );
+            },
+            icon: const Icon(Icons.chat_bubble_outline,
+                color: Colors.white, size: 20),
+            label: const Text(
+              'Contacter le prestataire',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
-              const SizedBox(width: 12),
-              // Main Action (Book Now - Placeholder)
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: _kPrimary,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.bookmark_border, color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kPrimary,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-            ],
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              elevation: 0,
+            ),
           ),
         ),
       ),
@@ -449,17 +471,11 @@ class _ServicesTab extends StatelessWidget {
         final duration = (service['duration'] as String?) ??
             (service['duree'] as String?) ?? '';
 
-        return DecoratedBox(
+        return Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withValues(alpha: 0.08),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            border: Border.all(color: _kPrimary.withValues(alpha: 0.2)),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -472,46 +488,33 @@ class _ServicesTab extends StatelessWidget {
                       Text(
                         title,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          color: Colors.black87,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: _kPrimary,
                         ),
                       ),
                       if (description.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Text(description,
-                            style: TextStyle(
-                                fontSize: 13, color: Colors.grey.shade500)),
-                      ],
-                      if (duration.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Row(
-                          children: [
-                            Icon(Icons.access_time,
-                                size: 13, color: Colors.grey.shade400),
-                            const SizedBox(width: 4),
-                            Text(duration,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade500)),
-                          ],
+                        Text(
+                          description,
+                          style: TextStyle(fontSize: 13, color: _kPrimary.withValues(alpha: 0.6)),
                         ),
                       ],
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.access_time, size: 14, color: _kPrimary.withValues(alpha: 0.5)),
+                          const SizedBox(width: 4),
+                          Text(
+                            duration,
+                            style: TextStyle(fontSize: 12, color: _kPrimary.withValues(alpha: 0.6)),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: _kPrimary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const SizedBox(
-                    width: 36,
-                    height: 36,
-                    child: Icon(Icons.chat_bubble_outline,
-                        color: _kPrimary, size: 18),
-                  ),
-                ),
+                Icon(Icons.chat_bubble_outline, color: _kPrimary, size: 22),
               ],
             ),
           ),
