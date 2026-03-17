@@ -96,8 +96,7 @@ class FirestoreService {
         }
       }
 
-      final expertDoc =
-          await _firestore.collection('experts').doc(expertId).get();
+      final expertDoc = await _firestore.collection('experts').doc(expertId).get();
       final views = expertDoc.data()?['views'] ?? 0;
 
       return {
@@ -131,64 +130,63 @@ class FirestoreService {
   Future<List<Expert>> getExperts() async {
     try {
       final expertsSnapshot = await _firestore.collection('experts').get();
-      List<Expert> experts = [];
-
-      for (var expertDoc in expertsSnapshot.docs) {
+      
+      // Fetch all experts' data in parallel
+      List<Expert> experts = await Future.wait(expertsSnapshot.docs.map((expertDoc) async {
         final expertData = expertDoc.data();
         final expertId = expertDoc.id;
         final userId = expertData['idUtilisateur'];
 
-        final userDoc =
-            await _firestore.collection('utilisateurs').doc(userId).get();
+        // Run independent queries in parallel for each expert
+        final results = await Future.wait([
+          _firestore.collection('utilisateurs').doc(userId).get(),
+          _firestore.collection('adresses').where('idUtilisateur', isEqualTo: userId).get(),
+          _firestore.collection('abonnements').where('idExpert', isEqualTo: expertId).where('statut', isEqualTo: 'ACTIVE').get(),
+          _firestore.collection('serviceExperts').where('idExpert', isEqualTo: expertId).get(),
+          _firestore.collection('evaluations').where('idExpert', isEqualTo: expertId).get(),
+        ]);
+
+        final userDoc = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+        final adresseSnapshot = results[1] as QuerySnapshot<Map<String, dynamic>>;
+        final abonnementSnapshot = results[2] as QuerySnapshot<Map<String, dynamic>>;
+        final serviceExpertsSnapshot = results[3] as QuerySnapshot<Map<String, dynamic>>;
+        final evaluationsSnapshot = results[4] as QuerySnapshot<Map<String, dynamic>>;
+
         final userData = userDoc.data() ?? {};
 
-        final adresseSnapshot = await _firestore
-            .collection('adresses')
-            .where('idUtilisateur', isEqualTo: userId)
-            .get();
-
+        // Resolve City from addresses
         String ville = '';
         if (adresseSnapshot.docs.isNotEmpty) {
           final adresse = adresseSnapshot.docs.first.data();
           ville = '${adresse['Ville'] ?? ''}, ${adresse['Quartier'] ?? ''}';
         }
 
-        final abonnementSnapshot = await _firestore
-            .collection('abonnements')
-            .where('idExpert', isEqualTo: expertId)
-            .where('statut', isEqualTo: 'ACTIVE')
-            .get();
+        // Check Premium status
         final isPremium = abonnementSnapshot.docs.isNotEmpty;
 
-        final serviceExpertsSnapshot = await _firestore
-            .collection('serviceExperts')
-            .where('idExpert', isEqualTo: expertId)
-            .get();
-
+        // Fetch service names in parallel
         List<String> services = [];
-        for (var se in serviceExpertsSnapshot.docs) {
-          final serviceDoc = await _firestore
-              .collection('services')
-              .doc(se.data()['idService'])
-              .get();
-          if (serviceDoc.exists) {
-            services.add(serviceDoc.data()?['nom'] ?? '');
+        if (serviceExpertsSnapshot.docs.isNotEmpty) {
+          final serviceDocs = await Future.wait(serviceExpertsSnapshot.docs.map(
+            (se) => _firestore.collection('services').doc(se.data()['idService']).get()
+          ));
+          for (var sDoc in serviceDocs) {
+            if (sDoc.exists) {
+              services.add(sDoc.data()?['nom'] ?? '');
+            }
           }
         }
 
-        final interventionsSnapshot = await _firestore
-            .collection('interventions')
-            .where('idExpert', isEqualTo: expertId)
-            .get();
-
+        // Calculate average rating from evaluations
         double noteMoyenne = 0.0;
-        if (interventionsSnapshot.docs.isNotEmpty) {
-          final firstIntervention = interventionsSnapshot.docs.first.data();
-          noteMoyenne =
-              (firstIntervention['expertSnapshot']?['note_moyenne'] ?? 0.0)
-                  .toDouble();
+        if (evaluationsSnapshot.docs.isNotEmpty) {
+          double totalNote = 0.0;
+          for (final eDoc in evaluationsSnapshot.docs) {
+            totalNote += (eDoc.data()['note'] ?? 0.0).toDouble();
+          }
+          noteMoyenne = totalNote / evaluationsSnapshot.docs.length;
         } else {
-          // Fallback
+          // Fallback to legacy fields
           noteMoyenne = (expertData['noteMoyenne'] ??
                   expertData['note'] ??
                   expertData['rating'] ??
@@ -198,9 +196,8 @@ class FirestoreService {
         }
 
         String finalPhoto = (userData['image_profile'] ?? '').toString();
-        debugPrint("Expert: $expertId -> photo: $finalPhoto");
 
-        experts.add(Expert(
+        return Expert(
           id: expertId,
           nom: userData['nom'] ?? userData['email'] ?? 'Expert',
           photo: finalPhoto,
@@ -209,10 +206,11 @@ class FirestoreService {
           isPremium: isPremium,
           services: services,
           ville: ville,
-          location: (expertData['location'] ?? userData['location']) as GeoPoint?,
-        ));
-      }
+          location: (userData['location'] ?? expertData['location']) as GeoPoint?,
+        );
+      }));
 
+      // Sort: Premium first, then by rating
       experts.sort((a, b) {
         if (a.isPremium && !b.isPremium) return -1;
         if (!a.isPremium && b.isPremium) return 1;
@@ -221,6 +219,7 @@ class FirestoreService {
 
       return experts;
     } catch (e) {
+      debugPrint("Error fetching experts: $e");
       return [];
     }
   }
@@ -233,14 +232,24 @@ class FirestoreService {
       final expertData = doc.data()!;
       final userId = expertData['idUtilisateur'];
       
-      final userDoc = await _firestore.collection('utilisateurs').doc(userId).get();
+      // Fetch related data in parallel
+      final results = await Future.wait([
+        _firestore.collection('utilisateurs').doc(userId).get(),
+        _firestore.collection('evaluations').where('idExpert', isEqualTo: expertId).get(),
+        _firestore.collection('abonnements').where('idExpert', isEqualTo: expertId).where('statut', isEqualTo: 'ACTIVE').get(),
+        _firestore.collection('serviceExperts').where('idExpert', isEqualTo: expertId).get(),
+        _firestore.collection('adresses').where('idUtilisateur', isEqualTo: userId).get(),
+      ]);
+
+      final userDoc = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+      final evaluationsSnapshot = results[1] as QuerySnapshot<Map<String, dynamic>>;
+      final abonnementSnapshot = results[2] as QuerySnapshot<Map<String, dynamic>>;
+      final serviceExpertsSnapshot = results[3] as QuerySnapshot<Map<String, dynamic>>;
+      final adresseSnapshot = results[4] as QuerySnapshot<Map<String, dynamic>>;
+
       final userData = userDoc.data() ?? {};
       
-      final evaluationsSnapshot = await _firestore
-          .collection('evaluations')
-          .where('idExpert', isEqualTo: expertId)
-          .get();
-
+      // Calculate average rating
       double noteMoyenne = 0.0;
       if (evaluationsSnapshot.docs.isNotEmpty) {
         double totalNote = 0.0;
@@ -258,34 +267,22 @@ class FirestoreService {
             .toDouble();
       }
 
-      final abonnementSnapshot = await _firestore
-          .collection('abonnements')
-          .where('idExpert', isEqualTo: expertId)
-          .where('statut', isEqualTo: 'ACTIVE')
-          .get();
       final isPremium = abonnementSnapshot.docs.isNotEmpty;
 
-      final serviceExpertsSnapshot = await _firestore
-          .collection('serviceExperts')
-          .where('idExpert', isEqualTo: expertId)
-          .get();
-
+      // Fetch service names in parallel
       List<String> services = [];
-      for (var se in serviceExpertsSnapshot.docs) {
-        final serviceDoc = await _firestore
-            .collection('services')
-            .doc(se.data()['idService'])
-            .get();
-        if (serviceDoc.exists) {
-          services.add(serviceDoc.data()?['nom'] ?? '');
+      if (serviceExpertsSnapshot.docs.isNotEmpty) {
+        final serviceDocs = await Future.wait(serviceExpertsSnapshot.docs.map(
+          (se) => _firestore.collection('services').doc(se.data()['idService']).get()
+        ));
+        for (var sDoc in serviceDocs) {
+          if (sDoc.exists) {
+            services.add(sDoc.data()?['nom'] ?? '');
+          }
         }
       }
 
-      final adresseSnapshot = await _firestore
-          .collection('adresses')
-          .where('idUtilisateur', isEqualTo: userId)
-          .get();
-
+      // Resolve City
       String ville = '';
       if (adresseSnapshot.docs.isNotEmpty) {
         final adresse = adresseSnapshot.docs.first.data();
@@ -303,7 +300,7 @@ class FirestoreService {
         isPremium: isPremium,
         services: services,
         ville: ville,
-        location: (expertData['location'] ?? userData['location']) as GeoPoint?,
+        location: (userData['location'] ?? expertData['location']) as GeoPoint?,
       );
     } catch (e) {
       debugPrint("Error getting detailed expert: $e");
@@ -342,40 +339,43 @@ class FirestoreService {
   /// Récupère les reviews réelles d'un expert depuis la collection [evaluations].
   Future<List<Map<String, dynamic>>> getExpertReviews(String expertId) async {
     try {
+      // NOTE: pas de orderBy('createdAt') ici pour éviter l'obligation
+      // d'un index composite Firestore. On trie côté client après.
       final snapshot = await _firestore
           .collection('evaluations')
           .where('idExpert', isEqualTo: expertId)
-          .orderBy('createdAt', descending: true)
           .get();
 
-      final List<Map<String, dynamic>> reviews = [];
-
-      for (final doc in snapshot.docs) {
+      // Parallelize client name resolution
+      final results = await Future.wait(snapshot.docs.map((doc) async {
         final data = doc.data();
-        
-        // Récupérer le nom du client
         String clientNom = 'Client';
         final idClient = data['idClient'] as String?;
+
         if (idClient != null && idClient.isNotEmpty) {
           try {
-            final clientDoc = await _firestore
-                .collection('utilisateurs')
-                .doc(idClient)
-                .get();
-            if (clientDoc.exists) {
-              clientNom = clientDoc.data()?['nom'] ?? 'Client';
+            final clientDoc = await _firestore.collection('clients').doc(idClient).get();
+            final idUtilisateur = clientDoc.data()?['idUtilisateur'];
+            
+            if (idUtilisateur != null) {
+              final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
+              clientNom = userDoc.data()?['nom'] ?? 'Client';
             }
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('Error resolving client name for review: $e');
+          }
         }
 
-        reviews.add({
+        return {
           'clientNom': clientNom,
           'note': (data['note'] ?? 0.0).toDouble(),
           'commentaire': data['commentaire'] ?? data['comment'] ?? '',
           'date': data['createdAt'],
-        });
-      }
-      return reviews;
+        };
+      }).toList());
+
+      debugPrint('✅ getExpertReviews: found ${results.length} reviews for expert $expertId');
+      return results;
     } catch (e) {
       debugPrint('Error fetching reviews: $e');
       return [];
@@ -395,7 +395,8 @@ class FirestoreService {
           .where('idExpert', isEqualTo: expertId)
           .get();
       for (final doc in directExpSnap.docs) {
-        final img = doc.data()['image'] as String?;
+        final data = doc.data();
+        final img = (data['image'] ?? data['URLimage']) as String?;
         if (img != null && img.isNotEmpty) images.add(img);
       }
 
@@ -421,7 +422,8 @@ class FirestoreService {
         for (var q in queries) {
           final snap = await q;
           for (final doc in snap.docs) {
-            final img = doc.data()['image'] as String?;
+            final data = doc.data();
+            final img = (data['image'] ?? data['URLimage']) as String?;
             if (img != null && img.isNotEmpty) images.add(img);
           }
         }
@@ -584,7 +586,10 @@ class FirestoreService {
             .collection('imagesExemplaires')
             .where('idServiceExpert', isEqualTo: seDoc.id)
             .get();
-        List<String> serviceImages = imgSnapshot.docs.map((d) => d.data()['image'] as String).toList();
+        List<String> serviceImages = imgSnapshot.docs
+            .map((d) => (d.data()['image'] ?? d.data()['URLimage']) as String?)
+            .whereType<String>()
+            .toList();
 
         // Get linked tasks for the expert instances
         final tasksSnapshot = await _firestore
@@ -604,7 +609,9 @@ class FirestoreService {
                 .collection('imagesExemplaires')
                 .where('idTacheExpert', isEqualTo: tid)
                 .get();
-            serviceImages.addAll(oldImgSnapshot.docs.map((d) => d.data()['image'] as String));
+            serviceImages.addAll(oldImgSnapshot.docs
+                .map((d) => (d.data()['image'] ?? d.data()['URLimage']) as String?)
+                .whereType<String>());
           }
 
           tasksData.add({
