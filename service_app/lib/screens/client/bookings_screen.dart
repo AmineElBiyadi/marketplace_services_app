@@ -560,7 +560,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       icon: Icons.star_border,
                       color: AppColors.primary,
                       filled: true,
-                      onTap: () => context.go('/review/${intervention.id}'),
+                      onTap: () => context.push('/review/${intervention.id}'),
                     ),
                   ),
                 ],
