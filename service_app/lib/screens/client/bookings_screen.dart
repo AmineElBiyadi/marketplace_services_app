@@ -554,7 +554,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       icon: Icons.report_problem_outlined,
                       color: Colors.orange,
                       filled: false,
-                      onTap: () => context.push('/complaint/${intervention.id}'),
+                      onTap: () => context.push(AppRoutes.complaint.replaceFirst(':interventionId', intervention.id!)),
                     ),
                   ),
                 ],
