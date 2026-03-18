@@ -547,6 +547,16 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       onTap: () => _showCancelDialog(intervention),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildActionButton(
+                      label: "Complain",
+                      icon: Icons.report_problem_outlined,
+                      color: Colors.orange,
+                      filled: false,
+                      onTap: () => context.push('/complaint/${intervention.id}'),
+                    ),
+                  ),
                 ],
               ),
             ],
