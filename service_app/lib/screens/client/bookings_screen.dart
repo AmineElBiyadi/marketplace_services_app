@@ -7,6 +7,7 @@ import '../../theme/app_colors.dart';
 import '../../models/booking.dart';
 import '../../models/chat_model.dart';
 import '../chat/chat_screen.dart';
+import '../../routes/routes.dart';
 
 const _tabs = ["Pending", "Confirmed", "Refused", "Completed", "Cancelled"];
 const _tabStatusMap = {
