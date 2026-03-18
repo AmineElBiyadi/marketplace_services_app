@@ -107,8 +107,6 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
     }
   }
 
-  String get _responseTime => _expert.isPremium ? '~10 min' : '~15 min';
-
   String get _reviewCount {
     if (_reviews.isNotEmpty) return '(${_reviews.length} reviews)';
     return '(0 reviews)';
@@ -254,18 +252,7 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
                                     color: _kTextBlue.withValues(alpha: 0.6),
                                   ),
                                 ),
-                                const SizedBox(width: 16),
-                                Icon(Icons.access_time,
-                                    size: 16,
-                                    color: _kTextBlue.withValues(alpha: 0.5)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _responseTime,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: _kTextBlue.withValues(alpha: 0.8),
-                                  ),
-                                ),
+
                               ],
                             ),
                           ],
