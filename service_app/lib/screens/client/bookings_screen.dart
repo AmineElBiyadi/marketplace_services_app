@@ -7,6 +7,7 @@ import '../../theme/app_colors.dart';
 import '../../models/booking.dart';
 import '../../models/chat_model.dart';
 import '../chat/chat_screen.dart';
+import '../../routes/routes.dart';
 
 const _tabs = ["Pending", "Confirmed", "Refused", "Completed", "Cancelled"];
 const _tabStatusMap = {
@@ -545,6 +546,16 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       color: Colors.red,
                       filled: false,
                       onTap: () => _showCancelDialog(intervention),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildActionButton(
+                      label: "Complain",
+                      icon: Icons.report_problem_outlined,
+                      color: Colors.orange,
+                      filled: false,
+                      onTap: () => context.push(AppRoutes.complaint.replaceFirst(':interventionId', intervention.id!)),
                     ),
                   ),
                 ],
