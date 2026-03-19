@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/glass_container.dart';
@@ -33,30 +32,35 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   bool _isLoading = true;
   bool _isPremium = false;
   final int _freeLimit = 3;
+  StreamSubscription<bool>? _premiumSub;
 
   @override
   void initState() {
     super.initState();
+    _subscribeToPremuim();
     _loadData();
+  }
+
+  void _subscribeToPremuim() {
+    _premiumSub = _firestoreService.isExpertPremium(widget.expertId).listen((isPremium) {
+      if (mounted) setState(() => _isPremium = isPremium);
+    });
+  }
+
+  @override
+  void dispose() {
+    _premiumSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
-      // Get services
       final services = await _firestoreService.getExpertServicesDetailed(widget.expertId);
-      
-      // Get categories
       final categories = await _firestoreService.getServiceCategories();
-
-      // Check premium status (assuming from expert doc)
-      final expertDoc = await _firestoreService.getExpertById(widget.expertId);
-      final isPremium = expertDoc?['isPremium'] ?? false;
-
       setState(() {
         _expertServices = services;
         _categories = categories;
-        _isPremium = isPremium;
         _isLoading = false;
       });
     } catch (e) {
@@ -117,26 +121,75 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   List<TaskModel> _availableTasks = [];
   final List<TaskModel> _selectedTasks = [];
   final List<String> _customTasks = [];
-  final List<String> _base64Images = [];
+  final List<Map<String, String>> _base64ImagesWithTasks = [];
   bool _isSaving = false;
 
   Future<void> _pickImage(StateSetter setSheetState) async {
-    if (_base64Images.length >= 3) {
+    if (_base64ImagesWithTasks.length >= 3 && !_isPremium) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Maximum 3 photos allowed")),
+        const SnackBar(content: Text("Maximum 3 photos allowed for free users")),
       );
       return;
     }
+
+    if (_selectedTasks.isEmpty && _customTasks.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please add at least one skill before adding photos")),
+      );
+      return;
+    }
+
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
     
     if (image != null) {
       final bytes = await image.readAsBytes();
-      setSheetState(() {
-        _base64Images.add(base64Encode(bytes));
-      });
-      // also update main state just in case
-      setState(() {});
+      final base64 = base64Encode(bytes);
+
+      // Show skill picker dialog
+      String? selectedTaskId;
+      String? selectedTaskName;
+
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Associate with Skill"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ..._selectedTasks.map((t) => ListTile(
+                  title: Text(t.nom),
+                  onTap: () {
+                    selectedTaskId = t.id;
+                    selectedTaskName = t.nom;
+                    Navigator.pop(context);
+                  },
+                )),
+                ..._customTasks.map((t) => ListTile(
+                  title: Text(t),
+                  onTap: () {
+                    selectedTaskId = ''; // Custom tasks don't have IDs yet
+                    selectedTaskName = t;
+                    Navigator.pop(context);
+                  },
+                )),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      if (selectedTaskName != null) {
+        setSheetState(() {
+          _base64ImagesWithTasks.add({
+            'image': base64,
+            'taskId': selectedTaskId ?? '',
+            'taskName': selectedTaskName!,
+          });
+        });
+        setState(() {});
+      }
     }
   }
 
@@ -149,7 +202,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
       _availableTasks = [];
       _selectedTasks.clear();
       _customTasks.clear();
-      _base64Images.clear();
+      _base64ImagesWithTasks.clear();
       _isSaving = false;
     });
   }
@@ -170,7 +223,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
         description: _descriptionController.text,
         selectedTasks: _selectedTasks,
         customTasks: _customTasks,
-        base64Images: _base64Images,
+        base64ImagesWithTasks: _base64ImagesWithTasks,
       );
       
       Navigator.pop(context);
@@ -203,7 +256,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
         description: _descriptionController.text,
         selectedTasks: _selectedTasks,
         customTasks: _customTasks,
-        base64Images: _base64Images,
+        base64ImagesWithTasks: _base64ImagesWithTasks,
         existingImagesToDelete: [], 
       );
       
@@ -586,15 +639,16 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
         ),
         const SizedBox(height: 8),
         SizedBox(
-          height: 80,
+          height: 120,
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
               GestureDetector(
                 onTap: () => _pickImage(setSheetState),
                 child: Container(
-                  width: 80,
-                  height: 80,
+                  width: 100,
+                  height: 100,
+                  margin: const EdgeInsets.only(top: 10, bottom: 10),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(12),
@@ -604,18 +658,33 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              ..._base64Images.asMap().entries.map((entry) => Padding(
+              ..._base64ImagesWithTasks.asMap().entries.map((entry) => Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: Stack(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.memory(
-                        base64Decode(entry.value),
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                      ),
+                    Column(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.memory(
+                            base64Decode(entry.value['image']!),
+                            width: 100,
+                            height: 100,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        SizedBox(
+                          width: 100,
+                          child: Text(
+                            entry.value['taskName']!,
+                            style: const TextStyle(fontSize: 10, color: Colors.grey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
                     ),
                     Positioned(
                       top: 4,
@@ -623,7 +692,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                       child: GestureDetector(
                         onTap: () {
                           setSheetState(() {
-                            _base64Images.removeAt(entry.key);
+                            _base64ImagesWithTasks.removeAt(entry.key);
                           });
                         },
                         child: Container(
@@ -657,12 +726,16 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
     
     _selectedTasks.clear();
     _customTasks.clear();
-    _base64Images.clear();
+    _base64ImagesWithTasks.clear();
     
-    for (var img in serviceImages) {
-        String cleanImg = img;
-        if (cleanImg.contains(',')) cleanImg = cleanImg.split(',').last;
-        if (!_base64Images.contains(cleanImg)) _base64Images.add(cleanImg);
+    // Load images with their task associations
+    final imagesWithTasks = await _firestoreService.getImagesWithTasks(service['id']);
+    for (var imgData in imagesWithTasks) {
+        _base64ImagesWithTasks.add({
+          'image': imgData['image']!,
+          'taskId': imgData['taskId'] ?? '',
+          'taskName': imgData['taskName'] ?? 'Existing Image',
+        });
     }
     
     for (var task in tasks) {
@@ -762,11 +835,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                     ),
                     ElevatedButton.icon(
                       onPressed: isLimitReached 
-                        ? () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Switch to Premium plan to add more services")),
-                            );
-                          }
+                        ? () => context.push('/provider/${widget.expertId}/subscription')
                         : _showAddSheet,
                       icon: const Icon(Icons.add, size: 20, color: Colors.white),
                       label: const Text(
@@ -793,6 +862,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                 const SizedBox(height: 24),
 
                 // Limit indicator / Usage Card
+                if (!_isPremium)
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -820,28 +890,29 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                               color: Color(0xFF1E293B),
                             ),
                           ),
-                          GestureDetector(
-                            onTap: () =>
-                                context.push('/provider/subscription'),
-                            child: const Row(
-                              children: [
-                                Icon(
-                                  Icons.workspace_premium_rounded,
-                                  size: 18,
-                                  color: AppColors.primary,
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  "Upgrade",
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
+                          if (!_isPremium)
+                            GestureDetector(
+                              onTap: () =>
+                                  context.push('/provider/${widget.expertId}/subscription'),
+                              child: const Row(
+                                children: [
+                                  Icon(
+                                    Icons.workspace_premium_rounded,
+                                    size: 18,
                                     color: AppColors.primary,
                                   ),
-                                ),
-                              ],
+                                  SizedBox(width: 6),
+                                  Text(
+                                    "Upgrade",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -898,7 +969,9 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
     
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: Container(
+      child: GestureDetector(
+        onTap: () => _showDetailsService(service),
+        child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -1051,6 +1124,223 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
               ],
             ),
           ],
+        ),
+      ),
+    ),
+    );
+  }
+
+  void _showDetailsService(Map<String, dynamic> service) {
+    final List tasks = service['tasks'] as List? ?? [];
+    
+    // Build a map of taskId -> taskName for labeling images
+    final Map<String, String> taskIdToName = {};
+    for (var t in tasks) {
+      taskIdToName[t['id']?.toString() ?? ''] = t['nom']?.toString() ?? 'Tâche';
+    }
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 500,
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: Container(
+              width: double.infinity,
+              color: Colors.white,
+              child: Column(
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 16, 20),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withAlpha(15),
+                      border: const Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withAlpha(25),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.work_outline, color: AppColors.primary, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            service['serviceName'] ?? 'Détails du service',
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: IconButton.styleFrom(backgroundColor: Colors.grey.shade100),
+                          icon: const Icon(Icons.close, size: 20),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Scrollable body
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Description
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text("Description", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B))),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Text(
+                              service['description'] ?? 'Aucune description.',
+                              style: const TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.5),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          // Skills
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text("Compétences & Tâches", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B))),
+                          ),
+                          const SizedBox(height: 12),
+                          tasks.isEmpty
+                            ? const Text('Aucune tâche ajoutée.', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic))
+                            : Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: tasks.map((t) => Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withAlpha(20),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: AppColors.primary.withAlpha(50)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.check_circle_outline, size: 14, color: AppColors.primary),
+                                      const SizedBox(width: 6),
+                                      Text(t['nom']?.toString() ?? '', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
+                                    ],
+                                  ),
+                                )).toList(),
+                              ),
+                          const SizedBox(height: 24),
+                          // Photos with skill labels
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text("Photos & Réalisations", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B))),
+                          ),
+                          const SizedBox(height: 12),
+                          FutureBuilder<List<Map<String, dynamic>>>(
+                            future: _firestoreService.getImagesWithTasks(service['id'] as String),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+                              }
+                              final images = snapshot.data ?? [];
+                              final flatImages = service['images'] as List? ?? [];
+                              if (images.isEmpty && flatImages.isEmpty) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  child: Text('Aucune photo ajoutée.', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+                                );
+                              }
+                              if (images.isNotEmpty) {
+                                return GridView.builder(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    crossAxisSpacing: 12,
+                                    mainAxisSpacing: 12,
+                                    childAspectRatio: 0.85,
+                                  ),
+                                  itemCount: images.length,
+                                  itemBuilder: (context, index) {
+                                    final imgData = images[index];
+                                    String img = imgData['image'] ?? '';
+                                    if (img.contains(',')) img = img.split(',').last;
+                                    final taskName = imgData['taskName'] as String? ?? '';
+                                    return Column(
+                                      children: [
+                                        Expanded(
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(16),
+                                            child: img.isNotEmpty
+                                              ? Image.memory(base64Decode(img), fit: BoxFit.cover, width: double.infinity)
+                                              : Container(color: Colors.grey.shade200, child: const Icon(Icons.image, color: Colors.grey)),
+                                          ),
+                                        ),
+                                        if (taskName.isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary.withAlpha(20),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Text(
+                                              taskName,
+                                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.primary),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    );
+                                  },
+                                );
+                              }
+                              return GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                  childAspectRatio: 1,
+                                ),
+                                itemCount: flatImages.length,
+                                itemBuilder: (context, index) {
+                                  String img = flatImages[index].toString();
+                                  if (img.contains(',')) img = img.split(',').last;
+                                  return ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Image.memory(base64Decode(img), fit: BoxFit.cover),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );
