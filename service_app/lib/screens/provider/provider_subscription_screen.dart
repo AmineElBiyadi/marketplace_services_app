@@ -326,8 +326,8 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
   Widget _buildFreeAdvantages() {
     final advantages = [
       {"icon": LucideIcons.checkCircle, "text": "Visibilité basique sur la plateforme"},
-      {"icon": LucideIcons.checkCircle, "text": "Jusqu'à 5 services listés"},
-      {"icon": LucideIcons.checkCircle, "text": "Gestion de l'agenda simplifiée"},
+      {"icon": LucideIcons.checkCircle, "text": "Jusqu'à 3 services listés"},
+      {"icon": LucideIcons.checkCircle, "text": "Statistiques simples dans le tableau de bord"},
       {"icon": LucideIcons.checkCircle, "text": "Notifications des nouvelles demandes"},
     ];
 
@@ -388,38 +388,163 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
       return '${d.month.toString().padLeft(2, '0')}/${d.year.toString().substring(2)}';
     });
 
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _firestoreService.getExpertKPIs(_resolvedExpertId!),
-      builder: (context, kpiSnap) {
-        if (kpiSnap.connectionState == ConnectionState.waiting) {
-          return const Center(child: Padding(
-            padding: EdgeInsets.all(20),
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ));
-        }
+        return FutureBuilder<List<dynamic>>(
+          future: Future.wait([
+            _firestoreService.getExpertKPIs(_resolvedExpertId!),
+            _firestoreService.getExpertPerformanceHistory(_resolvedExpertId!),
+          ]),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ));
+            }
 
-        final kpis = kpiSnap.data ?? {
-          'reservations_today': '0', 'rating': '0.0', 'revenue': '0 DH', 'views': '0'
-        };
+            final kpis = (snapshot.data?[0] as Map<String, dynamic>?) ?? {
+              'reservations_today': '0', 'rating': '0.0', 'revenue': '0 DH', 'views': '0'
+            };
+            final history = (snapshot.data?[1] as List<Map<String, dynamic>>?) ?? [];
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── KPI Cards ──────────────────────────────────
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              childAspectRatio: 1.6,
+            // Convert history to LineChart data
+            final List<FlSpot> spots = [];
+            for (int i = 0; i < history.length; i++) {
+              spots.add(FlSpot(i.toDouble(), (history[i]['count'] as int).toDouble()));
+            }
+
+            // Max value for Y axis
+            double maxY = 5.0;
+            for (var h in history) {
+               if ((h['count'] as int) > maxY) maxY = (h['count'] as int).toDouble();
+            }
+            maxY = (maxY * 1.2).ceilToDouble();
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStatCard("Vues profil", kpis['views'], LucideIcons.eye, Colors.blue),
-                _buildStatCard("Revenus (interventions)", kpis['revenue'], LucideIcons.briefcase, Colors.green),
-                _buildStatCard("Note moyenne", kpis['rating'], LucideIcons.star, Colors.orange),
-                _buildStatCard("Réservations", kpis['reservations_today'], LucideIcons.calendar, Colors.purple),
-              ],
-            ),
+                // Main Performance Chart
+                Container(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 20, offset: const Offset(0, 8)),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text('Évolution des réservations', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                              Text('Impact sur les 6 derniers mois', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            ],
+                          ),
+                          const Icon(LucideIcons.barChart3, color: AppColors.primary, size: 24),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+                      SizedBox(
+                        height: 220,
+                        child: LineChart(
+                          LineChartData(
+                            lineTouchData: LineTouchData(
+                              touchTooltipData: LineTouchTooltipData(
+                                tooltipBgColor: AppColors.primary,
+                                tooltipRoundedRadius: 8,
+                                getTooltipItems: (List<LineBarSpot> touchedBarSpots) {
+                                  return touchedBarSpots.map((barSpot) {
+                                    return LineTooltipItem(
+                                      '${barSpot.y.toInt()} Bookings',
+                                      const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                    );
+                                  }).toList();
+                                },
+                              ),
+                            ),
+                            gridData: FlGridData(
+                              show: true,
+                              drawVerticalLine: false,
+                              getDrawingHorizontalLine: (v) => FlLine(color: const Color(0xFFF1F5F9), strokeWidth: 1),
+                            ),
+                            titlesData: FlTitlesData(
+                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 30,
+                                  getTitlesWidget: (val, meta) {
+                                    final idx = val.toInt();
+                                    if (idx < 0 || idx >= history.length) return const SizedBox();
+                                    final monthParts = history[idx]['month'].split('-');
+                                    final mStr = _monthAbbr(int.parse(monthParts[1]));
+                                    return Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(mStr, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                    );
+                                  },
+                                ),
+                              ),
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 32,
+                                  interval: 1,
+                                  getTitlesWidget: (v, meta) {
+                                    if (v % 1 != 0) return const SizedBox();
+                                    return Text(v.toInt().toString(), style: const TextStyle(fontSize: 10, color: Colors.grey));
+                                  },
+                                ),
+                              ),
+                            ),
+                            borderData: FlBorderData(show: false),
+                            minX: 0,
+                            maxX: (history.length - 1).toDouble(),
+                            minY: 0,
+                            maxY: maxY,
+                            lineBarsData: [
+                              LineChartBarData(
+                                shadow: const Shadow(color: Colors.black12, offset: Offset(0, 10), blurRadius: 8),
+                                spots: spots,
+                                isCurved: true,
+                                color: AppColors.primary,
+                                barWidth: 4,
+                                isStrokeCapRound: true,
+                                dotData: FlDotData(
+                                  show: true,
+                                  getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                                    radius: 4,
+                                    color: Colors.white,
+                                    strokeWidth: 3,
+                                    strokeColor: AppColors.primary,
+                                  ),
+                                ),
+                                belowBarData: BarAreaData(
+                                  show: true,
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      AppColors.primary.withOpacity(0.2),
+                                      AppColors.primary.withOpacity(0.0),
+                                    ],
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
             const SizedBox(height: 24),
 
             // ── Subscription Revenue Summary ───────────────
@@ -535,6 +660,11 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
     );
   }
 
+  String _monthAbbr(int m) {
+    const abbrs = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return abbrs[(m - 1).clamp(0, 11)];
+  }
+
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -563,10 +693,10 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
 
   Widget _buildComparisonTable() {
     final features = [
-      {"name": "Nb services", "free": "5 max", "premium": "Illimité"},
-      {"name": "Commission", "free": "10%", "premium": "3%"},
+      {"name": "Nb services", "free": "3 max", "premium": "Illimité"},
+      {"name": "Gestion d'agenda", "free": false, "premium": true},
       {"name": "Boost profil", "free": false, "premium": true},
-      {"name": "Statistiques", "free": false, "premium": true},
+      {"name": "Statistiques", "free": "Simples", "premium": "Avancées"},
       {"name": "Prix", "free": "0 DH", "premium": "99 DH/mois"},
     ];
 
