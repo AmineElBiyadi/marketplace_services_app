@@ -622,6 +622,27 @@ class _BookingsScreenState extends State<BookingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          Image.asset(
+                            'assets/logo.png',
+                            height: 30,
+                            errorBuilder: (context, error, stackTrace) => const SizedBox(height: 30),
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Presto — snap your fingers, we handle the rest.',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                       const Text(
                         'My Bookings',
                         style: TextStyle(
