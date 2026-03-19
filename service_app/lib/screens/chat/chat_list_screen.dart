@@ -28,11 +28,37 @@ class ChatListScreen extends StatelessWidget {
         backgroundColor: _primaryBlue,
         foregroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'Messages',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        titleSpacing: 0,
+        title: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Row(
+            children: [
+              Image.asset(
+                'assets/logo.png',
+                height: 28,
+                errorBuilder: (context, error, stackTrace) => const SizedBox(),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Messages',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                    Text(
+                      'Presto — snap your fingers, we handle the rest.',
+                      style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, fontWeight: FontWeight.normal),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        centerTitle: true,
+        centerTitle: false,
       ),
       body: StreamBuilder<List<ChatModel>>(
         stream: chatService.getUserChats(currentUserRole, expertId: expertId),

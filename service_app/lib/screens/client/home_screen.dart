@@ -330,6 +330,27 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Row(
+                                children: [
+                                  Image.asset(
+                                    'assets/logo.png',
+                                    height: 40,
+                                    errorBuilder: (context, error, stackTrace) => const SizedBox(height: 40),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Text(
+                                      'Presto — snap your fingers, we handle the rest.',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
                               Text(
                                 'Hi ${_clientNom.isNotEmpty ? _clientNom : 'Client'},',
                                 style: const TextStyle(
