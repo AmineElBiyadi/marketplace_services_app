@@ -7,6 +7,7 @@ import '../../theme/app_colors.dart';
 import '../../models/booking.dart';
 import '../../models/chat_model.dart';
 import '../chat/chat_screen.dart';
+import '../../routes/routes.dart';
 
 const _tabs = ["Pending", "Confirmed", "Refused", "Completed", "Cancelled"];
 const _tabStatusMap = {
@@ -547,6 +548,16 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       onTap: () => _showCancelDialog(intervention),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildActionButton(
+                      label: "Complain",
+                      icon: Icons.report_problem_outlined,
+                      color: Colors.orange,
+                      filled: false,
+                      onTap: () => context.push(AppRoutes.complaint.replaceFirst(':interventionId', intervention.id!)),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -560,7 +571,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       icon: Icons.star_border,
                       color: AppColors.primary,
                       filled: true,
-                      onTap: () => context.go('/review/${intervention.id}'),
+                      onTap: () => context.push('/review/${intervention.id}'),
                     ),
                   ),
                 ],
@@ -611,6 +622,27 @@ class _BookingsScreenState extends State<BookingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Row(
+                        children: [
+                          Image.asset(
+                            'assets/logo.png',
+                            height: 30,
+                            errorBuilder: (context, error, stackTrace) => const SizedBox(height: 30),
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Presto — snap your fingers, we handle the rest.',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                       const Text(
                         'My Bookings',
                         style: TextStyle(

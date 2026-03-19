@@ -24,6 +24,8 @@ import '../screens/provider/provider_subscription_screen.dart';
 import '../navigation/main_navigation.dart';
 import '../screens/client/bookings_screen.dart';
 import '../screens/client/booking_detail_screen.dart';
+import '../screens/client/review_screen.dart';
+import '../screens/client/complaint_screen.dart';
 import '../screens/splash_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -59,6 +61,8 @@ class AppRoutes {
   static const String adminFinances = '/admin/finances';
   static const String adminStatistics = '/admin/statistics';
   static const String adminSettings = '/admin/settings';
+  static const String review = '/review/:interventionId';
+  static const String complaint = '/complaint/:interventionId';
 }
 
 // ─── GoRouter configuration ────────────────────────────────────────
@@ -141,6 +145,20 @@ final GoRouter router = GoRouter(
       builder: (context, state) {
         final bookingId = state.pathParameters['bookingId'] ?? '';
         return BookingDetailScreen(bookingId: bookingId);
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.review,
+      builder: (context, state) {
+        final interventionId = state.pathParameters['interventionId'] ?? '';
+        return ReviewScreen(interventionId: interventionId);
+      },
+    ),
+    GoRoute(
+      path: AppRoutes.complaint,
+      builder: (context, state) {
+        final interventionId = state.pathParameters['interventionId'] ?? '';
+        return ComplaintScreen(interventionId: interventionId);
       },
     ),
 
