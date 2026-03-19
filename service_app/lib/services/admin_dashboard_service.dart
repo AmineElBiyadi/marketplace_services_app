@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class AdminDashboardStats {
@@ -16,6 +17,8 @@ class AdminDashboardStats {
   final int unreadNotifications;
   final String userGrowth;
   final String revenueGrowth;
+  final int cancelledReservations;
+  final int totalFinishedReservations;
 
   AdminDashboardStats({
     required this.totalUsers,
@@ -32,6 +35,8 @@ class AdminDashboardStats {
     required this.unreadNotifications,
     required this.userGrowth,
     required this.revenueGrowth,
+    required this.cancelledReservations,
+    required this.totalFinishedReservations,
   });
 }
 
@@ -148,6 +153,19 @@ class AdminDashboardService {
       revGrowth = '${growth >= 0 ? '+' : ''}${growth.toInt()}%';
     }
 
+    // Total finished / cancelled
+    int finishedCount = 0;
+    int cancelledCount = 0;
+    double interventionRevenue = 0;
+    for (var doc in allInterv) {
+      final s = doc.data()['statut'];
+      if (s == 'TERMINEE') {
+        finishedCount++;
+        interventionRevenue += (doc.data()['prixNegocie'] ?? 0.0);
+      }
+      if (s == 'ANNULEE' || s == 'REFUSEE') cancelledCount++;
+    }
+
     return AdminDashboardStats(
       totalUsers: totalUsers,
       totalClients: totalClients,
@@ -159,10 +177,12 @@ class AdminDashboardService {
       averageRating: avgRating,
       freeProviders: freeCount,
       premiumProviders: premiumCount,
-      totalRevenue: totalRevenue,
+      totalRevenue: totalRevenue + interventionRevenue, // Subscription + Finished Bookings
       unreadNotifications: unreadCount,
       userGrowth: userGrowth,
       revenueGrowth: revGrowth,
+      cancelledReservations: cancelledCount,
+      totalFinishedReservations: finishedCount,
     );
   }
 
@@ -541,33 +561,139 @@ class AdminDashboardService {
   }
 
   // ─── All Reservations (Management) ────────────────────────────────────────
-  Future<List<Map<String, dynamic>>> getAllReservations() async {
-    final snap = await _db.collection('interventions').orderBy('dateIntervention', descending: true).get();
+  
+  /// Fetches reservations with advanced filtering and optional query.
+  Future<List<Map<String, dynamic>>> getFilteredReservations({
+    String? status,
+    DateTimeRange? dateRange,
+    String? expertId,
+    String? clientId,
+    String? query,
+    int limit = 50,
+  }) async {
+    Query q = _db.collection('interventions');
+
+    if (status != null && status != 'TOUS') {
+      q = q.where('statut', isEqualTo: status);
+    }
+    if (expertId != null) {
+      q = q.where('idExpert', isEqualTo: expertId);
+    }
+    if (clientId != null) {
+      q = q.where('idClient', isEqualTo: clientId);
+    }
+    if (dateRange != null) {
+      q = q.where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(dateRange.start))
+           .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(dateRange.end));
+    } else {
+      q = q.orderBy('createdAt', descending: true);
+    }
+
+    final snap = await q.limit(limit).get();
     final List<Map<String, dynamic>> result = [];
-    
+
     for (final doc in snap.docs) {
       final data = doc.data() as Map<String, dynamic>;
-      final clientDoc = await _db.collection('utilisateurs').doc(data['idClient']).get();
-      final expertDoc = await _db.collection('experts').doc(data['idExpert']).get();
       
-      String expertName = 'Expert';
-      if (expertDoc.exists) {
-        final exUserDoc = await _db.collection('utilisateurs').doc(expertDoc.data()?['idUtilisateur']).get();
-        expertName = exUserDoc.data()?['nom'] ?? exUserDoc.data()?['email'] ?? 'Expert';
+      // Basic search logic for client/expert names if query is provided
+      if (query != null && query.isNotEmpty) {
+        final clientName = (data['clientSnapshot']?['nom'] ?? '').toString().toLowerCase();
+        final expertName = (data['expertSnapshot']?['nom'] ?? '').toString().toLowerCase();
+        final serviceName = (data['tacheSnapshot']?['serviceNom'] ?? '').toString().toLowerCase();
+        final qLower = query.toLowerCase();
+        
+        if (!clientName.contains(qLower) && !expertName.contains(qLower) && !serviceName.contains(qLower) && !doc.id.contains(qLower)) {
+          continue;
+        }
       }
 
       result.add({
         'id': doc.id,
-        'clientName': clientDoc.data()?['nom'] ?? clientDoc.data()?['email'] ?? 'Client',
-        'expertName': expertName,
+        'idClient': data['idClient'],
+        'idExpert': data['idExpert'],
+        'clientName': data['clientSnapshot']?['nom'] ?? 'Client',
+        'expertName': data['expertSnapshot']?['nom'] ?? 'Expert',
         'service': data['tacheSnapshot']?['serviceNom'] ?? 'Service',
-        'date': data['dateIntervention']?['date'] ?? 'N/A',
-        'time': data['dateIntervention']?['heure'] ?? 'N/A',
-        'amount': data['tacheSnapshot']?['prix'] ?? 0,
-        'status': data['statut'] ?? 'En attente',
+        'date': data['dateDebutIntervention'] != null 
+            ? DateFormat('dd/MM/yyyy').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
+            : 'N/A',
+        'time': data['dateDebutIntervention'] != null 
+            ? DateFormat('HH:mm').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
+            : 'N/A',
+        'amount': data['prixNegocie'] ?? 0,
+        'status': data['statut'] ?? 'EN_ATTENTE',
+        'isUrgent': data['isUrgent'] ?? false,
+        'createdAt': data['createdAt'],
       });
     }
     return result;
+  }
+
+  /// Updates reservation status, adds a log entry, and sends notifications.
+  Future<void> updateReservationStatus(String id, String newStatus, {String? reason}) async {
+    final batch = _db.batch();
+    final ref = _db.collection('interventions').doc(id);
+
+    // 1. Update status
+    batch.update(ref, {
+      'statut': newStatus,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // 2. Add to timeline logs (sub-collection)
+    final logRef = ref.collection('logs').doc();
+    batch.set(logRef, {
+      'action': 'STATUS_CHANGE',
+      'fromStatus': null, // Optional: fetch old status if needed
+      'toStatus': newStatus,
+      'note': reason ?? 'Action par l\'administrateur',
+      'timestamp': FieldValue.serverTimestamp(),
+      'performedBy': 'ADMIN',
+    });
+
+    await batch.commit();
+
+    // 3. Trigger notification
+    final doc = await ref.get();
+    if (doc.exists) {
+      final data = doc.data()!;
+      final idClient = data['idClient'];
+      final idExpert = data['idExpert'];
+      final service = data['tacheSnapshot']?['serviceNom'] ?? 'votre service';
+
+      _sendNotification(
+        userId: idClient,
+        title: 'Mise à jour de votre réservation',
+        body: 'Le statut de votre réservation pour $service est passé à $newStatus.',
+      );
+
+      _sendNotification(
+        userId: idExpert,
+        title: 'Mise à jour de l\'intervention',
+        body: 'Le statut de l\'intervention pour $service est passé à $newStatus.',
+      );
+    }
+  }
+
+  /// Fetches the timeline logs for a specific reservation.
+  Future<List<Map<String, dynamic>>> getReservationTimeline(String id) async {
+    final snap = await _db.collection('interventions').doc(id).collection('logs').orderBy('timestamp', descending: false).get();
+    return snap.docs.map((doc) => {
+      'id': doc.id,
+      ...doc.data(),
+    }).toList();
+  }
+
+  /// Helper to send notifications by adding to the 'notifications' collection.
+  Future<void> _sendNotification({required String userId, required String title, required String body}) async {
+    await _db.collection('notifications').add({
+      'idUtilisateur': userId,
+      'titre': title,
+      'corps': body,
+      'estLue': false,
+      'createdAt': FieldValue.serverTimestamp(),
+      'type': 'BOOKING_UPDATE',
+    });
   }
 
   // ─── All Reviews & Claims (Management) ────────────────────────────────────
