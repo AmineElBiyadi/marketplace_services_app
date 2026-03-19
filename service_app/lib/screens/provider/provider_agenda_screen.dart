@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
@@ -27,6 +28,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
   // Track which month the cache belongs to — prevents stale cross-month data
   String _cacheMonth = '';
   String? _resolvedExpertId;
+  bool _isPremium = false;
 
   @override
   void initState() {
@@ -41,10 +43,15 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
     debugPrint("[ProviderAgendaScreen] Resolved Expert ID: $expertId");
     
     if (expertId != null && mounted) {
-      // Store ID first, then subscribe to stream, OUTSIDE of setState nesting
       _resolvedExpertId = expertId;
-      _subscribeToStream(); // builds the stream
-      setState(() {}); // trigger rebuild
+      
+      // Listen to premium status
+      _firestoreService.isExpertPremium(expertId).listen((premium) {
+        if (mounted) setState(() => _isPremium = premium);
+      });
+
+      _subscribeToStream();
+      setState(() {});
     }
   }
 
@@ -105,14 +112,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
     if (_resolvedExpertId == null) {
       return const Scaffold(
         body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(color: AppColors.primary),
-              SizedBox(height: 16),
-              Text("Vérification de votre session...", style: TextStyle(color: Colors.grey)),
-            ],
-          ),
+          child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
     }
@@ -120,63 +120,119 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
     return ProviderLayout(
       activeRoute: '/provider/agenda',
       expertId: _resolvedExpertId!,
-      child: Column(
+      child: Stack(
         children: [
-          _buildHeader(),
-          _buildWeekPicker(),
-          Expanded(
-            child: _interventionsStream == null 
-              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-              : StreamBuilder<List<InterventionModel>>(
-                  stream: _interventionsStream,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) {
-                      return Center(child: Text("Erreur: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
-                    }
-                    
-                    // Only update cache if the data belongs to the current query month
-                    if (snapshot.hasData) {
-                      final newMonthKey = '${_queryDate.year}-${_queryDate.month}';
-                      if (_cacheMonth == newMonthKey) {
-                        _cachedInterventions = snapshot.data!;
-                      }
-                    }
-    
-                    final bool isWaiting = snapshot.connectionState == ConnectionState.waiting;
-                    
-                    final allInterventions = _cachedInterventions;
-                    debugPrint("[ProviderAgendaScreen] UI Render - All: ${allInterventions.length}");
+          Column(
+            children: [
+              _buildHeader(),
+              _buildWeekPicker(),
+              Expanded(
+                child: _interventionsStream == null 
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                  : StreamBuilder<List<InterventionModel>>(
+                      stream: _interventionsStream,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(child: Text("Erreur: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
+                        }
+                        
+                        // Only update cache if the data belongs to the current query month
+                        if (snapshot.hasData) {
+                          final newMonthKey = '${_queryDate.year}-${_queryDate.month}';
+                          if (_cacheMonth == newMonthKey) {
+                            _cachedInterventions = snapshot.data!;
+                          }
+                        }
+        
+                        final bool isWaiting = snapshot.connectionState == ConnectionState.waiting;
+                        
+                        final allInterventions = _cachedInterventions;
+                        debugPrint("[ProviderAgendaScreen] UI Render - All: ${allInterventions.length}");
 
-                    if (isWaiting && allInterventions.isEmpty) {
-                      return const Center(child: CircularProgressIndicator(color: AppColors.primary));
-                    }
+                        if (isWaiting && allInterventions.isEmpty) {
+                          return const Center(child: CircularProgressIndicator(color: AppColors.primary));
+                        }
 
-                    final weekInterventions = allInterventions.where((i) {
-                      if (i.dateDebutIntervention == null) return false;
-                      final start = _startOfWeek.subtract(const Duration(seconds: 1));
-                      final end = _endOfWeek.add(const Duration(seconds: 1));
-                      return i.dateDebutIntervention!.isAfter(start) &&
-                             i.dateDebutIntervention!.isBefore(end);
-                    }).toList();
-                    debugPrint("[ProviderAgendaScreen] UI Render - Week: ${weekInterventions.length}");
-    
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Column(
-                        children: [
-                          _buildCalendarGrid(weekInterventions),
-                          const SizedBox(height: 24),
-                          _buildSummaryList(allInterventions),
-                          if (isWaiting)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 8),
-                              child: LinearProgressIndicator(minHeight: 2, color: AppColors.primary, backgroundColor: Colors.transparent),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                        final weekInterventions = allInterventions.where((i) {
+                          if (i.dateDebutIntervention == null) return false;
+                          final start = _startOfWeek.subtract(const Duration(seconds: 1));
+                          final end = _endOfWeek.add(const Duration(seconds: 1));
+                          return i.dateDebutIntervention!.isAfter(start) &&
+                                 i.dateDebutIntervention!.isBefore(end);
+                        }).toList();
+                        debugPrint("[ProviderAgendaScreen] UI Render - Week: ${weekInterventions.length}");
+        
+                        return SingleChildScrollView(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Column(
+                            children: [
+                              _buildCalendarGrid(weekInterventions),
+                              const SizedBox(height: 24),
+                              _buildSummaryList(allInterventions),
+                              if (isWaiting)
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 8),
+                                  child: LinearProgressIndicator(minHeight: 2, color: AppColors.primary, backgroundColor: Colors.transparent),
+                                ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+              ),
+            ],
+          ),
+          if (!_isPremium) _buildLockedOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLockedOverlay() {
+    return Container(
+      color: Colors.white,
+      width: double.infinity,
+      height: double.infinity,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.lock_outline_rounded, size: 48, color: Color(0xFF2563EB)),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            "Disponible avec le pack Premium",
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
+          ),
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              "Accédez aux statistiques avancées pour booster votre activité",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+            ),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: 200,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: () => context.push('/provider/$_resolvedExpertId/subscription'),
+              icon: const Icon(Icons.workspace_premium_rounded, size: 18),
+              label: const Text("Passer Premium", style: TextStyle(fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                elevation: 0,
+              ),
+            ),
           ),
         ],
       ),
