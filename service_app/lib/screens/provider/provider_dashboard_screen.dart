@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
@@ -24,8 +25,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   String? _resolvedExpertId;
 
   bool _isOnline = true;
-  String _pack = "Gratuit";
+  bool _isPremium = false;
   String _expertName = "Expert";
+  StreamSubscription<bool>? _premiumSub;
 
   @override
   void initState() {
@@ -42,6 +44,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           if (mounted) {
             setState(() => _resolvedExpertId = expertId);
             _loadExpertData();
+            _subscribeToPremium();
           }
           return;
         }
@@ -50,7 +53,25 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     if (mounted) {
       setState(() => _resolvedExpertId = widget.expertId);
       _loadExpertData();
+      _subscribeToPremium();
     }
+  }
+
+  void _subscribeToPremium() {
+    if (_resolvedExpertId == null || _resolvedExpertId == ':expertId') return;
+    
+    _premiumSub?.cancel();
+    _premiumSub = _firestoreService.isExpertPremium(_resolvedExpertId!).listen((isPremium) {
+      if (mounted) {
+        setState(() => _isPremium = isPremium);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _premiumSub?.cancel();
+    super.dispose();
   }
 
   void _loadExpertData() async {
@@ -169,7 +190,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            _pack,
+                            _isPremium ? "Premium ⭐" : "Gratuit",
                             style: const TextStyle(
                               fontSize: 12,
                               color: Colors.white,
@@ -177,19 +198,21 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        GestureDetector(
-                          onTap: () => context.push(AppRoutes.providerSubscription.replaceAll(':expertId', _resolvedExpertId!)),
-                          child: const Text(
-                            "Upgrade",
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFFFD700), // Gold/Yellow
-                              decoration: TextDecoration.underline,
+                        if (!_isPremium) ...[
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: () => context.push(AppRoutes.providerSubscription.replaceAll(':expertId', _resolvedExpertId!)),
+                            child: const Text(
+                              "Upgrade",
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFFFD700), // Gold/Yellow
+                                decoration: TextDecoration.underline,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ],
