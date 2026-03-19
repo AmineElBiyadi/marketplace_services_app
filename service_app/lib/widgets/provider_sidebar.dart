@@ -90,23 +90,17 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
               children: [
-                _sidebarItem(LucideIcons.home, 'Dashboard', '/provider/:expertId/dashboard'),
-                // Agenda tab: only visible for premium experts
-                if (_isPremium)
-                  _sidebarItem(
-                    LucideIcons.calendarDays,
-                    'My Agenda',
-                    '/provider/:expertId/agenda',
-                    badge: '⭐',
-                  ),
-
-                _sidebarItem(LucideIcons.messageSquare, 'Messages', '/provider/messages'),
-                _sidebarItem(LucideIcons.user, 'Profile', '/provider/:expertId/profile'),
-                _sidebarItem(LucideIcons.briefcase, 'My Services', '/provider/:expertId/services'),
-                _sidebarItem(LucideIcons.clipboardList, 'Reservations', '/provider/:expertId/bookings'),
-                _sidebarItem(LucideIcons.bell, 'Notifications', '/provider/:expertId/notifications'),
-                _sidebarItem(LucideIcons.creditCard, 'Subscription', '/provider/:expertId/subscription'),
-                _sidebarItem(LucideIcons.settings, 'Settings', '/provider/:expertId/settings'),
+                _sidebarItem(Icons.home, 'Home', '/provider/:expertId/dashboard'),
+                _sidebarItem(Icons.work, 'Services', '/provider/:expertId/services'),
+                _sidebarItem(Icons.calendar_today, 'Bookings', '/provider/:expertId/bookings'),
+                _sidebarItem(
+                  Icons.event,
+                  'Agenda',
+                  '/provider/:expertId/agenda',
+                  badge: _isPremium ? '⭐' : null,
+                ),
+                _sidebarItem(Icons.message, 'Messages', '/provider/:expertId/messages'),
+                _sidebarItem(Icons.person, 'Profile', '/provider/:expertId/profile'),
               ],
             ),
           ),
@@ -134,7 +128,7 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
             context.go('/login');
             return;
           }
-          if (route == '/provider/messages') {
+          if (route.contains('/messages')) {
             Navigator.push(
               context,
               MaterialPageRoute(

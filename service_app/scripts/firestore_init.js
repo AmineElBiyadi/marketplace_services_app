@@ -124,7 +124,7 @@ const seedData = {
     {
       id: "abon_001",
       idExpert: "expert_001",
-      statut: "ACTIVE",                     // ACTIVE | EXPIRE
+      statut: "ACTIVE",                     // ACTIVE | EXPIRE | DESACTIVE
       dateDebut: admin.firestore.Timestamp.fromDate(new Date("2024-01-01")),
       dateFin: admin.firestore.Timestamp.fromDate(new Date("2025-01-01")),
       montant: 29.99,

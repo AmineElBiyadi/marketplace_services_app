@@ -138,6 +138,48 @@ class FirestoreService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getExpertPerformanceHistory(String expertId) async {
+    try {
+      final interventions = await _firestore
+          .collection('interventions')
+          .where('idExpert', isEqualTo: expertId)
+          .get();
+
+      final now = DateTime.now();
+      // Initialize last 6 months with 0
+      Map<String, int> monthlyCounts = {};
+      for (int i = 5; i >= 0; i--) {
+        final d = DateTime(now.year, now.month - i, 1);
+        final key = "${d.year}-${d.month.toString().padLeft(2, '0')}";
+        monthlyCounts[key] = 0;
+      }
+
+      for (var doc in interventions.docs) {
+        final data = doc.data();
+        final status = data['statut'] ?? 'EN_ATTENTE';
+        if (status == 'ANNULEE' || status == 'REFUSEE') continue;
+
+        final date = (data['dateDebutIntervention'] as dynamic)?.toDate();
+        if (date != null) {
+          final key = "${date.year}-${date.month.toString().padLeft(2, '0')}";
+          if (monthlyCounts.containsKey(key)) {
+            monthlyCounts[key] = monthlyCounts[key]! + 1;
+          }
+        }
+      }
+
+      // Convert to sorted list of maps
+      final sortedKeys = monthlyCounts.keys.toList()..sort();
+      return sortedKeys.map((k) => {
+        'month': k,
+        'count': monthlyCounts[k],
+      }).toList();
+    } catch (e) {
+      debugPrint("Error fetching performance history: $e");
+      return [];
+    }
+  }
+
   Stream<bool> isExpertPremium(String expertId) {
     return _firestore
         .collection('abonnements')
@@ -889,13 +931,60 @@ class FirestoreService {
     }
   }
 
+  /// Fetches images for a serviceExpert document, each labeled with its associated task name.
+  Future<List<Map<String, dynamic>>> getImagesWithTasks(String serviceExpertId) async {
+    try {
+      final imgSnapshot = await _firestore
+          .collection('imagesExemplaires')
+          .where('idServiceExpert', isEqualTo: serviceExpertId)
+          .get();
+
+      final List<Map<String, dynamic>> result = [];
+
+      for (var doc in imgSnapshot.docs) {
+        final data = doc.data();
+        final image = (data['image'] ?? data['URLimage'] ?? '') as String;
+        final taskId = (data['idTacheExpert'] ?? '') as String;
+
+        String taskName = '';
+        String catalogId = '';
+        if (taskId.isNotEmpty) {
+          final taskDoc = await _firestore.collection('tacheExperts').doc(taskId).get();
+          if (taskDoc.exists) {
+            taskName = taskDoc.data()?['nom'] ?? '';
+            catalogId = (taskDoc.data()?['idTache'] ?? '') as String;
+          } else {
+            // Fallback for legacy data where idTacheExpert might be a template ID
+            final templateDoc = await _firestore.collection('taches').doc(taskId).get();
+            if (templateDoc.exists) {
+              taskName = templateDoc.data()?['nom'] ?? '';
+              catalogId = taskId; // In this case, the ID stored was already the template ID
+            }
+          }
+        }
+
+        result.add({
+          'image': image,
+          'taskId': catalogId, // Use catalog ID for mapping in save operations
+          'taskName': taskName,
+          'instanceId': taskId, // Keep instance ID for reference if needed
+        });
+      }
+
+      return result;
+    } catch (e) {
+      print('Error fetching images with tasks: $e');
+      return [];
+    }
+  }
+
   Future<void> addExpertService({
     required String expertId,
     required String serviceId,
     required String description,
     required List<TaskModel> selectedTasks,
     required List<String> customTasks,
-    required List<String> base64Images,
+    required List<Map<String, String>> base64ImagesWithTasks,
   }) async {
     final batch = _firestore.batch();
 
@@ -912,6 +1001,7 @@ class FirestoreService {
     });
 
     // 2. Add instances of predefined tasks to 'tacheExperts'
+    final Map<String, String> taskIdMap = {};
     for (var task in selectedTasks) {
       final taskExpertRef = _firestore.collection('tacheExperts').doc();
       batch.set(taskExpertRef, {
@@ -924,6 +1014,7 @@ class FirestoreService {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      taskIdMap[task.id!] = taskExpertRef.id;
     }
 
     // 3. Add custom tasks to BOTH 'taches' (as definition) AND 'tacheExperts' (as instance)
@@ -950,15 +1041,27 @@ class FirestoreService {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      taskIdMap[taskName] = taskExpertRef.id;
     }
 
     // 4. Add all images linked to the service expert instance
-    for (var base64 in base64Images) {
+    for (var imageData in base64ImagesWithTasks) {
       final imgRef = _firestore.collection('imagesExemplaires').doc();
+      String? linkedId;
+      if (imageData['taskId'] != null && imageData['taskId']!.isNotEmpty) {
+        linkedId = taskIdMap[imageData['taskId']];
+      } else {
+        linkedId = taskIdMap[imageData['taskName']];
+      }
+      
+      if (linkedId == null || linkedId.isEmpty) {
+        print("[FirestoreService] Warning: Could not find taskId link for image associated with ${imageData['taskName'] ?? imageData['taskId']}. Check taskIdMap: $taskIdMap");
+      }
+
       batch.set(imgRef, {
-        'image': base64,
+        'image': imageData['image'],
         'idServiceExpert': seRef.id,
-        'idTacheExpert': '', // Fallback empty
+        'idTacheExpert': linkedId ?? '',
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
@@ -1061,7 +1164,7 @@ class FirestoreService {
     required String description,
     required List<TaskModel> selectedTasks,
     required List<String> customTasks,
-    required List<String> base64Images,
+    required List<Map<String, String>> base64ImagesWithTasks,
     required List<String> existingImagesToDelete,
   }) async {
     final batch = _firestore.batch();
@@ -1096,6 +1199,7 @@ class FirestoreService {
     for (var imgDoc in currentServiceImages.docs) batch.delete(imgDoc.reference);
 
     // 2. Add predefined tasks
+    final Map<String, String> taskIdMap = {};
     for (var task in selectedTasks) {
       final taskExpertRef = _firestore.collection('tacheExperts').doc();
       batch.set(taskExpertRef, {
@@ -1107,6 +1211,7 @@ class FirestoreService {
         'estActive': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      taskIdMap[task.id!] = taskExpertRef.id;
     }
 
     // 3. Add custom tasks
@@ -1132,15 +1237,27 @@ class FirestoreService {
         'estActive': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      taskIdMap[taskName] = taskExpertRef.id;
     }
     
     // 4. Add all images linked to the service expert instance
-    for (var base64 in base64Images) {
+    for (var imageData in base64ImagesWithTasks) {
       final imgRef = _firestore.collection('imagesExemplaires').doc();
+      String? linkedId;
+      if (imageData['taskId'] != null && imageData['taskId']!.isNotEmpty) {
+        linkedId = taskIdMap[imageData['taskId']];
+      } else {
+        linkedId = taskIdMap[imageData['taskName']];
+      }
+      
+      if (linkedId == null || linkedId.isEmpty) {
+        print("[FirestoreService] Warning: Could not find taskId link for image (update) associated with ${imageData['taskName'] ?? imageData['taskId']}. Check taskIdMap: $taskIdMap");
+      }
+
       batch.set(imgRef, {
-        'image': base64,
+        'image': imageData['image'],
         'idServiceExpert': serviceExpertDocId,
-        'idTacheExpert': '', // Fallback empty
+        'idTacheExpert': linkedId ?? '',
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
