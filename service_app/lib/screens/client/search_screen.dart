@@ -219,6 +219,31 @@ class _SearchScreenState extends State<SearchScreen> {
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
               child: Row(
                 children: [
+                  Image.asset(
+                    'assets/logo.png',
+                    height: 32,
+                    errorBuilder: (context, error, stackTrace) => const SizedBox(height: 32),
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Presto — snap your fingers, we handle the rest.',
+                      style: TextStyle(
+                        color: _kBlue,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
                   // Barre de recherche
                   Expanded(
                     child: Container(
