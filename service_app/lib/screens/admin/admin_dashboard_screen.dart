@@ -224,6 +224,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Widget _buildKPIGrid() {
     final s = _stats!;
+    final double cancellationRate = s.totalReservations > 0 ? (s.cancelledReservations / s.totalReservations) * 100 : 0;
+
     return Wrap(
       spacing: 16,
       runSpacing: 16,
@@ -232,8 +234,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _kpiItem('Réservations du mois', s.reservationsThisMonth.toString(), LucideIcons.calendarDays, Colors.blue.withOpacity(0.1), Colors.blue, ''),
         _kpiItem('Revenus totaux', '${NumberFormat("#,##0", "fr_FR").format(s.totalRevenue)} DH', LucideIcons.dollarSign, Colors.green.withOpacity(0.1), Colors.green, s.revenueGrowth),
         _kpiItem('En attente', s.pendingProviders.toString(), LucideIcons.clock, Colors.amber.withOpacity(0.1), Colors.amber, ''),
-        _kpiItem('Réclamations', s.openClaims.toString(), LucideIcons.alertTriangle, Colors.red.withOpacity(0.1), Colors.red, ''),
-        _kpiItem('Note moyenne', s.averageRating.toStringAsFixed(1), LucideIcons.star, Colors.purple.withOpacity(0.1), Colors.purple, ''),
+        _kpiItem('Terminées', s.totalFinishedReservations.toString(), LucideIcons.checkSquare, Colors.teal.withOpacity(0.1), Colors.teal, ''),
+        _kpiItem('Taux d\'annulation', '${cancellationRate.toStringAsFixed(1)}%', LucideIcons.ban, Colors.red.withOpacity(0.1), Colors.red, ''),
       ],
     );
   }
