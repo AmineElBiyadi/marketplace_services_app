@@ -152,36 +152,73 @@ class ChatListScreen extends StatelessWidget {
                   chat.dernierMessage?.senderId == currentUserId;
               final showUnread = unread > 0 && !isLastMessageMine;
 
+              final serviceNom = chat.tacheSnapshot?['serviceNom'] as String? ?? 'Demande';
+              final taskNom = chat.tacheSnapshot?['nom'] as String? ?? 'Discussion générale';
+              final hasTaskInfo = true;
+
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 6),
                 leading: _buildAvatar(otherPhoto, otherName, chat.estOuvert),
-                title: Text(
-                  otherName.isNotEmpty ? otherName : 'User',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Row(
+                title: Row(
                   children: [
-                    if (!chat.estOuvert)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 4),
-                        child: Icon(Icons.lock_outline,
-                            size: 12, color: Colors.grey),
-                      ),
                     Expanded(
                       child: Text(
-                        lastText,
-                        maxLines: 1,
+                        otherName.isNotEmpty ? otherName : 'User',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: showUnread
-                              ? Colors.black87
-                              : Colors.grey[600],
-                          fontWeight: showUnread
-                              ? FontWeight.w600
-                              : FontWeight.normal,
+                      ),
+                    ),
+                    if (hasTaskInfo)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        margin: const EdgeInsets.only(left: 6),
+                        decoration: BoxDecoration(
+                          color: _primaryBlue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          '$serviceNom',
+                          style: const TextStyle(fontSize: 10, color: _primaryBlue, fontWeight: FontWeight.w600),
                         ),
                       ),
+                  ],
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (hasTaskInfo)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Text(
+                          taskNom!,
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                        ),
+                      ),
+                    Row(
+                      children: [
+                        if (!chat.estOuvert)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 4),
+                            child: Icon(Icons.lock_outline,
+                                size: 12, color: Colors.grey),
+                          ),
+                        Expanded(
+                          child: Text(
+                            lastText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: showUnread
+                                  ? Colors.black87
+                                  : Colors.grey[600],
+                              fontWeight: showUnread
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
