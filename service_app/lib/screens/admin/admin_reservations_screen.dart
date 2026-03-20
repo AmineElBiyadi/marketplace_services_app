@@ -23,7 +23,8 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
   static const Color _textSecondary = Color(0xFF64748B);
 
   bool _loading = true;
-  List<Map<String, dynamic>> _reservations = [];
+  List<Map<String, dynamic>> _allReservations = [];
+  List<Map<String, dynamic>> _filteredReservations = [];
   final TextEditingController _searchController = TextEditingController();
   
   String _selectedStatus = 'TOUS';
@@ -39,20 +40,49 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
-      final data = await _service.getFilteredReservations(
-        status: _selectedStatus,
-        dateRange: _selectedDateRange,
-        query: _searchController.text,
-      );
+      final data = await _service.getFilteredReservations(limit: 500); // Load a large batch for local filtering
       if (mounted) {
         setState(() {
-          _reservations = data;
+          _allReservations = data;
+          _applyFilters();
           _loading = false;
         });
       }
     } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _applyFilters() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredReservations = _allReservations.where((r) {
+        final statusMatches = _selectedStatus == 'TOUS' || r['status'] == _selectedStatus;
+        
+        final qMatches = query.isEmpty || 
+            (r['clientName'] ?? '').toLowerCase().contains(query) || 
+            (r['expertName'] ?? '').toLowerCase().contains(query) || 
+            (r['service'] ?? '').toLowerCase().contains(query) || 
+            (r['id'] ?? '').toString().toLowerCase().contains(query);
+
+        bool dateMatches = true;
+        if (_selectedDateRange != null && r['date'] != 'N/A') {
+          try {
+            final rDate = DateFormat('dd/MM/yyyy').parse(r['date']);
+            final start = DateTime(_selectedDateRange!.start.year, _selectedDateRange!.start.month, _selectedDateRange!.start.day);
+            final end = DateTime(_selectedDateRange!.end.year, _selectedDateRange!.end.month, _selectedDateRange!.end.day);
+            
+            dateMatches = DateUtils.isSameDay(rDate, start) || 
+                          DateUtils.isSameDay(rDate, end) || 
+                          (rDate.isAfter(start) && rDate.isBefore(end));
+          } catch (_) {
+            dateMatches = false;
+          }
+        }
+        
+        return statusMatches && qMatches && dateMatches;
+      }).toList();
+    });
   }
 
   Future<void> _selectDateRange() async {
@@ -183,8 +213,8 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                   flex: 2,
                   child: TextField(
                     controller: _searchController,
-                    onChanged: (v) => setState(() {}),
-                    onSubmitted: (_) => _loadData(),
+                    onChanged: (v) => _applyFilters(),
+                    onSubmitted: (_) => _applyFilters(),
                     decoration: InputDecoration(
                       hintText: 'Rechercher un client, expert ou service...',
                       prefixIcon: const Icon(LucideIcons.search, size: 18),
@@ -193,13 +223,10 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                             icon: const Icon(LucideIcons.x, size: 16),
                             onPressed: () {
                               _searchController.clear();
-                              _loadData();
+                              _applyFilters();
                             },
                           )
-                        : IconButton(
-                            icon: const Icon(LucideIcons.arrowRight, size: 16, color: _primary),
-                            onPressed: _loadData,
-                          ),
+                        : null,
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
@@ -216,7 +243,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                     onChanged: (v) {
                       if (v != null) {
                         setState(() => _selectedStatus = v);
-                        _loadData();
+                        _applyFilters();
                       }
                     },
                   ),
@@ -280,7 +307,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
           _buildCalendarHeader(),
           _buildCalendarGrid(),
           const Divider(height: 1),
-          _buildLegendSection(),
+          _buildUsageInfo(),
         ],
       ),
     ),
@@ -391,33 +418,61 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
         }
       }
     });
-    _loadData();
+    _applyFilters();
   }
 
-  Widget _buildLegendSection() {
+  Widget _buildUsageInfo() {
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Légende', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _textSecondary)),
+          const Text('UTILISATION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary, letterSpacing: 0.5)),
+          const SizedBox(height: 12),
+          _usageItem(LucideIcons.mousePointerClick, 'Cliquez sur un jour pour filtrer par date.'),
           const SizedBox(height: 8),
-          _buildLegendItem(Colors.orange, 'En attente'),
-          _buildLegendItem(Colors.green, 'Acceptée'),
-          _buildLegendItem(Colors.blue, 'Terminée'),
+          _usageItem(LucideIcons.calendarRange, 'Sélectionnez un deuxième jour pour définir une période.'),
+          const Divider(height: 24),
+          const Text('STATUTS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary, letterSpacing: 0.5)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _statusDot(Colors.orange, 'En attente'),
+              _statusDot(Colors.green, 'Acceptée'),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _statusDot(Colors.blue, 'Terminée'),
+              _statusDot(Colors.red, 'Annulée'),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildLegendItem(Color color, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+  Widget _usageItem(IconData icon, String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 14, color: _primary),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 12, color: _textPrimary, height: 1.3))),
+      ],
+    );
+  }
+
+  Widget _statusDot(Color color, String label) {
+    return Expanded(
       child: Row(
         children: [
-          Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-          const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 11, color: _textSecondary)),
+          Container(width: 6, height: 6, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 6),
+          Text(label, style: const TextStyle(fontSize: 10, color: _textSecondary)),
         ],
       ),
     );
@@ -425,13 +480,13 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
 
   Widget _buildMainContent(bool isMobile) {
     if (isMobile) {
-      if (_reservations.isEmpty) {
+      if (_filteredReservations.isEmpty) {
         return _buildEmptyState();
       }
       return ListView.builder(
         padding: const EdgeInsets.all(16),
-        itemCount: _reservations.length,
-        itemBuilder: (context, index) => _buildMobileReservationCard(_reservations[index]),
+        itemCount: _filteredReservations.length,
+        itemBuilder: (context, index) => _buildMobileReservationCard(_filteredReservations[index]),
       );
     }
 
@@ -440,7 +495,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
       children: [
         _buildSideCalendar(),
         Expanded(
-          child: _reservations.isEmpty
+          child: _filteredReservations.isEmpty
               ? _buildEmptyState()
               : SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
@@ -464,7 +519,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                       },
                       children: [
                         _buildTableHeader(),
-                        ..._reservations.map((r) => _buildTableRow(r)),
+                        ..._filteredReservations.map((r) => _buildTableRow(r)),
                       ],
                     ),
                   ),
