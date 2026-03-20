@@ -182,7 +182,14 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
           _infoRow('Service', _booking!['service']),
           _infoRow('Date & Heure', '${_booking!['date']} à ${_booking!['time']}'),
           _infoRow('Prix', '${_booking!['amount']} DH', isBold: true, valueColor: Colors.green),
-          _infoRow('Urgency', _booking!['isUrgent'] ? 'URGENT' : 'NORMAL', valueColor: _booking!['isUrgent'] ? Colors.red : null),
+          _infoRow('Urgence', _booking!['isUrgent'] ? 'URGENT' : 'NORMAL', valueColor: _booking!['isUrgent'] ? Colors.red : null),
+          if ((_booking!['status'] == 'ANNULEE' || _booking!['status'] == 'REFUSEE') && 
+              (_booking!['motifAnnulation'] != null || _booking!['motifRefus'] != null))
+            _infoRow(
+              'Motif', 
+              _booking!['motifAnnulation'] ?? _booking!['motifRefus'] ?? 'N/A', 
+              valueColor: Colors.red,
+            ),
         ],
       ),
     );
@@ -190,39 +197,80 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
 
   Widget _buildTimelineCard() {
     return _cardWrapper(
-      title: 'Historique',
-      icon: LucideIcons.history,
+      title: 'Suivi de l\'intervention',
+      icon: LucideIcons.activity,
       child: _timeline.isEmpty
-          ? const Text('Aucun log', style: TextStyle(color: Colors.grey))
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text('Aucune action enregistrée pour le moment', style: TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic)),
+              ),
+            )
           : Column(
-              children: _timeline.map((log) => _buildTimelineItem(log)).toList(),
+              children: List.generate(_timeline.length, (index) {
+                return _buildTimelineItem(_timeline[index], index == _timeline.length - 1);
+              }),
             ),
     );
   }
 
-  Widget _buildTimelineItem(Map<String, dynamic> log) {
+  Widget _buildTimelineItem(Map<String, dynamic> log, bool isLast) {
     final timestamp = log['timestamp'] as Timestamp?;
-    final date = timestamp != null ? DateFormat('dd/MM HH:mm').format(timestamp.toDate()) : '--:--';
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    final dateStr = timestamp != null ? DateFormat('dd/MM HH:mm').format(timestamp.toDate()) : '--:--';
+    final status = log['toStatus'] ?? 'ACTION';
+    
+    Color statusColor = AppColors.primary;
+    if (status == 'ACCEPTEE') statusColor = Colors.green;
+    else if (status == 'ANNULEE' || status == 'REFUSEE') statusColor = Colors.red;
+    else if (status == 'TERMINEE') statusColor = Colors.blue;
+
+    return IntrinsicHeight(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(LucideIcons.circleDot, size: 12, color: AppColors.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(log['toStatus'] ?? 'Action', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    Text(date, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                  ],
+          Column(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: statusColor.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: statusColor, width: 2),
                 ),
-                Text(log['note'] ?? '', style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
+              ),
+              if (!isLast)
+                Expanded(
+                  child: Container(width: 2, color: const Color(0xFFE2E8F0)),
+                ),
+            ],
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        status.replaceAll('_', ' '), 
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: statusColor),
+                      ),
+                      Text(dateStr, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                  if (log['note'] != null && log['note'].isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      log['note'], 
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF475569), height: 1.4),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ],
