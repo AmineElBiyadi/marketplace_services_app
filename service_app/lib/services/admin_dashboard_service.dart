@@ -583,13 +583,13 @@ class AdminDashboardService {
       q = q.where('idClient', isEqualTo: clientId);
     }
     if (dateRange != null) {
-      q = q.where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(dateRange.start))
-           .where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(dateRange.end));
+      q = q.where('dateDebutIntervention', isGreaterThanOrEqualTo: Timestamp.fromDate(dateRange.start))
+           .where('dateDebutIntervention', isLessThanOrEqualTo: Timestamp.fromDate(dateRange.end));
     } else {
       q = q.orderBy('createdAt', descending: true);
     }
 
-    final snap = await q.limit(limit).get();
+    final snap = await q.limit(limit * 4).get(); // Increase lookback for post-fetch filtering
     final List<Map<String, dynamic>> result = [];
 
     for (final doc in snap.docs) {
