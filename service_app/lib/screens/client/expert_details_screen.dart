@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../models/expert.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/smart_image.dart';
-import '../chat/chat_list_screen.dart';
+import '../../widgets/start_chat_sheet.dart';
 
 class ExpertProfileScreen extends StatefulWidget {
   final Expert expert;
@@ -61,6 +61,8 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
                 'title': (t['nom'] != null && t['nom'].toString().isNotEmpty) ? t['nom'] : (s['serviceName'] ?? ''),
                 'description': (t['description'] != null && t['description'].toString().isNotEmpty) ? t['description'] : (s['description'] ?? ''),
                 'duration': '1-2h',
+                'serviceName': s['serviceName'] ?? '',
+                'taskName': t['nom'] ?? '',
               });
             }
           } else {
@@ -68,6 +70,8 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
               'title': s['serviceName'] ?? '',
               'description': s['description'] ?? '',
               'duration': '1h',
+              'serviceName': s['serviceName'] ?? '',
+              'taskName': null,
             });
           }
         }
@@ -77,7 +81,13 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
       } else {
         setState(() {
           _services = widget.expert.services
-              .map((s) => {'title': s, 'description': '', 'duration': ''})
+              .map((s) => {
+                    'title': s,
+                    'description': '',
+                    'duration': '',
+                    'serviceName': s,
+                    'taskName': null,
+                  })
               .toList();
         });
       }
@@ -373,15 +383,7 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
           child: ElevatedButton.icon(
-            onPressed: () {
-              // Naviguer vers la page Messages (liste des conversations)
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ChatListScreen(currentUserRole: 'client'),
-                ),
-              );
-            },
+            onPressed: () => StartChatSheet.show(context, expert: _expert),
             icon: const Icon(Icons.chat_bubble_outline,
                 color: Colors.white, size: 20),
             label: const Text(
@@ -432,6 +434,7 @@ class _ServicesTab extends StatelessWidget {
     required this.expert,
   });
 
+
   static const Color _kPrimary = Color(0xFF3D5A99);
 
   @override
@@ -457,6 +460,8 @@ class _ServicesTab extends StatelessWidget {
         final description = (service['description'] as String?) ?? '';
         final duration = (service['duration'] as String?) ??
             (service['duree'] as String?) ?? '';
+        final serviceName = service['serviceName'] as String?;
+        final taskName = service['taskName'] as String?;
 
         return Container(
           decoration: BoxDecoration(
@@ -501,7 +506,22 @@ class _ServicesTab extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(Icons.chat_bubble_outline, color: _kPrimary, size: 22),
+                GestureDetector(
+                  onTap: () => StartChatSheet.show(
+                    context, 
+                    expert: expert, 
+                    preSelectedService: serviceName ?? title,
+                    preSelectedTask: taskName,
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _kPrimary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.chat_bubble_outline, color: _kPrimary, size: 22),
+                  ),
+                ),
               ],
             ),
           ),

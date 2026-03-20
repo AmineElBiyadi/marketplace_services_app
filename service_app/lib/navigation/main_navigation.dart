@@ -26,8 +26,7 @@ class _MainNavigationState extends State<MainNavigation> {
   }
 
   Future<void> _loadClientId() async {
-    final prefs = await SharedPreferences.getInstance();
-    final id = prefs.getString('logged_client_id') ?? FirebaseAuth.instance.currentUser?.uid ?? '';
+    final id = FirebaseAuth.instance.currentUser?.uid ?? '';
     if (mounted) {
       setState(() {
         _clientId = id;
