@@ -136,102 +136,298 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
     );
   }
 
+  Widget _buildDropdownFilter({
+    required String value,
+    required List<String> items,
+    required String label,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(10)),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: _textSecondary),
+          style: const TextStyle(fontSize: 13, color: _textPrimary, fontWeight: FontWeight.w500),
+          items: items.map((item) {
+            String display = item;
+            if (item == 'TOUS') display = '$label: Tous';
+            else display = item.replaceAll('_', ' ');
+            return DropdownMenuItem(value: item, child: Text(display));
+          }).toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
   Widget _buildFilters(bool isMobile) {
     return Container(
-      padding: const EdgeInsets.all(24),
-      color: const Color(0xFFF8FAFC),
+      padding: const EdgeInsets.all(16),
+      color: Colors.white,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Filtres avancés', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary)),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              SizedBox(
-                width: isMobile ? double.infinity : 300,
-                child: TextField(
-                  controller: _searchController,
-                  onSubmitted: (_) => _loadData(),
-                  decoration: InputDecoration(
-                    hintText: 'Rechercher par Client, Expert ou Service...',
-                    prefixIcon: const Icon(LucideIcons.search, size: 18),
-                    suffixIcon: _searchController.text.isNotEmpty 
-                      ? IconButton(icon: const Icon(LucideIcons.x, size: 16), onPressed: () { _searchController.clear(); _loadData(); }) 
-                      : null,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _border)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: _primary, width: 2)),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  ),
-                ),
-              ),
-              SizedBox(
-                width: isMobile ? double.infinity : 200,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: _border)),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedStatus,
-                      isExpanded: true,
-                      items: _statuses.map((s) => DropdownMenuItem(value: s, child: Text(s.replaceAll('_', ' '), style: const TextStyle(fontSize: 13)))).toList(),
-                      onChanged: (v) {
-                        if (v != null) {
-                          setState(() => _selectedStatus = v);
-                          _loadData();
-                        }
-                      },
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _border),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: _searchController,
+                    onChanged: (v) => setState(() {}),
+                    onSubmitted: (_) => _loadData(),
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher un client, expert ou service...',
+                      prefixIcon: const Icon(LucideIcons.search, size: 18),
+                      suffixIcon: _searchController.text.isNotEmpty 
+                        ? IconButton(
+                            icon: const Icon(LucideIcons.x, size: 16),
+                            onPressed: () {
+                              _searchController.clear();
+                              _loadData();
+                            },
+                          )
+                        : IconButton(
+                            icon: const Icon(LucideIcons.arrowRight, size: 16, color: _primary),
+                            onPressed: _loadData,
+                          ),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                     ),
                   ),
                 ),
-              ),
-              SizedBox(
-                width: isMobile ? double.infinity : 240,
-                child: OutlinedButton.icon(
-                  onPressed: _selectDateRange,
-                  icon: const Icon(LucideIcons.calendar, size: 18),
-                  label: Text(
-                    _selectedDateRange == null 
-                      ? 'Toutes les dates' 
-                      : '${DateFormat('dd/MM/yy').format(_selectedDateRange!.start)} - ${DateFormat('dd/MM/yy').format(_selectedDateRange!.end)}',
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    side: BorderSide(color: _selectedDateRange == null ? _border : _primary),
-                    foregroundColor: _selectedDateRange == null ? _textSecondary : _primary,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildDropdownFilter(
+                    value: _selectedStatus,
+                    items: _statuses,
+                    label: 'Statut',
+                    onChanged: (v) {
+                      if (v != null) {
+                        setState(() => _selectedStatus = v);
+                        _loadData();
+                      }
+                    },
                   ),
                 ),
-              ),
-            ],
+                if (isMobile) ...[
+                  const SizedBox(width: 12),
+                  IconButton(
+                    onPressed: _selectDateRange,
+                    icon: Icon(LucideIcons.calendar, color: _selectedDateRange == null ? _textSecondary : _primary),
+                    style: IconButton.styleFrom(
+                      backgroundColor: const Color(0xFFF1F5F9),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMainContent(bool isMobile) {
-    if (_reservations.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 64),
-          child: Column(
-            children: [
-              Icon(LucideIcons.calendarX, size: 48, color: Colors.grey[300]),
-              const SizedBox(height: 16),
-              const Text('Aucune réservation trouvée', style: TextStyle(color: _textSecondary, fontSize: 16)),
-            ],
-          ),
-        ),
-      );
-    }
+  DateTime _viewMonth = DateTime.now();
 
+  Widget _buildSideCalendar() {
+    return Container(
+      width: 280,
+      margin: const EdgeInsets.only(left: 24, top: 24, bottom: 24, right: 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)],
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Icon(LucideIcons.calendar, size: 18, color: _primary),
+                const SizedBox(width: 10),
+                const Text('Période', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const Spacer(),
+                if (_selectedDateRange != null)
+                  IconButton(
+                    icon: const Icon(LucideIcons.rotateCcw, size: 14),
+                    onPressed: () {
+                      setState(() => _selectedDateRange = null);
+                      _loadData();
+                    },
+                    tooltip: 'Réinitialiser',
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          _buildCalendarHeader(),
+          _buildCalendarGrid(),
+          const Divider(height: 1),
+          _buildLegendSection(),
+        ],
+      ),
+    ),
+  );
+}
+
+  Widget _buildCalendarHeader() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            icon: const Icon(LucideIcons.chevronLeft, size: 18),
+            onPressed: () => setState(() => _viewMonth = DateTime(_viewMonth.year, _viewMonth.month - 1)),
+          ),
+          Text(
+            DateFormat('MMMM yyyy', 'fr').format(_viewMonth).toUpperCase(),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary),
+          ),
+          IconButton(
+            icon: const Icon(LucideIcons.chevronRight, size: 18),
+            onPressed: () => setState(() => _viewMonth = DateTime(_viewMonth.year, _viewMonth.month + 1)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarGrid() {
+    final firstDay = DateTime(_viewMonth.year, _viewMonth.month, 1);
+    final lastDay = DateTime(_viewMonth.year, _viewMonth.month + 1, 0);
+    final daysInMonth = lastDay.day;
+    final firstWeekday = firstDay.weekday; // 1 = Monday, 7 = Sunday
+
+    final List<String> weekDays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: weekDays.map((d) => SizedBox(width: 32, child: Center(child: Text(d, style: const TextStyle(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.bold))))).toList(),
+          ),
+          const SizedBox(height: 8),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7, 
+              mainAxisSpacing: 6, 
+              crossAxisSpacing: 6,
+              childAspectRatio: 1, // Ensure square cells
+            ),
+            itemCount: 42, // 6 weeks
+            itemBuilder: (context, index) {
+              final dayIndex = index - (firstWeekday - 1);
+              if (dayIndex < 0 || dayIndex >= daysInMonth) return const SizedBox();
+
+              final date = DateTime(_viewMonth.year, _viewMonth.month, dayIndex + 1);
+              final isSelected = _selectedDateRange != null && (date.isAtSameMomentAs(_selectedDateRange!.start) || date.isAtSameMomentAs(_selectedDateRange!.end) || (date.isAfter(_selectedDateRange!.start) && date.isBefore(_selectedDateRange!.end)));
+              
+              final isStart = _selectedDateRange != null && date.isAtSameMomentAs(_selectedDateRange!.start);
+              final isEnd = _selectedDateRange != null && date.isAtSameMomentAs(_selectedDateRange!.end);
+              final isToday = DateUtils.isSameDay(date, DateTime.now());
+
+              return GestureDetector(
+                onTap: () => _handleDateSelection(date),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isSelected ? _primary.withOpacity(isStart || isEnd ? 1.0 : 0.2) : Colors.transparent,
+                    shape: isStart || isEnd ? BoxShape.circle : BoxShape.rectangle,
+                    borderRadius: isSelected && !isStart && !isEnd ? null : (isStart || isEnd ? null : BorderRadius.circular(4)),
+                    border: isToday ? Border.all(color: _primary, width: 1) : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${dayIndex + 1}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: isSelected || isToday ? FontWeight.bold : FontWeight.normal,
+                        color: isStart || isEnd ? Colors.white : (isSelected ? _primary : _textPrimary),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleDateSelection(DateTime date) {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+    setState(() {
+      if (_selectedDateRange == null || !DateUtils.isSameDay(_selectedDateRange!.start, _selectedDateRange!.end)) {
+        _selectedDateRange = DateTimeRange(start: startOfDay, end: endOfDay);
+      } else {
+        if (startOfDay.isBefore(_selectedDateRange!.start)) {
+          _selectedDateRange = DateTimeRange(start: startOfDay, end: _selectedDateRange!.end);
+        } else {
+          _selectedDateRange = DateTimeRange(start: _selectedDateRange!.start, end: endOfDay);
+        }
+      }
+    });
+    _loadData();
+  }
+
+  Widget _buildLegendSection() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Légende', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _textSecondary)),
+          const SizedBox(height: 8),
+          _buildLegendItem(Colors.orange, 'En attente'),
+          _buildLegendItem(Colors.green, 'Acceptée'),
+          _buildLegendItem(Colors.blue, 'Terminée'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(Color color, String label) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(fontSize: 11, color: _textSecondary)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainContent(bool isMobile) {
     if (isMobile) {
+      if (_reservations.isEmpty) {
+        return _buildEmptyState();
+      }
       return ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _reservations.length,
@@ -239,29 +435,55 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Container(
-        decoration: BoxDecoration(
-          color: _card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _border),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSideCalendar(),
+        Expanded(
+          child: _reservations.isEmpty
+              ? _buildEmptyState()
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: _card,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: _border),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                    ),
+                    child: Table(
+                      columnWidths: const {
+                        0: FlexColumnWidth(1),   // ID
+                        1: FlexColumnWidth(2),   // Service
+                        2: FlexColumnWidth(1.5), // Client
+                        3: FlexColumnWidth(1.5), // Expert
+                        4: FlexColumnWidth(1.5), // Date
+                        5: FlexColumnWidth(1.2), // Montant
+                        6: FlexColumnWidth(1.2), // Statut
+                        7: FixedColumnWidth(60), // Actions
+                      },
+                      children: [
+                        _buildTableHeader(),
+                        ..._reservations.map((r) => _buildTableRow(r)),
+                      ],
+                    ),
+                  ),
+                ),
         ),
-        child: Table(
-          columnWidths: const {
-            0: FlexColumnWidth(1),   // ID
-            1: FlexColumnWidth(2),   // Service
-            2: FlexColumnWidth(1.5), // Client
-            3: FlexColumnWidth(1.5), // Expert
-            4: FlexColumnWidth(1.5), // Date
-            5: FlexColumnWidth(1.2), // Montant
-            6: FlexColumnWidth(1.2), // Statut
-            7: FixedColumnWidth(60), // Actions
-          },
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 64),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildTableHeader(),
-            ..._reservations.map((r) => _buildTableRow(r)),
+            Icon(LucideIcons.calendarX, size: 48, color: Colors.grey[300]),
+            const SizedBox(height: 16),
+            const Text('Aucune réservation trouvée', style: TextStyle(color: _textSecondary, fontSize: 16)),
           ],
         ),
       ),
