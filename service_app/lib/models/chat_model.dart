@@ -53,6 +53,7 @@ class ChatModel {
   final UserSnapshot clientSnapshot;
   final UserSnapshot expertSnapshot;
   final DernierMessage? dernierMessage;
+  final Map<String, dynamic>? tacheSnapshot;
 
   ChatModel({
     required this.chatId,
@@ -67,6 +68,7 @@ class ChatModel {
     required this.clientSnapshot,
     required this.expertSnapshot,
     this.dernierMessage,
+    this.tacheSnapshot,
   });
 
   factory ChatModel.fromDoc(DocumentSnapshot doc) {
@@ -89,6 +91,7 @@ class ChatModel {
                             ? DernierMessage.fromMap(
                                 data['dernierMessage'] as Map<String, dynamic>)
                             : null,
+      tacheSnapshot:    data['tacheSnapshot'] as Map<String, dynamic>?,
     );
   }
 }
