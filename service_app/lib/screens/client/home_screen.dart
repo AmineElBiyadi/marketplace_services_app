@@ -13,7 +13,7 @@ import '../../widgets/home/top_rated_card.dart';
 import 'expert_details_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
-import '../chat/chat_screen.dart';
+import '../../widgets/start_chat_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -147,57 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // Fetch current user's name for the snapshot
-    final userDoc = await FirebaseFirestore.instance
-        .collection('utilisateurs')
-        .doc(currentUser.uid)
-        .get();
-    final clientName = userDoc.data()?['nom'] ?? userDoc.data()?['email'] ?? '';
-    final clientPhoto = userDoc.data()?['image_profile'] ?? '';
-
-    try {
-      final chatId = await _chatService.createChat(
-        idClient:       currentUser.uid,
-        idExpert:       expert.id,
-        idIntervention: 'direct', // direct chat without a formal intervention
-        clientSnapshot: {'nom': clientName, 'photo': clientPhoto},
-        expertSnapshot: {'nom': expert.nom, 'photo': expert.photo},
-      );
-
-      // Build a local ChatModel to pass to ChatScreen
-      final now = Timestamp.now();
-      final chat = ChatModel(
-        chatId:          chatId,
-        idClient:        currentUser.uid,
-        idExpert:        expert.id,
-        idIntervention:  'direct',
-        estOuvert:       true,
-        nbMessagesNonLus: 0,
-        createdAt:       now,
-        updatedAt:       now,
-        clientSnapshot:  UserSnapshot(nom: clientName, photo: clientPhoto),
-        expertSnapshot:  UserSnapshot(nom: expert.nom, photo: expert.photo),
-      );
-
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ChatScreen(
-            chat: chat,
-            currentUserRole: 'client',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Impossible d\'ouvrir le chat: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    await StartChatSheet.show(context, expert: expert);
   }
 
   /// Calcule la distance entre l'utilisateur et un expert.
