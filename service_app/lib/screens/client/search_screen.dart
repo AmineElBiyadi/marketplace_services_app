@@ -8,6 +8,7 @@ import '../../services/firestore_service.dart';
 import '../../services/location_service.dart';
 import '../../services/chat_service.dart';
 import '../../widgets/smart_image.dart';
+import '../../widgets/start_chat_sheet.dart';
 import 'expert_details_screen.dart';
 import '../chat/chat_screen.dart';
 
@@ -41,6 +42,7 @@ class _SearchScreenState extends State<SearchScreen> {
   bool         _isLoading  = true;
   _Sort        _sort       = _Sort.relevance;
   Position?    _userPos;
+  String?      _activeServiceFilter;
 
   // ── Filtre avancé (bottom sheet) ──
   bool   _showFilterBanner = true;
@@ -121,7 +123,16 @@ class _SearchScreenState extends State<SearchScreen> {
         break;
     }
 
-    setState(() => _filtered = res);
+    String? determinedService;
+    if (q.isNotEmpty) {
+      final matches = _all.expand((e) => e.services).where((s) => s.toLowerCase().contains(q)).toSet().toList();
+      if (matches.length == 1) determinedService = matches.first;
+    }
+
+    setState(() { 
+      _filtered = res;
+      _activeServiceFilter = determinedService;
+    });
   }
 
   double? _dist(Expert e) {
@@ -134,53 +145,11 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // ── Ouvrir chat ─────────────────────────────────────────────
   Future<void> _openChat(Expert expert) async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('utilisateurs')
-          .doc(currentUser.uid)
-          .get();
-      final clientName  = userDoc.data()?['nom']          ?? '';
-      final clientPhoto = userDoc.data()?['image_profile'] ?? '';
-
-      final chatId = await _chatService.createChat(
-        idClient:       currentUser.uid,
-        idExpert:       expert.id,
-        idIntervention: 'direct',
-        clientSnapshot: {'nom': clientName,  'photo': clientPhoto},
-        expertSnapshot: {'nom': expert.nom,  'photo': expert.photo},
-      );
-
-      final now  = Timestamp.now();
-      final chat = ChatModel(
-        chatId:           chatId,
-        idClient:         currentUser.uid,
-        idExpert:         expert.id,
-        idIntervention:   'direct',
-        estOuvert:        true,
-        nbMessagesNonLus: 0,
-        createdAt:        now,
-        updatedAt:        now,
-        clientSnapshot:   UserSnapshot(nom: clientName,  photo: clientPhoto),
-        expertSnapshot:   UserSnapshot(nom: expert.nom,  photo: expert.photo),
-      );
-
-      if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              ChatScreen(chat: chat, currentUserRole: 'client'),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
-      );
-    }
+    await StartChatSheet.show(
+      context,
+      expert: expert,
+      preSelectedService: _activeServiceFilter,
+    );
   }
 
   // ── Filter bottom sheet ─────────────────────────────────────
