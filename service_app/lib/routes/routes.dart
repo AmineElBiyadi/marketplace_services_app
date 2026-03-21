@@ -24,6 +24,7 @@ import '../screens/provider/provider_subscription_screen.dart';
 import '../screens/provider/provider_profile_screen.dart';
 import '../screens/provider/provider_personal_info_screen.dart';
 import '../screens/provider/provider_statistics_screen.dart';
+import '../screens/provider/provider_cgu_screen.dart';
 import '../navigation/main_navigation.dart';
 import '../screens/client/bookings_screen.dart';
 import '../screens/client/booking_detail_screen.dart';
@@ -226,6 +227,13 @@ final GoRouter router = GoRouter(
           builder: (context, state) {
             final expertId = state.pathParameters['expertId'] ?? '';
             return ProviderStatisticsScreen(expertId: expertId);
+          },
+        ),
+        GoRoute(
+          path: 'cgu',
+          builder: (context, state) {
+            final expertId = state.pathParameters['expertId'] ?? '';
+            return ProviderCguScreen(expertId: expertId);
           },
         ),
       ],

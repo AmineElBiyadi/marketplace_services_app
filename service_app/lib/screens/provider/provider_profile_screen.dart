@@ -370,7 +370,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           icon: LucideIcons.fileCode, // Approximating CGU icon
           title: "CGU / Politique de confidentialité",
           onTap: () {
-            // context.push('/provider/${widget.expertId}/cgu');
+            context.push('/provider/${widget.expertId}/profile/cgu');
           },
         ),
         const SizedBox(height: 16),

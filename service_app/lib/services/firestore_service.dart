@@ -465,6 +465,23 @@ class FirestoreService {
 
   // ─── Search Experts ────────────────────────────────────────
 
+  Future<Map<String, dynamic>?> getLatestExpertCGU() async {
+    try {
+      final snap = await _firestore.collection('cgu')
+          .where('type', isEqualTo: 'EXPERT')
+          .where('is_active', isEqualTo: true)
+          .limit(1)
+          .get();
+      if (snap.docs.isNotEmpty) {
+        return snap.docs.first.data();
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching CGU: $e');
+      return null;
+    }
+  }
+
   Future<List<Expert>> getExperts() async {
     try {
       final expertsSnapshot = await _firestore.collection('experts').get();
