@@ -62,9 +62,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     final String fullName = _expertData?.nom ?? _expertModel?.user?.nom ?? 'Expert';
     final String serviceCategory = (_expertData?.services.isNotEmpty == true) 
         ? _expertData!.services.first 
-        : "Expert professionnel";
+        : "Professional Expert";
     final double rating = _expertData?.noteMoyenne ?? 0.0;
-    final String city = _expertData?.ville.split(',').first ?? 'Ville non définie';
+    final String city = _expertData?.ville.split(',').first ?? 'City not defined';
     final int rayon = _expertModel?.rayonTravaille ?? 20;
     final String photoUrl = _expertData?.photo ?? '';
     final bool isPremium = _expertData?.isPremium ?? false;
@@ -196,7 +196,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    isPremium ? "Premium" : "Gratuit",
+                    isPremium ? "Premium" : "Free",
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -223,7 +223,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  "($reviewsCount avis)",
+                  "($reviewsCount reviews)",
                   style: const TextStyle(
                     fontSize: 14,
                     color: Color(0xFF64748B),
@@ -254,7 +254,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             const Icon(LucideIcons.clock, size: 14, color: Color(0xFF64748B)),
             const SizedBox(width: 4),
             const Text(
-              "Répond en ~15 min",
+              "Replies in ~15 min",
               style: TextStyle(
                 fontSize: 13,
                 color: Color(0xFF64748B),
@@ -281,7 +281,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 const Icon(LucideIcons.search, size: 14, color: AppColors.primary), // Close approx to icon in map
                 const SizedBox(width: 6),
                 Text(
-                  "Rayon d'intervention : $rayon km",
+                  "Working radius : $rayon km",
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -313,7 +313,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 ),
               ),
               child: const Text(
-                "Prévisualiser mon profil public",
+                "Preview my public profile",
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -332,7 +332,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       children: [
         _buildMenuItem(
           icon: LucideIcons.user,
-          title: "Informations personnelles",
+          title: "Personal Information",
           onTap: () async {
             await context.push('/provider/${widget.expertId}/profile/personal-info');
             _loadProfileData();
@@ -347,28 +347,28 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         ),
         _buildMenuItem(
           icon: LucideIcons.barChart2,
-          title: "Statistiques",
+          title: "Statistics",
           onTap: () {
             context.push('/provider/${widget.expertId}/profile/statistics');
           },
         ),
         _buildMenuItem(
           icon: LucideIcons.creditCard,
-          title: "Mon abonnement",
+          title: "My Subscription",
           onTap: () {
             context.push('/provider/${widget.expertId}/subscription');
           },
         ),
         _buildMenuItem(
           icon: LucideIcons.fileText,
-          title: "Documents justificatifs",
+          title: "Supporting Documents",
           onTap: () {
             // context.push('/provider/${widget.expertId}/documents');
           },
         ),
         _buildMenuItem(
           icon: LucideIcons.fileCode, // Approximating CGU icon
-          title: "CGU / Politique de confidentialité",
+          title: "Terms of Service / Privacy Policy",
           onTap: () {
             context.push('/provider/${widget.expertId}/profile/cgu');
           },
@@ -376,7 +376,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         const SizedBox(height: 16),
         _buildMenuItem(
           icon: LucideIcons.alertTriangle,
-          title: "Désactiver mon compte",
+          title: "Deactivate my account",
           textColor: const Color(0xFFD97706), // Orange
           iconColor: const Color(0xFFD97706),
           onTap: () {
@@ -385,7 +385,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         ),
         _buildMenuItem(
           icon: LucideIcons.logOut,
-          title: "Se déconnecter",
+          title: "Log out",
           textColor: const Color(0xFFEF4444), // Red
           iconColor: const Color(0xFFEF4444),
           hideArrow: true,

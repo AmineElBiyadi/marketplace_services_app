@@ -34,7 +34,7 @@ class _ProviderCguScreenState extends State<ProviderCguScreen> {
             onPressed: () => context.pop(),
           ),
           title: const Text(
-            "CGU / Politique de confidentialité",
+            "Terms of Service / Privacy Policy",
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -53,7 +53,7 @@ class _ProviderCguScreenState extends State<ProviderCguScreen> {
             if (!snapshot.hasData || snapshot.data == null) {
               return const Center(
                 child: Text(
-                  "Aucune CGU disponible.",
+                  "No Terms of Use available.",
                   style: TextStyle(color: Color(0xFF64748B), fontSize: 16),
                 ),
               );
@@ -61,12 +61,12 @@ class _ProviderCguScreenState extends State<ProviderCguScreen> {
 
             final cguData = snapshot.data!;
             final String content = cguData['content'] ?? '';
-            final String version = cguData['version'] ?? 'Inconnue';
+            final String version = cguData['version'] ?? 'Unknown';
             
-            String dateFormatted = "Date inconnue";
+            String dateFormatted = "Unknown date";
             if (cguData['created_at'] != null) {
               final DateTime date = (cguData['created_at'] as Timestamp).toDate();
-              dateFormatted = DateFormat('dd MMMM yyyy, HH:mm', 'fr_FR').format(date);
+              dateFormatted = DateFormat('MMMM dd, yyyy, HH:mm', 'en_US').format(date);
             }
 
             return SingleChildScrollView(
@@ -75,7 +75,7 @@ class _ProviderCguScreenState extends State<ProviderCguScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Conditions Générales d'Utilisation",
+                    "General Terms of Use",
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
@@ -84,7 +84,7 @@ class _ProviderCguScreenState extends State<ProviderCguScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Version $version • Mise à jour le $dateFormatted",
+                    "Version $version • Updated on $dateFormatted",
                     style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF64748B),

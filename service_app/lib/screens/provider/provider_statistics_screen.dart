@@ -33,7 +33,7 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
             onPressed: () => context.pop(),
           ),
           title: const Text(
-            "Statistiques",
+            "Statistics",
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -130,7 +130,7 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  "Disponible avec le pack Premium",
+                  "Available with Premium pack",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20,
@@ -140,7 +140,7 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  "Accédez aux statistiques avancées pour booster votre activité",
+                  "Access advanced statistics to boost your activity",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
@@ -158,7 +158,7 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
                     },
                     icon: const Icon(LucideIcons.crown, color: Colors.white, size: 20),
                     label: const Text(
-                      "Passer Premium",
+                      "Go Premium",
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -205,7 +205,7 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
   Widget _buildPremiumStatistics() {
     return Center(
       child: Text(
-        "Statistiques détaillées à venir...",
+        "Detailed statistics coming soon...",
         style: TextStyle(fontSize: 16, color: Colors.grey[600]),
       ),
     );
