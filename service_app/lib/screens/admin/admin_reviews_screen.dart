@@ -212,10 +212,10 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
       return Column(
         children: [
           _sectionSubHeader('Avis Récents', LucideIcons.star, Colors.amber, () => _showAllReviewsModal()),
-          ..._allReviews.take(3).map((r) => _buildReviewCard(r)),
+          ..._allReviews.take(2).map((r) => _buildReviewCard(r)),
           const SizedBox(height: 32),
           _sectionSubHeader('Réclamations Prioritaires', LucideIcons.alertTriangle, Colors.redAccent, () => _showAllClaimsModal()),
-          ..._allClaims.take(3).map((c) => _buildClaimCard(c)),
+          ..._allClaims.take(2).map((c) => _buildClaimCard(c)),
         ],
       );
     }
@@ -228,7 +228,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             children: [
               _sectionSubHeader('Dernières Évaluations', LucideIcons.star, Colors.amber, () => _showAllReviewsModal()),
               const SizedBox(height: 16),
-              ..._allReviews.take(3).map((r) => _buildReviewCard(r)),
+              ..._allReviews.take(2).map((r) => _buildReviewCard(r)),
             ],
           ),
         ),
@@ -239,7 +239,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             children: [
               _sectionSubHeader('Réclamations en Cours', LucideIcons.alertTriangle, Colors.redAccent, () => _showAllClaimsModal()),
               const SizedBox(height: 16),
-              ..._allClaims.take(3).map((c) => _buildClaimCard(c)),
+              ..._allClaims.take(2).map((c) => _buildClaimCard(c)),
             ],
           ),
         ),
@@ -420,9 +420,23 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
     );
   }
 
-  void _showAllReviewsModal() => showDialog(context: context, builder: (context) => _BaseFullListModal(title: 'Toutes les Évaluations', icon: LucideIcons.star, color: Colors.amber, items: _allReviews, itemBuilder: (context, item) => _buildReviewCard(item)));
+  void _showAllReviewsModal() => showDialog(context: context, builder: (context) => _BaseFullListModal(
+    title: 'Toutes les Évaluations', 
+    icon: LucideIcons.star, 
+    color: Colors.amber, 
+    items: _allReviews, 
+    itemBuilder: (context, item) => _buildReviewCard(item),
+    filterType: 'REVIEW',
+  ));
 
-  void _showAllClaimsModal() => showDialog(context: context, builder: (context) => _BaseFullListModal(title: 'Toutes les Réclamations', icon: LucideIcons.alertTriangle, color: Colors.redAccent, items: _allClaims, itemBuilder: (context, item) => _buildClaimCard(item)));
+  void _showAllClaimsModal() => showDialog(context: context, builder: (context) => _BaseFullListModal(
+    title: 'Toutes les Réclamations', 
+    icon: LucideIcons.alertTriangle, 
+    color: Colors.redAccent, 
+    items: _allClaims, 
+    itemBuilder: (context, item) => _buildClaimCard(item),
+    filterType: 'CLAIM',
+  ));
 
   Future<void> _toggleVisibility(Map<String, dynamic> r) async {
     final bool newStatus = !(r['isHidden'] ?? false);
@@ -462,31 +476,154 @@ class _BaseFullListModal extends StatefulWidget {
   final Color color;
   final List<Map<String, dynamic>> items;
   final Widget Function(BuildContext, Map<String, dynamic>) itemBuilder;
-  const _BaseFullListModal({required this.title, required this.icon, required this.color, required this.items, required this.itemBuilder});
+  final String filterType; // 'REVIEW' or 'CLAIM'
+
+  const _BaseFullListModal({
+    required this.title, 
+    required this.icon, 
+    required this.color, 
+    required this.items, 
+    required this.itemBuilder,
+    required this.filterType,
+  });
+
   @override
   State<_BaseFullListModal> createState() => _BaseFullListModalState();
 }
 
 class _BaseFullListModalState extends State<_BaseFullListModal> {
   String _search = '';
+  String _selectedFilter = 'TOUT'; // 'TOUT', or 1-5 for reviews, or 'EN_ATTENTE'/'TRAITEE' for claims
   late List<Map<String, dynamic>> _filtered;
+
   @override
-  void initState() { super.initState(); _filtered = widget.items; }
-  void _applyFilter() { setState(() { _filtered = widget.items.where((item) { final content = (item['commentaire'] ?? item['description'] ?? '').toString().toLowerCase(); final name = (item['clientName'] ?? '').toString().toLowerCase(); return content.contains(_search.toLowerCase()) || name.contains(_search.toLowerCase()); }).toList(); }); }
+  void initState() {
+    super.initState();
+    _filtered = widget.items;
+  }
+
+  void _applyFilter() {
+    setState(() {
+      _filtered = widget.items.where((item) {
+        // Search filter
+        final content = (item['commentaire'] ?? item['description'] ?? '').toString().toLowerCase();
+        final client = (item['clientName'] ?? '').toString().toLowerCase();
+        final expert = (item['expertName'] ?? '').toString().toLowerCase();
+        final matchesSearch = content.contains(_search.toLowerCase()) || 
+                             client.contains(_search.toLowerCase()) || 
+                             expert.contains(_search.toLowerCase());
+
+        if (!matchesSearch) return false;
+
+        // Custom filter
+        if (_selectedFilter == 'TOUT') return true;
+
+        if (widget.filterType == 'REVIEW') {
+          return item['note'].toString() == _selectedFilter;
+        } else {
+          return item['etat'] == _selectedFilter;
+        }
+      }).toList();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
-        width: 800, height: 750, padding: const EdgeInsets.all(32),
+        width: 800,
+        height: 750,
+        padding: const EdgeInsets.all(32),
         child: Column(
           children: [
-            Row(children: [Icon(widget.icon, color: widget.color), const SizedBox(width: 12), Text(widget.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), const Spacer(), IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(LucideIcons.x))]),
+            // Header
+            Row(
+              children: [
+                Icon(widget.icon, color: widget.color),
+                const SizedBox(width: 12),
+                Text(widget.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const Spacer(),
+                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(LucideIcons.x)),
+              ],
+            ),
             const SizedBox(height: 24),
-            TextField(onChanged: (v) { _search = v; _applyFilter(); }, decoration: InputDecoration(hintText: 'Rechercher...', prefixIcon: const Icon(LucideIcons.search, size: 18), filled: true, fillColor: const Color(0xFFF8FAFC), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none))),
+            
+            // Search & Filters Row
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    onChanged: (v) { _search = v; _applyFilter(); },
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher un mot-clé, client...',
+                      prefixIcon: const Icon(LucideIcons.search, size: 18),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: _buildFilterDropdown(),
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
-            Expanded(child: _filtered.isEmpty ? const Center(child: Text('Aucun résultat trouvé')) : ListView.builder(itemCount: _filtered.length, itemBuilder: (context, index) => widget.itemBuilder(context, _filtered[index]))),
+            
+            // List
+            Expanded(
+              child: _filtered.isEmpty
+                  ? const Center(child: Text('Aucun résultat trouvé'))
+                  : ListView.builder(
+                      itemCount: _filtered.length,
+                      itemBuilder: (context, index) => widget.itemBuilder(context, _filtered[index]),
+                    ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterDropdown() {
+    List<DropdownMenuItem<String>> menuItems = [
+      const DropdownMenuItem(value: 'TOUT', child: Text('Tous les éléments')),
+    ];
+
+    if (widget.filterType == 'REVIEW') {
+      menuItems.addAll([
+        const DropdownMenuItem(value: '5', child: Text('⭐⭐⭐⭐⭐ (5)')),
+        const DropdownMenuItem(value: '4', child: Text('⭐⭐⭐⭐ (4)')),
+        const DropdownMenuItem(value: '3', child: Text('⭐⭐⭐ (3)')),
+        const DropdownMenuItem(value: '2', child: Text('⭐⭐ (2)')),
+        const DropdownMenuItem(value: '1', child: Text('⭐ (1)')),
+      ]);
+    } else {
+      menuItems.addAll([
+        const DropdownMenuItem(value: 'EN_ATTENTE', child: Text('En attente')),
+        const DropdownMenuItem(value: 'TRAITEE', child: Text('Traitées')),
+      ]);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12)),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedFilter,
+          isExpanded: true,
+          items: menuItems,
+          onChanged: (v) {
+            if (v != null) {
+              setState(() => _selectedFilter = v);
+              _applyFilter();
+            }
+          },
         ),
       ),
     );
