@@ -413,6 +413,56 @@ class FirestoreService {
     });
   }
 
+  Future<void> updateExpertProfileInfo(String expertId, String userId, {
+    required String prenom,
+    required String nom,
+    required String telephone,
+    required String email,
+    required String ville,
+    required String adresse,
+    required double rayonTravaille,
+    required String experience,
+  }) async {
+    final batch = _firestore.batch();
+    
+    // 1. Update user
+    final fullName = '$prenom $nom'.trim();
+    final userRef = _firestore.collection('utilisateurs').doc(userId);
+    batch.update(userRef, {
+      'nom': fullName,
+      'telephone': telephone,
+      'email': email,
+      'updated_At': FieldValue.serverTimestamp(),
+    });
+
+    // 2. Update address
+    final adressesSnap = await _firestore.collection('adresses').where('idUtilisateur', isEqualTo: userId).limit(1).get();
+    if (adressesSnap.docs.isNotEmpty) {
+      final addrRef = _firestore.collection('adresses').doc(adressesSnap.docs.first.id);
+      batch.update(addrRef, {
+        'Ville': ville,
+        'Rue': adresse,
+      });
+    } else {
+      final addrRef = _firestore.collection('adresses').doc();
+      batch.set(addrRef, {
+        'idUtilisateur': userId,
+        'Ville': ville,
+        'Rue': adresse,
+        'Pays': 'Maroc',
+      });
+    }
+
+    // 3. Update expert
+    final expertRef = _firestore.collection('experts').doc(expertId);
+    batch.update(expertRef, {
+      'rayonTravaille': rayonTravaille.toInt(),
+      'Experience': experience,
+    });
+
+    await batch.commit();
+  }
+
   // ─── Search Experts ────────────────────────────────────────
 
   Future<List<Expert>> getExperts() async {
