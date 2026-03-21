@@ -697,25 +697,73 @@ class AdminDashboardService {
   }
 
   // ─── All Reviews & Claims (Management) ────────────────────────────────────
-  Future<List<Map<String, dynamic>>> getAllReviews() async {
+  
+  /// Fetches all reviews/evaluations
+  Future<List<Map<String, dynamic>>> getAdminEvaluations() async {
+    final snap = await _db.collection('evaluations').orderBy('createdAt', descending: true).get();
+    final List<Map<String, dynamic>> result = [];
+    
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      result.add({
+        'id': doc.id,
+        'note': (data['note'] ?? 0).toDouble(),
+        'commentaire': data['commentaire'] ?? '',
+        'clientName': data['clientSnapshot']?['nom'] ?? 'Client',
+        'expertName': data['expertSnapshot']?['nom'] ?? 'Expert',
+        'idIntervention': data['idIntervention'],
+        'date': data['createdAt'] != null 
+            ? DateFormat('dd/MM/yyyy').format((data['createdAt'] as Timestamp).toDate()) 
+            : 'N/A',
+        'isHidden': data['isHidden'] ?? false,
+      });
+    }
+    return result;
+  }
+
+  Future<void> updateEvaluationVisibility(String id, bool isHidden) async {
+    await _db.collection('evaluations').doc(id).update({'isHidden': isHidden});
+  }
+
+  Future<void> deleteEvaluation(String id) async {
+    await _db.collection('evaluations').doc(id).delete();
+  }
+
+  /// Fetches all claims/reclamations
+  Future<List<Map<String, dynamic>>> getAdminClaims() async {
     final snap = await _db.collection('reclamations').orderBy('createdAt', descending: true).get();
     final List<Map<String, dynamic>> result = [];
     
     for (final doc in snap.docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      final userDoc = await _db.collection('utilisateurs').doc(data['idUtilisateur']).get();
-      
+      final data = doc.data();
       result.add({
         'id': doc.id,
-        'from': userDoc.data()?['nom'] ?? userDoc.data()?['email'] ?? 'Utilisateur',
-        'subject': data['sujet'] ?? 'Sans sujet',
-        'message': data['description'] ?? '',
-        'priority': data['priorite'] ?? 'Normale',
-        'status': data['statut'] ?? 'Ouvert',
-        'date': _formatRelativeDate(data['createdAt']),
+        'description': data['description'] ?? '',
+        'typeReclamateur': data['typeReclamateur'] ?? 'CLIENT',
+        'etat': data['etatReclamation'] ?? 'EN_ATTENTE',
+        'idIntervention': data['idIntervention'],
+        'clientName': data['clientSnapshot']?['nom'] ?? 'Client',
+        'expertName': data['expertSnapshot']?['nom'] ?? 'Expert',
+        'adminResponse': data['adminResponse'],
+        'date': data['createdAt'] != null 
+            ? DateFormat('dd/MM/yyyy').format((data['createdAt'] as Timestamp).toDate()) 
+            : 'N/A',
       });
     }
     return result;
+  }
+
+  Future<void> updateClaim(String id, {String? status, String? response}) async {
+    final Map<String, dynamic> updates = {};
+    if (status != null) updates['etatReclamation'] = status;
+    if (response != null) updates['adminResponse'] = response;
+    updates['updatedAt'] = FieldValue.serverTimestamp();
+    
+    await _db.collection('reclamations').doc(id).update(updates);
+  }
+
+  Future<void> deleteClaim(String id) async {
+    await _db.collection('reclamations').doc(id).delete();
   }
 
   // ─── Financial Transactions (Abonnements) ────────────────────────────────
