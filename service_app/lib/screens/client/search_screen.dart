@@ -400,7 +400,9 @@ class _SearchScreenState extends State<SearchScreen> {
                                 ctx,
                                 MaterialPageRoute(
                                   builder: (_) => ExpertProfileScreen(
-                                      expert: expert),
+                                      expert: expert,
+                                      preSelectedService: _activeServiceFilter,
+                                  ),
                                 ),
                               ),
                               onChat: () => _openChat(expert),
