@@ -16,77 +16,34 @@ class WelcomeScreen extends StatelessWidget {
             children: [
               const Spacer(flex: 2),
               // ── Illustration ──
-              Container(
-                width: 220,
-                height: 220,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEEF2FF),
-                  borderRadius: BorderRadius.circular(110),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Toolbox icon cluster
-                    const Icon(Icons.home_repair_service_rounded,
-                        size: 100, color: Color(0xFF2B4B9B)),
-                    Positioned(
-                      top: 30,
-                      right: 28,
-                      child: Icon(Icons.handyman,
-                          size: 32, color: const Color(0xFFE8A020)),
-                    ),
-                    Positioned(
-                      top: 28,
-                      left: 30,
-                      child: Icon(Icons.plumbing,
-                          size: 28, color: const Color(0xFF4CAF50)),
-                    ),
-                    Positioned(
-                      bottom: 30,
-                      left: 34,
-                      child: Icon(Icons.electrical_services,
-                          size: 26, color: const Color(0xFFE8A020)),
-                    ),
-                    Positioned(
-                      bottom: 28,
-                      right: 32,
-                      child: Icon(Icons.carpenter,
-                          size: 28, color: const Color(0xFF2B4B9B)),
-                    ),
-                  ],
-                ),
+              Image.asset(
+                'assets/logo.png',
+                height: 120,
+                errorBuilder: (context, error, stackTrace) => const SizedBox(height: 120),
               ),
               const SizedBox(height: 32),
               // ── Title ──
               const Text(
-                'Bienvenue sur ServiConnect',
+                'Presto',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
                   color: Color(0xFF1A237E),
+                  letterSpacing: 1.2,
                 ),
               ),
-              const SizedBox(height: 12),
-              RichText(
-                textAlign: TextAlign.center,
-                text: const TextSpan(
+              const SizedBox(height: 8),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  'snap your fingers, we handle the rest.',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 16,
                     color: Color(0xFF64748B),
-                    height: 1.5,
+                    fontStyle: FontStyle.italic,
                   ),
-                  children: [
-                    TextSpan(text: 'Trouvez des '),
-                    TextSpan(
-                      text: 'professionnels de confiance',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    TextSpan(text: ' ou proposez vos services.'),
-                  ],
                 ),
               ),
               const SizedBox(height: 40),

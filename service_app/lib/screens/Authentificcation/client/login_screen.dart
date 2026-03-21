@@ -126,15 +126,10 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 8),
               // ── Illustration ──
               Center(
-                child: Container(
-                  width: 80,
+                child: Image.asset(
+                  'assets/logo.png',
                   height: 80,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEEF2FF),
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                  child: const Icon(Icons.home_repair_service_rounded,
-                      size: 42, color: Color(0xFF2B4B9B)),
+                  errorBuilder: (context, error, stackTrace) => const SizedBox(height: 80),
                 ),
               ),
               const SizedBox(height: 20),
