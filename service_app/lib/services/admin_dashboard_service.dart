@@ -705,12 +705,28 @@ class AdminDashboardService {
     
     for (final doc in snap.docs) {
       final data = doc.data();
+      String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+      String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+      
+      // Fallback: Si les snapshots manquent, chercher dans l'intervention
+      if (clientName == 'Client' || expertName == 'Expert') {
+        final intervId = data['idIntervention'];
+        if (intervId != null) {
+          final intervDoc = await _db.collection('interventions').doc(intervId).get();
+          if (intervDoc.exists) {
+            final intervData = intervDoc.data()!;
+            clientName = intervData['clientSnapshot']?['nom'] ?? clientName;
+            expertName = intervData['expertSnapshot']?['nom'] ?? expertName;
+          }
+        }
+      }
+
       result.add({
         'id': doc.id,
         'note': (data['note'] ?? 0).toDouble(),
         'commentaire': data['commentaire'] ?? '',
-        'clientName': data['clientSnapshot']?['nom'] ?? 'Client',
-        'expertName': data['expertSnapshot']?['nom'] ?? 'Expert',
+        'clientName': clientName,
+        'expertName': expertName,
         'idIntervention': data['idIntervention'],
         'date': data['createdAt'] != null 
             ? DateFormat('dd/MM/yyyy').format((data['createdAt'] as Timestamp).toDate()) 
@@ -736,14 +752,30 @@ class AdminDashboardService {
     
     for (final doc in snap.docs) {
       final data = doc.data();
+      String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+      String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+
+      // Fallback: Si les snapshots manquent, chercher dans l'intervention
+      if (clientName == 'Client' || expertName == 'Expert') {
+        final intervId = data['idIntervention'];
+        if (intervId != null) {
+          final intervDoc = await _db.collection('interventions').doc(intervId).get();
+          if (intervDoc.exists) {
+            final intervData = intervDoc.data()!;
+            clientName = intervData['clientSnapshot']?['nom'] ?? clientName;
+            expertName = intervData['expertSnapshot']?['nom'] ?? expertName;
+          }
+        }
+      }
+
       result.add({
         'id': doc.id,
         'description': data['description'] ?? '',
         'typeReclamateur': data['typeReclamateur'] ?? 'CLIENT',
         'etat': data['etatReclamation'] ?? 'EN_ATTENTE',
         'idIntervention': data['idIntervention'],
-        'clientName': data['clientSnapshot']?['nom'] ?? 'Client',
-        'expertName': data['expertSnapshot']?['nom'] ?? 'Expert',
+        'clientName': clientName,
+        'expertName': expertName,
         'adminResponse': data['adminResponse'],
         'date': data['createdAt'] != null 
             ? DateFormat('dd/MM/yyyy').format((data['createdAt'] as Timestamp).toDate()) 
