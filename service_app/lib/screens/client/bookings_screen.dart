@@ -9,13 +9,13 @@ import '../../models/chat_model.dart';
 import '../chat/chat_screen.dart';
 import '../../routes/routes.dart';
 
-const _tabs = ["Pending", "Confirmed", "Refused", "Completed", "Cancelled"];
+const _tabs = ["Pending", "Confirmed", "Completed", "Cancelled", "Refused"];
 const _tabStatusMap = {
   "Pending": "EN_ATTENTE",
   "Confirmed": "ACCEPTEE",
-  "Refused": "REFUSEE",
   "Completed": "TERMINEE",
   "Cancelled": "ANNULEE",
+  "Refused": "REFUSEE",
 };
 
 class BookingsScreen extends StatefulWidget {
@@ -131,6 +131,10 @@ class _BookingsScreenState extends State<BookingsScreen> {
     final tacheSnap = intervention.tacheSnapshot ?? {};
     final taskName = tacheSnap['nom'] ?? 'Unspecified task';
 
+    final adresseSnap = intervention.adresseSnapshot ?? {};
+    final fullAddress = "${adresseSnap['Quartier'] ?? ''}, ${adresseSnap['Ville'] ?? ''}".trim().replaceAll(RegExp(r'^,\s*|\s*,\s*$'), '');
+    final displayAddress = fullAddress.isEmpty ? "Address not specified" : fullAddress;
+
     if (!mounted) return;
 
     await showDialog(
@@ -152,6 +156,8 @@ class _BookingsScreenState extends State<BookingsScreen> {
                 _buildDetailRow(Icons.calendar_today, "Date", _formatDate(dateDebut)),
                 const SizedBox(height: 12),
                 _buildDetailRow(Icons.handyman_outlined, "Task", taskName),
+                const SizedBox(height: 12),
+                _buildDetailRow(Icons.location_on_outlined, "Address", displayAddress),
                 if (intervention.codeValidationExpert != null && intervention.statut == 'ACCEPTEE') ...[
                   const SizedBox(height: 12),
                   _buildDetailRow(Icons.pin_outlined, "Validation code", intervention.codeValidationExpert!),
@@ -267,6 +273,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
                             await FirebaseFirestore.instance.collection('interventions').doc(intervention.id).update({
                               'statut': 'ANNULEE',
                               'motifeAnnulation': inputReason,
+                              'annulerPar': 'client',
                               'updatedAt': FieldValue.serverTimestamp(),
                             });
                             if (mounted) {
@@ -392,7 +399,12 @@ class _BookingsScreenState extends State<BookingsScreen> {
     final expertPhoto = expertSnap['photo'] ?? '';
 
     final tacheSnap = intervention.tacheSnapshot ?? {};
-    final serviceName = tacheSnap['nom'] ?? 'Unspecified Service';
+    final serviceName = tacheSnap['serviceNom'] ?? 'Unspecified Service';
+    final taskName = tacheSnap['nom'] ?? 'Unspecified task';
+    
+    final adresseSnap = intervention.adresseSnapshot ?? {};
+    final fullAddress = "${adresseSnap['Quartier'] ?? ''}, ${adresseSnap['Ville'] ?? ''}".trim().replaceAll(RegExp(r'^,\s*|\s*,\s*$'), '');
+    final displayAddress = fullAddress.isEmpty ? "Address not specified" : fullAddress;
 
     final dateDebut = intervention.dateDebutIntervention;
 
@@ -463,21 +475,46 @@ class _BookingsScreenState extends State<BookingsScreen> {
                         ],
                       ),
                       const SizedBox(height: 3),
-                      Text(
-                        serviceName,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_month_outlined, size: 13, color: Color(0xFF94A3B8)),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatDate(dateDebut),
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                          ),
-                        ],
-                      ),
+                      if (isPending) ...[
+                        Text(
+                          serviceName,
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.handyman_outlined, size: 13, color: Color(0xFF94A3B8)),
+                            const SizedBox(width: 4),
+                            Expanded(child: Text(taskName, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)))),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.location_on_outlined, size: 13, color: Color(0xFF94A3B8)),
+                            const SizedBox(width: 4),
+                            Expanded(child: Text(displayAddress, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)))),
+                          ],
+                        ),
+                      ] else ...[
+                        Text(
+                          serviceName,
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.calendar_month_outlined, size: 13, color: Color(0xFF94A3B8)),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatDate(dateDebut),
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

@@ -13,6 +13,7 @@ class InterventionModel {
   final DateTime? dateDebutIntervention;
   final DateTime? dateFinIntervention;
   final String? motifeAnnulation;
+  final String? annulerPar;
   
   // Snapshots
   final Map<String, dynamic>? clientSnapshot;
@@ -36,6 +37,7 @@ class InterventionModel {
     this.dateDebutIntervention,
     this.dateFinIntervention,
     this.motifeAnnulation,
+    this.annulerPar,
     this.clientSnapshot,
     this.expertSnapshot,
     this.tacheSnapshot,
@@ -75,6 +77,7 @@ class InterventionModel {
       dateDebutIntervention: date,
       dateFinIntervention: (data['dateFinIntervention'] as Timestamp?)?.toDate(),
       motifeAnnulation: data['motifeAnnulation'],
+      annulerPar: data['annulerPar'],
       clientSnapshot: data['clientSnapshot'],
       expertSnapshot: data['expertSnapshot'],
       tacheSnapshot: data['tacheSnapshot'],
@@ -97,6 +100,7 @@ class InterventionModel {
       if (dateDebutIntervention != null) 'dateDebutIntervention': Timestamp.fromDate(dateDebutIntervention!),
       if (dateFinIntervention != null) 'dateFinIntervention': Timestamp.fromDate(dateFinIntervention!),
       if (motifeAnnulation != null) 'motifeAnnulation': motifeAnnulation,
+      if (annulerPar != null) 'annulerPar': annulerPar,
       if (clientSnapshot != null) 'clientSnapshot': clientSnapshot,
       'expertSnapshot': expertSnapshot,
       'tacheSnapshot': tacheSnapshot,
