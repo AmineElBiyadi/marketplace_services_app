@@ -333,8 +333,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         _buildMenuItem(
           icon: LucideIcons.user,
           title: "Informations personnelles",
-          onTap: () {
-            context.push('/provider/${widget.expertId}/profile/personal-info');
+          onTap: () async {
+            await context.push('/provider/${widget.expertId}/profile/personal-info');
+            _loadProfileData();
           },
         ),
         _buildMenuItem(
