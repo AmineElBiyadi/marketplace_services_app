@@ -123,72 +123,130 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
   }
 
   Widget _buildMainContent() {
+    final bool isMobile = MediaQuery.of(context).size.width < 1024;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 12 : 24),
       child: Column(
         children: [
           // Filters
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(16), border: Border.all(color: _border)),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (_) => _applyFilters(),
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher un prestataire...',
-                      prefixIcon: const Icon(LucideIcons.search, size: 18),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+            child: isMobile
+              ? Column(
+                  children: [
+                    TextField(
+                      controller: _searchController,
+                      onChanged: (_) => _applyFilters(),
+                      decoration: InputDecoration(
+                        hintText: 'Rechercher un prestataire...',
+                        prefixIcon: const Icon(LucideIcons.search, size: 18),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildDropdownFilter(
+                            value: _selectedStatus,
+                            items: ['Tous', 'ACTIVE', 'DESACTIVE', 'SUSPENDUE'],
+                            label: 'Statut',
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _selectedStatus = val);
+                                _applyFilters();
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildDropdownFilter(
+                            value: _selectedSub,
+                            items: ['Tous', 'Premium', 'Gratuit'],
+                            label: 'Offre',
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _selectedSub = val);
+                                _applyFilters();
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (_) => _applyFilters(),
+                        decoration: InputDecoration(
+                          hintText: 'Rechercher un prestataire...',
+                          prefixIcon: const Icon(LucideIcons.search, size: 18),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildDropdownFilter(
+                        value: _selectedStatus,
+                        items: ['Tous', 'ACTIVE', 'DESACTIVE', 'SUSPENDUE'],
+                        label: 'Statut',
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _selectedStatus = val);
+                            _applyFilters();
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildDropdownFilter(
+                        value: _selectedSub,
+                        items: ['Tous', 'Premium', 'Gratuit'],
+                        label: 'Offre',
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _selectedSub = val);
+                            _applyFilters();
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDropdownFilter(
-                    value: _selectedStatus,
-                    items: ['Tous', 'ACTIVE', 'DESACTIVE', 'SUSPENDUE'],
-                    label: 'Statut',
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _selectedStatus = val);
-                        _applyFilters();
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDropdownFilter(
-                    value: _selectedSub,
-                    items: ['Tous', 'Premium', 'Gratuit'],
-                    label: 'Offre',
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _selectedSub = val);
-                        _applyFilters();
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
           ),
           const SizedBox(height: 24),
           // Table
-          Container(
-            decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(24), border: Border.all(color: _border)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (_filteredProviders.isEmpty)
-                  const Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Aucun prestataire trouvé')))
-                else
+          if (_filteredProviders.isEmpty)
+            const Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Aucun prestataire trouvé')))
+          else if (isMobile)
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _filteredProviders.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) => _buildProviderCard(_filteredProviders[index]),
+            )
+          else
+            Container(
+              decoration: BoxDecoration(color: _card, borderRadius: BorderRadius.circular(24), border: Border.all(color: _border)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: ConstrainedBox(
@@ -209,9 +267,9 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                       ),
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -400,6 +458,104 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
             TextSpan(text: value?.toString() ?? 'N/A'),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildProviderCard(Map<String, dynamic> p) {
+    final status = p['status'] ?? 'DESACTIVE';
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _border),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: _primary.withOpacity(0.1),
+                backgroundImage: p['imageUrl'] != null ? NetworkImage(p['imageUrl']) : null,
+                child: p['imageUrl'] == null
+                    ? Text(p['avatar'] ?? '??', style: const TextStyle(fontSize: 14, color: _primary, fontWeight: FontWeight.bold))
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(p['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text(p['zone'] ?? '', style: const TextStyle(fontSize: 11, color: _textSecondary)),
+                  ],
+                ),
+              ),
+              _statusBadge(status),
+            ],
+          ),
+          const Divider(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Note', style: TextStyle(fontSize: 10, color: _textSecondary)),
+                  Row(
+                    children: [
+                      const Icon(Icons.star, color: Colors.amber, size: 14),
+                      const SizedBox(width: 4),
+                      Text(p['rating'].toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    ],
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Offre', style: TextStyle(fontSize: 10, color: _textSecondary)),
+                  _badge(p['pack'] ?? 'Gratuit', p['hasSubscription'] ? Colors.purple : _textSecondary),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  const Text('Interventions', style: TextStyle(fontSize: 10, color: _textSecondary)),
+                  Text(p['interventionsCount'].toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              IconButton(
+                icon: const Icon(LucideIcons.eye, size: 20, color: _primary),
+                onPressed: () => _showDetailsDialog(p),
+              ),
+              const Spacer(),
+              if (status != 'ACTIVE')
+                IconButton(
+                  icon: const Icon(LucideIcons.checkCircle, size: 20, color: Colors.green),
+                  onPressed: () => _updateStatus(p['id'], 'ACTIVE'),
+                ),
+              if (status == 'ACTIVE')
+                IconButton(
+                  icon: const Icon(LucideIcons.xCircle, size: 20, color: Colors.orange),
+                  onPressed: () => _updateStatus(p['id'], 'DESACTIVE'),
+                ),
+              if (status != 'SUSPENDUE')
+                IconButton(
+                  icon: const Icon(LucideIcons.alertTriangle, size: 20, color: Colors.red),
+                  onPressed: () => _updateStatus(p['id'], 'SUSPENDUE'),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
