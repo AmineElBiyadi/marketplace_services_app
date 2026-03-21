@@ -8,12 +8,13 @@ import '../../models/task_model.dart';
 import '../../models/chat_model.dart';
 import '../chat/chat_screen.dart';
 
-const _tabs = ["Pending", "Confirmed", "Completed", "Cancelled"];
+const _tabs = ["Pending", "Confirmed", "Completed", "Cancelled", "Refused"];
 const _tabStatusMap = {
   "Pending": "EN_ATTENTE",
   "Confirmed": "ACCEPTEE",
   "Completed": "TERMINEE",
   "Cancelled": "ANNULEE",
+  "Refused": "REFUSEE",
 };
 
 class ProviderReservationsScreen extends StatefulWidget {
@@ -134,6 +135,10 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
     final tacheSnap = intervention.tacheSnapshot ?? {};
     final taskName = tacheSnap['nom'] ?? 'Task not specified';
 
+    final adresseSnap = intervention.adresseSnapshot ?? {};
+    final fullAddress = "${adresseSnap['Quartier'] ?? ''}, ${adresseSnap['Ville'] ?? ''}".trim().replaceAll(RegExp(r'^,\s*|\s*,\s*$'), '');
+    final displayAddress = fullAddress.isEmpty ? "Address not specified" : fullAddress;
+
     if (!mounted) return;
 
     await showDialog(
@@ -152,9 +157,13 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
-                _buildDetailRow(Icons.calendar_today, "Date", _formatDate(dateDebut)),
-                const SizedBox(height: 12),
+                if (intervention.statut != 'REFUSEE') ...[
+                  _buildDetailRow(Icons.calendar_today, "Date", _formatDate(dateDebut)),
+                  const SizedBox(height: 12),
+                ],
                 _buildDetailRow(Icons.handyman_outlined, "Task", taskName),
+                const SizedBox(height: 12),
+                _buildDetailRow(Icons.location_on_outlined, "Address", displayAddress),
                 if (intervention.statut == 'ANNULEE' && intervention.motifeAnnulation != null && intervention.motifeAnnulation!.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   _buildDetailRow(Icons.cancel_outlined, "Cancellation reason", intervention.motifeAnnulation!),
@@ -259,6 +268,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                             await FirebaseFirestore.instance.collection('interventions').doc(intervention.id).update({
                               'statut': 'ANNULEE',
                               'motifeAnnulation': inputReason,
+                              'annulerPar': 'expert',
                               'updatedAt': FieldValue.serverTimestamp(),
                             });
                             if (mounted) {
@@ -564,42 +574,46 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
   }
 
   Widget _buildTabBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      padding: const EdgeInsets.all(5),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: List.generate(_tabs.length, (i) {
-          final selected = _selectedTab == i;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedTab = i),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 9),
-                decoration: BoxDecoration(
-                  color: selected ? Colors.white : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: selected
-                      ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))]
-                      : [],
-                ),
-                child: Text(
-                  _tabs[i],
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    color: selected ? AppColors.textPrimary : AppColors.textSecondary,
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Center(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: List.generate(_tabs.length, (i) {
+              final selected = _selectedTab == i;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedTab = i),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 16),
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: selected ? Colors.white : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: selected
+                        ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))]
+                        : [],
+                  ),
+                  child: Text(
+                    _tabs[i],
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                      color: selected ? AppColors.textPrimary : AppColors.textSecondary,
+                    ),
                   ),
                 ),
-              ),
-            ),
-          );
-        }),
+              );
+            }),
+          ),
+        ),
       ),
     );
   }
@@ -645,6 +659,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
     final isConfirmed = status == 'ACCEPTEE';
     final isCompleted = status == 'TERMINEE';
     final isCancelled = status == 'ANNULEE';
+    final isRefused = status == 'REFUSEE';
     final hasDetails = isConfirmed || isCompleted || isCancelled;
 
     final clientSnap = intervention.clientSnapshot ?? {};
@@ -653,6 +668,11 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
 
     final tacheSnap = intervention.tacheSnapshot ?? {};
     final serviceName = tacheSnap['serviceNom'] ?? 'Service not specified';
+    final taskName = tacheSnap['nom'] ?? 'Task not specified';
+    
+    final adresseSnap = intervention.adresseSnapshot ?? {};
+    final fullAddress = "${adresseSnap['Quartier'] ?? ''}, ${adresseSnap['Ville'] ?? ''}".trim().replaceAll(RegExp(r'^,\s*|\s*,\s*$'), '');
+    final displayAddress = fullAddress.isEmpty ? "Address not specified" : fullAddress;
 
     final dateDebut = intervention.dateDebutIntervention;
 
@@ -723,32 +743,58 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                         ],
                       ),
                       const SizedBox(height: 3),
-                      Text(
-                        serviceName,
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.calendar_month_outlined, size: 13, color: Color(0xFF94A3B8)),
-                          const SizedBox(width: 4),
-                          Text(
-                            _formatDate(dateDebut),
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                          ),
-                        ],
-                      ),
+                      if (isPending || isRefused) ...[
+                        Text(
+                          serviceName,
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.handyman_outlined, size: 13, color: Color(0xFF94A3B8)),
+                            const SizedBox(width: 4),
+                            Expanded(child: Text(taskName, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)))),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.location_on_outlined, size: 13, color: Color(0xFF94A3B8)),
+                            const SizedBox(width: 4),
+                            Expanded(child: Text(displayAddress, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)))),
+                          ],
+                        ),
+                      ] else ...[
+                        Text(
+                          serviceName,
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.calendar_month_outlined, size: 13, color: Color(0xFF94A3B8)),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatDate(dateDebut),
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
                 Row(
                   children: [
-                    GestureDetector(
-                      onTap: () => _handleChatTap(intervention),
-                      child: Icon(Icons.chat_bubble_outline_rounded, size: 20, color: AppColors.primary),
-                    ),
-                    const SizedBox(width: 8),
+                    if (!isRefused) 
+                      GestureDetector(
+                        onTap: () => _handleChatTap(intervention),
+                        child: Icon(Icons.chat_bubble_outline_rounded, size: 20, color: AppColors.primary),
+                      ),
+                    if (!isRefused) const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
@@ -855,10 +901,11 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
 
     double gridExtent = 220;
     switch (currentStatus) {
-      case "EN_ATTENTE": gridExtent = 185; break;
+      case "EN_ATTENTE": gridExtent = 205; break;
       case "ACCEPTEE": gridExtent = 255; break;
       case "TERMINEE": 
-      case "ANNULEE": gridExtent = 165; break;
+      case "ANNULEE": 
+      case "REFUSEE": gridExtent = 165; break;
     }
 
     return ProviderLayout(
