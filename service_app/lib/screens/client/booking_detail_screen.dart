@@ -196,7 +196,7 @@ class BookingDetailScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 56,
                     child: OutlinedButton(
-                      onPressed: () {}, // Implement cancel logic or reuse from screen
+                      onPressed: () => _showCancelDialog(context, intervention),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.red),
                         foregroundColor: Colors.red,
@@ -317,5 +317,96 @@ class BookingDetailScreen extends StatelessWidget {
   String _formatDate(DateTime? date) {
     if (date == null) return "Not scheduled";
     return DateFormat('EEE d MMM yyyy, HH:mm').format(date);
+  }
+
+  Future<void> _showCancelDialog(BuildContext context, InterventionModel intervention) async {
+    TextEditingController reasonController = TextEditingController();
+    String? errorText;
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Cancel Booking",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Please provide a reason for cancellation.",
+                      style: TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: reasonController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        labelText: "Cancellation reason",
+                        border: const OutlineInputBorder(),
+                        errorText: errorText,
+                      ),
+                      keyboardType: TextInputType.text,
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: () async {
+                          final inputReason = reasonController.text.trim();
+                          if (inputReason.isEmpty) {
+                            setDialogState(() => errorText = "Reason is required");
+                            return;
+                          }
+                          
+                          try {
+                            await FirebaseFirestore.instance.collection('interventions').doc(intervention.id).update({
+                              'statut': 'ANNULEE',
+                              'motifeAnnulation': inputReason,
+                              'annulerPar': 'client',
+                              'updatedAt': FieldValue.serverTimestamp(),
+                            });
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Booking cancelled successfully.")),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() => errorText = "Connection error");
+                          }
+                        },
+                        child: const Text("Confirm Cancellation", style: TextStyle(color: Colors.white, fontSize: 16)),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Back", style: TextStyle(color: Colors.grey, fontSize: 16)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }
