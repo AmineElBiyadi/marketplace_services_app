@@ -20,6 +20,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   bool _isLoading = true;
   Expert? _expertData;
   ExpertModel? _expertModel;
+  int _reviewsCount = 0;
 
   @override
   void initState() {
@@ -31,11 +32,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     try {
       final expertModel = await _firestoreService.getExpertProfile(widget.expertId);
       final expertDetailed = await _firestoreService.getExpertDetailed(widget.expertId);
+      final reviews = await _firestoreService.getExpertReviews(widget.expertId);
 
       if (mounted) {
         setState(() {
           _expertModel = expertModel;
           _expertData = expertDetailed;
+          _reviewsCount = reviews.length;
           _isLoading = false;
         });
       }
@@ -61,7 +64,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         ? _expertData!.services.first 
         : "Expert professionnel";
     final double rating = _expertData?.noteMoyenne ?? 0.0;
-    final int reviewsCount = widget.expertId.length % 50 + 10; // Placeholder for now unless we query
     final String city = _expertData?.ville.split(',').first ?? 'Ville non définie';
     final int rayon = _expertModel?.rayonTravaille ?? 20;
     final String photoUrl = _expertData?.photo ?? '';
@@ -82,7 +84,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   fullName: fullName,
                   serviceCategory: serviceCategory,
                   rating: rating,
-                  reviewsCount: reviewsCount,
+                  reviewsCount: _reviewsCount,
                   city: city,
                   rayon: rayon,
                   photoUrl: photoUrl,
@@ -332,7 +334,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           icon: LucideIcons.user,
           title: "Informations personnelles",
           onTap: () {
-            context.push('/provider/${widget.expertId}/personal-info');
+            context.push('/provider/${widget.expertId}/profile/personal-info');
           },
         ),
         _buildMenuItem(
