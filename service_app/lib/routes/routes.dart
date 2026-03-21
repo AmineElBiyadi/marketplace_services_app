@@ -20,6 +20,9 @@ import '../screens/provider/provider_reservations_screen.dart';
 import '../screens/provider/provider_services_screen.dart';
 import '../screens/provider/provider_agenda_screen.dart';
 import '../screens/provider/provider_subscription_screen.dart';
+import '../screens/provider/provider_profile_screen.dart';
+import '../screens/provider/provider_personal_info_screen.dart';
+import '../screens/provider/provider_statistics_screen.dart';
 import '../navigation/main_navigation.dart';
 import '../screens/client/bookings_screen.dart';
 import '../screens/client/booking_detail_screen.dart';
@@ -206,8 +209,24 @@ final GoRouter router = GoRouter(
       path: AppRoutes.providerProfile,
       builder: (context, state) {
         final expertId = state.pathParameters['expertId'] ?? '';
-        return ProviderDashboardScreen(expertId: expertId); // Fallback
+        return ProviderProfileScreen(expertId: expertId);
       },
+      routes: [
+        GoRoute(
+          path: 'personal-info',
+          builder: (context, state) {
+            final expertId = state.pathParameters['expertId'] ?? '';
+            return ProviderPersonalInfoScreen(expertId: expertId);
+          },
+        ),
+        GoRoute(
+          path: 'statistics',
+          builder: (context, state) {
+            final expertId = state.pathParameters['expertId'] ?? '';
+            return ProviderStatisticsScreen(expertId: expertId);
+          },
+        ),
+      ],
     ),
     GoRoute(
       path: AppRoutes.providerMessages,
