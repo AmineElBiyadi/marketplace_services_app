@@ -18,6 +18,7 @@ class ProviderPersonalInfoScreen extends StatefulWidget {
 class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   bool _isLoading = true;
+  bool _isSaving = false;
   Expert? _expertData;
   ExpertModel? _expertModel;
 
@@ -77,9 +78,37 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
   }
 
   void _saveChanges() async {
-    // ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Enregistrement en cours...")));
-    // Logic to save back to firestore
-    context.pop();
+    if (_expertData == null || _expertModel == null) return;
+    
+    setState(() => _isSaving = true);
+    try {
+      await _firestoreService.updateExpertProfileInfo(
+        widget.expertId,
+        _expertModel!.idUtilisateur,
+        prenom: _prenomCtrl.text,
+        nom: _nomCtrl.text,
+        telephone: _phoneCtrl.text,
+        email: _emailCtrl.text,
+        ville: _villeCtrl.text,
+        adresse: _adresseCtrl.text,
+        rayonTravaille: _rayon,
+        experience: _bioCtrl.text,
+      );
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Modifications enregistrées avec succès !"), backgroundColor: Colors.green),
+        );
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erreur lors de l'enregistrement : $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
@@ -135,22 +164,27 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
                     const SizedBox(height: 24),
                     _buildTextField("Bio / Description", LucideIcons.fileText, _bioCtrl, maxLines: 3),
                     const SizedBox(height: 40),
-                    /* Uncomment if needed to save
                     SizedBox(
                       width: double.infinity,
                       height: 50,
                       child: ElevatedButton(
-                        onPressed: _saveChanges,
+                        onPressed: _isSaving ? null : _saveChanges,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
+                          disabledBackgroundColor: AppColors.primary.withOpacity(0.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(25),
                           ),
                         ),
-                        child: const Text("Enregistrer les modifications", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text("Enregistrer les modifications", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
-                    */
                     const SizedBox(height: 80),
                   ],
                 ),
