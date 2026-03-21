@@ -14,7 +14,6 @@ import '../screens/admin/admin_providers_screen.dart';
 import '../screens/admin/admin_reservations_screen.dart';
 import '../screens/admin/admin_reviews_screen.dart';
 import '../screens/admin/admin_finances_screen.dart';
-import '../screens/admin/admin_statistics_screen.dart';
 import '../screens/admin/admin_settings_screen.dart';
 import '../screens/provider/provider_dashboard_screen.dart';
 import '../screens/provider/provider_reservations_screen.dart';
@@ -59,7 +58,6 @@ class AppRoutes {
   static const String adminReservations = '/admin/reservations';
   static const String adminReviews = '/admin/reviews';
   static const String adminFinances = '/admin/finances';
-  static const String adminStatistics = '/admin/statistics';
   static const String adminSettings = '/admin/settings';
   static const String review = '/review/:interventionId';
   static const String complaint = '/complaint/:interventionId';
@@ -254,10 +252,6 @@ final GoRouter router = GoRouter(
     GoRoute(
       path: AppRoutes.adminFinances,
       pageBuilder: (context, state) => const NoTransitionPage(child: AdminFinancesScreen()),
-    ),
-    GoRoute(
-      path: AppRoutes.adminStatistics,
-      pageBuilder: (context, state) => const NoTransitionPage(child: AdminStatisticsScreen()),
     ),
     GoRoute(
       path: AppRoutes.adminSettings,

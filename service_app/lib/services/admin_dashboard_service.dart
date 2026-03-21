@@ -153,16 +153,11 @@ class AdminDashboardService {
       revGrowth = '${growth >= 0 ? '+' : ''}${growth.toInt()}%';
     }
 
-    // Total finished / cancelled
     int finishedCount = 0;
     int cancelledCount = 0;
-    double interventionRevenue = 0;
     for (var doc in allInterv) {
       final s = doc.data()['statut'];
-      if (s == 'TERMINEE') {
-        finishedCount++;
-        interventionRevenue += (doc.data()['prixNegocie'] ?? 0.0);
-      }
+      if (s == 'TERMINEE') finishedCount++;
       if (s == 'ANNULEE' || s == 'REFUSEE') cancelledCount++;
     }
 
@@ -177,7 +172,7 @@ class AdminDashboardService {
       averageRating: avgRating,
       freeProviders: freeCount,
       premiumProviders: premiumCount,
-      totalRevenue: totalRevenue + interventionRevenue, // Subscription + Finished Bookings
+      totalRevenue: totalRevenue, // Sum of all subscription 'montant' only
       unreadNotifications: unreadCount,
       userGrowth: userGrowth,
       revenueGrowth: revGrowth,
@@ -784,13 +779,36 @@ class AdminDashboardService {
       final ts = data['dateDebut'] as Timestamp?;
       final dateStr = ts != null ? DateFormat('dd/MM/yyyy').format(ts.toDate()) : 'N/A';
 
+      final tsEnd = data['dateFin'] as Timestamp?;
+      final dateEndStr = tsEnd != null ? DateFormat('dd/MM/yyyy').format(tsEnd.toDate()) : 'Auto';
+
+      final rawStatus = (data['statut'] ?? 'ACTIVE') as String;
+      String statusLabel;
+      switch (rawStatus.toUpperCase()) {
+        case 'ACTIVE':
+          statusLabel = 'Actif';
+          break;
+        case 'EXPIREE':
+        case 'EXPIRE':
+        case 'EXPIRED':
+          statusLabel = 'Expiré';
+          break;
+        case 'ANNULE':
+        case 'CANCELLED':
+          statusLabel = 'Annulé';
+          break;
+        default:
+          statusLabel = rawStatus;
+      }
+
       result.add({
         'id': doc.id,
         'expertName': expertName,
         'pack': data['packId'] ?? 'Premium',
-        'amount': data['prix'] ?? 0,
+        'amount': data['montant'] ?? data['prix'] ?? 0,
         'date': dateStr,
-        'status': 'Payé', // Abonnements in collection are usually successful ones
+        'renewal': dateEndStr,
+        'status': statusLabel,
       });
     }
     return result;
