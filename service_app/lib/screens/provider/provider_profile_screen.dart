@@ -349,7 +349,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           icon: LucideIcons.barChart2,
           title: "Statistiques",
           onTap: () {
-            // context.push('/provider/${widget.expertId}/statistics');
+            context.push('/provider/${widget.expertId}/profile/statistics');
           },
         ),
         _buildMenuItem(
