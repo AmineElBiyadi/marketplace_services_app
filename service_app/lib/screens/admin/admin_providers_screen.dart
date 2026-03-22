@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
+import '../../widgets/admin/booking_detail_dialog.dart';
 
 class AdminProvidersScreen extends StatefulWidget {
   const AdminProvidersScreen({super.key});
@@ -253,6 +254,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                       constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 340),
                       child: DataTable(
                         columnSpacing: 24,
+                        showCheckboxColumn: false,
                         headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: _textSecondary),
                         columns: const [
                           DataColumn(label: Text('Prestataire')),
@@ -263,7 +265,17 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                           DataColumn(label: Text('Statut')),
                           DataColumn(label: Text('Actions')),
                         ],
-                        rows: _filteredProviders.map((p) => _buildDataRow(p)).toList(),
+                        rows: _filteredProviders.map((p) {
+                          return DataRow(
+                            onSelectChanged: (_) {
+                              showDialog(
+                                context: context,
+                                builder: (context) => UserProfileDetailDialog(id: p['id'], role: 'Prestataire'),
+                              );
+                            },
+                            cells: _buildCells(p), // Helper or inline cells
+                          );
+                        }).toList(),
                       ),
                     ),
                   ),
@@ -275,78 +287,93 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     );
   }
 
-  DataRow _buildDataRow(Map<String, dynamic> p) {
+  List<DataCell> _buildCells(Map<String, dynamic> p) {
     final status = p['status'] ?? 'DESACTIVE';
     final services = (p['services'] as List).take(2).join(', ');
     final moreServices = (p['services'] as List).length > 2 ? '...' : '';
-
-    return DataRow(
-      cells: [
-        DataCell(
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: _primary.withOpacity(0.1),
-                backgroundImage: p['imageUrl'] != null ? NetworkImage(p['imageUrl']) : null,
-                child: p['imageUrl'] == null
-                    ? Text(p['avatar'] ?? '??', style: const TextStyle(fontSize: 12, color: _primary, fontWeight: FontWeight.bold))
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(p['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text(p['zone'] ?? '', style: const TextStyle(fontSize: 11, color: _textSecondary)),
-                ],
-              ),
-            ],
-          ),
-        ),
-        DataCell(Text('$services$moreServices', style: const TextStyle(fontSize: 12))),
-        DataCell(_badge(p['pack'] ?? 'Gratuit', p['hasSubscription'] ? Colors.purple : _textSecondary)),
-        DataCell(Center(child: Text(p['interventionsCount'].toString()))),
-        DataCell(Row(
+    return [
+      DataCell(
+        Row(
           children: [
-            const Icon(Icons.star, color: Colors.amber, size: 16),
-            const SizedBox(width: 4),
-            Text(p['rating'].toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold)),
-          ],
-        )),
-        DataCell(_statusBadge(status)),
-        DataCell(
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(LucideIcons.eye, size: 18, color: _primary),
-                tooltip: 'Détails',
-                onPressed: () => _showDetailsDialog(p),
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: _primary.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-              if (status != 'ACTIVE')
-                IconButton(
-                  icon: const Icon(LucideIcons.checkCircle, size: 18, color: Colors.green),
-                  tooltip: 'Activer',
-                  onPressed: () => _updateStatus(p['id'], 'ACTIVE'),
-                ),
-              if (status == 'ACTIVE')
-                IconButton(
-                  icon: const Icon(LucideIcons.xCircle, size: 18, color: Colors.orange),
-                  tooltip: 'Désactiver',
-                  onPressed: () => _updateStatus(p['id'], 'DESACTIVE'),
-                ),
-              if (status != 'SUSPENDUE')
-                IconButton(
-                  icon: const Icon(LucideIcons.alertTriangle, size: 18, color: Colors.red),
-                  tooltip: 'Suspendre',
-                  onPressed: () => _updateStatus(p['id'], 'SUSPENDUE'),
-                ),
-            ],
-          ),
+              child: ClipOval(
+                child: p['imageUrl'] != null 
+                  ? Image.network(
+                      p['imageUrl'],
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Center(child: Text(p['avatar'] ?? '??', style: const TextStyle(fontSize: 12, color: _primary, fontWeight: FontWeight.bold))),
+                    )
+                  : Center(child: Text(p['avatar'] ?? '??', style: const TextStyle(fontSize: 12, color: _primary, fontWeight: FontWeight.bold))),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(p['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(p['zone'] ?? '', style: const TextStyle(fontSize: 11, color: _textSecondary)),
+              ],
+            ),
+          ],
         ),
-      ],
-    );
+      ),
+      DataCell(Text('$services$moreServices', style: const TextStyle(fontSize: 12))),
+      DataCell(_badge(p['pack'] ?? 'Gratuit', p['hasSubscription'] ? Colors.purple : _textSecondary)),
+      DataCell(Center(child: Text(p['interventionsCount'].toString()))),
+      DataCell(Row(
+        children: [
+          const Icon(Icons.star, color: Colors.amber, size: 16),
+          const SizedBox(width: 4),
+          Text(p['rating'].toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      )),
+      DataCell(_statusBadge(status)),
+      DataCell(
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(LucideIcons.eye, size: 18, color: _primary),
+              tooltip: 'Détails',
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => UserProfileDetailDialog(id: p['id'], role: 'Prestataire'),
+                );
+              },
+            ),
+            if (status != 'ACTIVE')
+              IconButton(
+                icon: const Icon(LucideIcons.checkCircle, size: 18, color: Colors.green),
+                tooltip: 'Activer',
+                onPressed: () => _updateStatus(p['id'], 'ACTIVE'),
+              ),
+            if (status == 'ACTIVE')
+              IconButton(
+                icon: const Icon(LucideIcons.xCircle, size: 18, color: Colors.orange),
+                tooltip: 'Désactiver',
+                onPressed: () => _updateStatus(p['id'], 'DESACTIVE'),
+              ),
+            if (status != 'SUSPENDUE')
+              IconButton(
+                icon: const Icon(LucideIcons.alertTriangle, size: 18, color: Colors.red),
+                tooltip: 'Suspendre',
+                onPressed: () => _updateStatus(p['id'], 'SUSPENDUE'),
+              ),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  DataRow _buildDataRow(Map<String, dynamic> p) {
+    return DataRow(cells: _buildCells(p));
   }
 
   Widget _statusBadge(String status) {
@@ -464,98 +491,106 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
 
   Widget _buildProviderCard(Map<String, dynamic> p) {
     final status = p['status'] ?? 'DESACTIVE';
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: _primary.withOpacity(0.1),
-                backgroundImage: p['imageUrl'] != null ? NetworkImage(p['imageUrl']) : null,
-                child: p['imageUrl'] == null
-                    ? Text(p['avatar'] ?? '??', style: const TextStyle(fontSize: 14, color: _primary, fontWeight: FontWeight.bold))
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(p['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    Text(p['zone'] ?? '', style: const TextStyle(fontSize: 11, color: _textSecondary)),
-                  ],
+    return InkWell(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) => UserProfileDetailDialog(id: p['id'], role: 'Prestataire'),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _border),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: _primary.withOpacity(0.1),
+                  backgroundImage: p['imageUrl'] != null ? NetworkImage(p['imageUrl']) : null,
+                  child: p['imageUrl'] == null
+                      ? Text(p['avatar'] ?? '??', style: const TextStyle(fontSize: 14, color: _primary, fontWeight: FontWeight.bold))
+                      : null,
                 ),
-              ),
-              _statusBadge(status),
-            ],
-          ),
-          const Divider(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Note', style: TextStyle(fontSize: 10, color: _textSecondary)),
-                  Row(
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.star, color: Colors.amber, size: 14),
-                      const SizedBox(width: 4),
-                      Text(p['rating'].toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      Text(p['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      Text(p['zone'] ?? '', style: const TextStyle(fontSize: 11, color: _textSecondary)),
                     ],
                   ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Offre', style: TextStyle(fontSize: 10, color: _textSecondary)),
-                  _badge(p['pack'] ?? 'Gratuit', p['hasSubscription'] ? Colors.purple : _textSecondary),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Text('Interventions', style: TextStyle(fontSize: 10, color: _textSecondary)),
-                  Text(p['interventionsCount'].toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              IconButton(
-                icon: const Icon(LucideIcons.eye, size: 20, color: _primary),
-                onPressed: () => _showDetailsDialog(p),
-              ),
-              const Spacer(),
-              if (status != 'ACTIVE')
-                IconButton(
-                  icon: const Icon(LucideIcons.checkCircle, size: 20, color: Colors.green),
-                  onPressed: () => _updateStatus(p['id'], 'ACTIVE'),
                 ),
-              if (status == 'ACTIVE')
-                IconButton(
-                  icon: const Icon(LucideIcons.xCircle, size: 20, color: Colors.orange),
-                  onPressed: () => _updateStatus(p['id'], 'DESACTIVE'),
+                _statusBadge(status),
+              ],
+            ),
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Note', style: TextStyle(fontSize: 10, color: _textSecondary)),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, color: Colors.amber, size: 14),
+                        const SizedBox(width: 4),
+                        Text(p['rating'].toStringAsFixed(1), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
+                  ],
                 ),
-              if (status != 'SUSPENDUE')
-                IconButton(
-                  icon: const Icon(LucideIcons.alertTriangle, size: 20, color: Colors.red),
-                  onPressed: () => _updateStatus(p['id'], 'SUSPENDUE'),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Offre', style: TextStyle(fontSize: 10, color: _textSecondary)),
+                    _badge(p['pack'] ?? 'Gratuit', p['hasSubscription'] ? Colors.purple : _textSecondary),
+                  ],
                 ),
-            ],
-          ),
-        ],
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('Interventions', style: TextStyle(fontSize: 10, color: _textSecondary)),
+                    Text(p['interventionsCount'].toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(LucideIcons.eye, size: 20, color: _primary),
+                  onPressed: () => _showDetailsDialog(p),
+                ),
+                const Spacer(),
+                if (status != 'ACTIVE')
+                  IconButton(
+                    icon: const Icon(LucideIcons.checkCircle, size: 20, color: Colors.green),
+                    onPressed: () => _updateStatus(p['id'], 'ACTIVE'),
+                  ),
+                if (status == 'ACTIVE')
+                  IconButton(
+                    icon: const Icon(LucideIcons.xCircle, size: 20, color: Colors.orange),
+                    onPressed: () => _updateStatus(p['id'], 'DESACTIVE'),
+                  ),
+                if (status != 'SUSPENDUE')
+                  IconButton(
+                    icon: const Icon(LucideIcons.alertTriangle, size: 20, color: Colors.red),
+                    onPressed: () => _updateStatus(p['id'], 'SUSPENDUE'),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

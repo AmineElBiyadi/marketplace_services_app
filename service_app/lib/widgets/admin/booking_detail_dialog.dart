@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:convert';
 import '../../services/admin_dashboard_service.dart';
 import '../../theme/app_colors.dart';
 
@@ -28,9 +30,9 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
-      final results = await _service.getFilteredReservations(query: widget.bookingId, limit: 1);
-      if (results.isNotEmpty) {
-        _booking = results.first;
+      final result = await _service.getReservationById(widget.bookingId);
+      if (result != null) {
+        _booking = result;
         _timeline = await _service.getReservationTimeline(widget.bookingId);
       }
       if (mounted) setState(() => _loading = false);
@@ -284,27 +286,44 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
       icon: LucideIcons.users,
       child: Column(
         children: [
-          _profileItem('Client', _booking!['clientName']),
+          _profileItem('Client', _booking!['clientName'], _booking!['idClient']),
           const Divider(height: 24),
-          _profileItem('Expert', _booking!['expertName']),
+          _profileItem('Expert', _booking!['expertName'], _booking!['idExpert']),
         ],
       ),
     );
   }
 
-  Widget _profileItem(String role, String name) {
-    return Row(
-      children: [
-        const CircleAvatar(radius: 16, child: Icon(LucideIcons.user, size: 16)),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _profileItem(String role, String name, String? id) {
+    return InkWell(
+      onTap: id != null ? () => _showUserProfileModal(id, role) : null,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
           children: [
-            Text(role, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-            Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const CircleAvatar(radius: 16, child: Icon(LucideIcons.user, size: 16)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(role, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            const Icon(LucideIcons.chevronRight, size: 14, color: Colors.grey),
           ],
         ),
-      ],
+      ),
+    );
+  }
+
+  void _showUserProfileModal(String id, String role) {
+    showDialog(
+      context: context,
+      builder: (context) => UserProfileDetailDialog(id: id, role: role),
     );
   }
 
@@ -314,15 +333,15 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
       icon: LucideIcons.shieldCheck,
       child: Column(
         children: [
-          _actionBtn('Accepter', Colors.green, () => _updateStatus('ACCEPTEE')),
+          _bookingActionBtn('Accepter', Colors.green, () => _updateStatus('ACCEPTEE')),
           const SizedBox(height: 8),
-          _actionBtn('Annuler', Colors.red, () => _updateStatus('ANNULEE')),
+          _bookingActionBtn('Annuler', Colors.red, () => _updateStatus('ANNULEE')),
         ],
       ),
     );
   }
 
-  Widget _actionBtn(String label, Color color, VoidCallback onTap) {
+  Widget _bookingActionBtn(String label, Color color, VoidCallback onTap) {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton(
@@ -371,5 +390,380 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
       decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
       child: Text(status, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
     );
+  }
+}
+
+class UserProfileDetailDialog extends StatefulWidget {
+  final String id;
+  final String role;
+  const UserProfileDetailDialog({super.key, required this.id, required this.role});
+
+  @override
+  State<UserProfileDetailDialog> createState() => _UserProfileDetailDialogState();
+}
+
+class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
+  final AdminDashboardService _service = AdminDashboardService();
+  bool _loading = true;
+  Map<String, dynamic>? _user;
+
+  // Theme Constants matching the Admin Dashboard
+  static const Color _primary = Color(0xFF0F172A);
+  static const Color _textPrimary = Color(0xFF0F172A);
+  static const Color _textSecondary = Color(0xFF64748B);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    setState(() => _loading = true);
+    final data = await _service.getUserProfile(widget.id, widget.role);
+    if (mounted) setState(() { _user = data; _loading = false; });
+  }
+
+  Future<void> _updateStatus(String status) async {
+    setState(() => _loading = true);
+    await _service.updateUserStatus(widget.id, widget.role, status);
+    await _loadUser();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Statut à jour. Email automatique envoyé à ${_user!['email']}'),
+          backgroundColor: Colors.green,
+        )
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: 400,
+        padding: const EdgeInsets.all(32),
+        child: _loading 
+          ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
+          : _user == null 
+            ? const Center(child: Text('Profil non trouvé'))
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildResilientAvatar(
+                      _user!['imageUrl']?.toString(),
+                      _user!['name']?.toString() ?? 'U',
+                    ),
+                    const SizedBox(height: 16),
+                    Text(_user!['name'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text('${widget.role} • ${_user!['status']}', style: TextStyle(color: _getStatusColor(_user!['status']))),
+                    const Divider(height: 32),
+                    _infoTile(LucideIcons.mail, _user!['email']),
+                    _infoTile(LucideIcons.phone, _user!['phone']),
+                    if (_user!['region'] != null) _infoTile(LucideIcons.mapPin, _user!['region']),
+                    const SizedBox(height: 32),
+                    const Text('CONTACTER L\'UTILISATEUR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: _contactBtn('E-mail', const Color(0xFFEA4335), LucideIcons.mail, () => _launchChannel('email'), enabled: _user!['email'].isNotEmpty),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _user!['email'].isNotEmpty ? _showEmailComposer : null,
+                      icon: const Icon(LucideIcons.penTool, size: 14),
+                      label: const Text('Composer un E-mail personnalisé', style: TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _primary,
+                        side: BorderSide(color: _primary),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    if (widget.role == 'Expert' || widget.role == 'Prestataire') ...[
+                      const Divider(height: 48),
+                      const Text('DOCUMENTS PROFESSIONNELS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                      const SizedBox(height: 16),
+                      _docTile(LucideIcons.contact, 'Carte Nationale', _user!['CarteNationale']?.toString() ?? 'Non fourni'),
+                      _docTile(LucideIcons.fileText, 'Casier Judiciaire', _user!['CasierJudiciaire']?.toString() ?? 'Non fourni'),
+                      _infoTile(LucideIcons.briefcase, 'Expérience: ${_user!['Experience']?.toString() ?? 'N/A'}'),
+                      if (_user!['services'] != null && (_user!['services'] as List).isNotEmpty)
+                        _infoTile(LucideIcons.settings, 'Services: ${(_user!['services'] as List).join(", ")}'),
+                    ],
+                    const SizedBox(height: 32),
+                    const Text('ACTIONS ET NOTIFICATIONS AUTO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text('Le changement de statut enverra un email automatique à l\'utilisateur.', style: TextStyle(fontSize: 9, fontStyle: FontStyle.italic, color: Colors.grey)),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(child: _userActionBtn('Activer', Colors.green, () => _updateStatus('ACTIVE'), isActive: _user!['status'] == 'ACTIVE')),
+                        const SizedBox(width: 8),
+                        Expanded(child: _userActionBtn('Suspendre', Colors.orange, () => _updateStatus('SUSPENDUE'), isActive: _user!['status'] == 'SUSPENDUE')),
+                        const SizedBox(width: 8),
+                        Expanded(child: _userActionBtn('Désactiver', Colors.red, () => _updateStatus('DESACTIVE'), isActive: _user!['status'] == 'DESACTIVE')),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  void _showEmailComposer() {
+    final subjectController = TextEditingController(text: 'Concernant votre compte Marketplace');
+    final bodyController = TextEditingController();
+    bool sending = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('Nouvel E-mail'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: subjectController,
+                decoration: const InputDecoration(labelText: 'Sujet', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: bodyController,
+                maxLines: 5,
+                decoration: const InputDecoration(labelText: 'Message', border: OutlineInputBorder(), alignLabelWithHint: true),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: sending ? null : () async {
+                if (bodyController.text.isEmpty) return;
+                setLocalState(() => sending = true);
+                await _service.sendAutomaticEmail(
+                  to: _user!['email'],
+                  subject: subjectController.text,
+                  html: "<p>${bodyController.text.replaceAll('\n', '<br>')}</p><p>Cordialement,<br>L'administration.</p>",
+                );
+                if (context.mounted) Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('E-mail envoyé avec succès'), backgroundColor: Colors.green));
+              },
+              child: sending ? const SizedBox(height: 15, width: 15, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Envoyer'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchChannel(String type) async {
+    Uri uri;
+    switch (type) {
+      case 'whatsapp':
+        String phone = _user!['phone'].replaceAll(RegExp(r'[^0-9+]'), '');
+        if (!phone.startsWith('+')) {
+          if (phone.startsWith('0')) phone = '+212${phone.substring(1)}';
+          else phone = '+212$phone';
+        }
+        final message = Uri.encodeComponent("Bonjour ${_user!['name']}, je suis l'administrateur de l'application Marketplace...");
+        uri = Uri.parse("https://wa.me/$phone?text=$message");
+        break;
+      case 'email':
+        uri = Uri(scheme: 'mailto', path: _user!['email'], queryParameters: {'subject': 'Concernant votre compte Marketplace'});
+        break;
+      case 'phone':
+        uri = Uri(scheme: 'tel', path: _user!['phone']);
+        break;
+      default: return;
+    }
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Widget _contactBtn(String label, Color color, IconData icon, VoidCallback onTap, {bool enabled = true}) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: enabled ? color.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: enabled ? color.withOpacity(0.3) : Colors.grey.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: enabled ? color : Colors.grey, size: 20),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(color: enabled ? color : Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoTile(IconData icon, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey),
+          const SizedBox(width: 12),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
+        ],
+      ),
+    );
+  }
+
+  Widget _docTile(IconData icon, String label, String value) {
+    final strValue = value.toString();
+    final isLong = strValue.length > 50;
+    final isUrl = strValue.startsWith('http');
+    final displayValue = isLong ? "Document fourni (cliquer pour voir)" : strValue;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
+                Text(displayValue, style: const TextStyle(fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          if (isLong || isUrl)
+            TextButton(
+              onPressed: () => _showFullDocument(label, strValue),
+              child: const Text('Visualiser', style: TextStyle(fontSize: 12)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showFullDocument(String label, String value) {
+    final bool isPdf = value.toLowerCase().endsWith('.pdf');
+    final bool isUrl = value.startsWith('http');
+
+    if (isPdf && isUrl) {
+      // Pour les PDFs, on ouvre dans le navigateur
+      _launchExternalUrl(value);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(label),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: value.startsWith('data:image') 
+              ? Image.memory(base64Decode(value.split(',').last))
+              : isUrl 
+                ? Image.network(
+                    value,
+                    errorBuilder: (context, error, stackTrace) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(LucideIcons.fileWarning, size: 48, color: Colors.orange),
+                        const SizedBox(height: 16),
+                        const Text("L'aperçu est bloqué par la sécurité du navigateur (CORS) ou le fichier n'est pas une image.", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () => _launchExternalUrl(value),
+                          icon: const Icon(LucideIcons.externalLink, size: 14),
+                          label: const Text("Ouvrir dans un nouvel onglet"),
+                        ),
+                      ],
+                    ),
+                  )
+                : Text(value),
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer'))],
+      ),
+    );
+  }
+
+  Future<void> _launchExternalUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Widget _buildResilientAvatar(String? url, String name) {
+    if (url == null || url.isEmpty) {
+      return CircleAvatar(
+        radius: 40,
+        backgroundColor: _primary.withOpacity(0.1),
+        child: Text(name.length >= 2 ? name.substring(0, 2).toUpperCase() : name.characters.take(1).toString().toUpperCase(), 
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _primary)),
+      );
+    }
+
+    if (url.startsWith('data:image')) {
+      try {
+        final bytes = base64Decode(url.split(',').last);
+        return CircleAvatar(radius: 40, backgroundImage: MemoryImage(bytes));
+      } catch (e) {
+        return CircleAvatar(radius: 40, child: Icon(LucideIcons.user));
+      }
+    }
+
+    return CircleAvatar(
+      radius: 40,
+      backgroundColor: Colors.grey[200],
+      child: ClipOval(
+        child: Image.network(
+          url,
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Text(
+            name.characters.take(1).toString().toUpperCase(),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _primary),
+          ),
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _userActionBtn(String label, Color color, VoidCallback onTap, {bool isActive = false}) {
+    return ElevatedButton(
+      onPressed: isActive ? null : onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: EdgeInsets.zero,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 11)),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    if (status == 'ACTIVE') return Colors.green;
+    if (status == 'SUSPENDUE') return Colors.orange;
+    return Colors.red;
   }
 }
