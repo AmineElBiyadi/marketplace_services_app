@@ -357,8 +357,21 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                           }
                           
                           if (inputCode == intervention.codeValidationExpert) {
-                            await _updateStatus(intervention.id!, "TERMINEE");
-                            if (mounted) Navigator.pop(context);
+                            try {
+                              await FirebaseFirestore.instance.collection('interventions').doc(intervention.id).update({
+                                'statut': 'TERMINEE',
+                                'dateFinIntervention': FieldValue.serverTimestamp(),
+                                'updatedAt': FieldValue.serverTimestamp(),
+                              });
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Status updated (TERMINEE)')),
+                                );
+                                Navigator.pop(context);
+                              }
+                            } catch (e) {
+                              setDialogState(() => errorText = "Error updating status: $e");
+                            }
                           } else {
                             setDialogState(() => errorText = "Invalid code");
                           }
@@ -386,33 +399,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
 
   Future<void> _showAcceptDialog(InterventionModel intervention) async {
     DateTime? selectedDate;
-    TaskModel? selectedTask;
-
-    // Fetch service ID based on intervention's servicename
-    final serviceName = intervention.tacheSnapshot?['serviceNom'];
-    String? serviceId;
-    if (serviceName != null) {
-      final serviceQuery = await FirebaseFirestore.instance
-          .collection('services')
-          .where('nom', isEqualTo: serviceName)
-          .limit(1)
-          .get();
-      if (serviceQuery.docs.isNotEmpty) {
-        serviceId = serviceQuery.docs.first.id;
-      }
-    }
-
-    // Fetch tasks using TaskModel
-    Query query = FirebaseFirestore.instance
-        .collection('taches')
-        .where('idExpert', isEqualTo: widget.expertId);
-        
-    if (serviceId != null) {
-      query = query.where('idService', isEqualTo: serviceId);
-    }
-        
-    final tasksQuery = await query.get();
-    final List<TaskModel> _expertTasks = tasksQuery.docs.map((d) => TaskModel.fromFirestore(d)).toList();
+    TextEditingController prixController = TextEditingController();
 
     if (!mounted) return;
 
@@ -485,27 +472,22 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                           ),
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      const Text("Specific Task", style: TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 24),
+                      const Text("Negotiated Price (DH)", style: TextStyle(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 8),
-                      DropdownButtonFormField<TaskModel>(
+                      TextField(
+                        controller: prixController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         decoration: InputDecoration(
+                          hintText: "Ex: 150",
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         ),
-                        hint: const Text("Select a task"),
-                        value: selectedTask,
-                        items: _expertTasks.map((t) {
-                          return DropdownMenuItem(
-                            value: t,
-                            child: Text(t.nom),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setModalState(() {
-                            selectedTask = val;
-                          });
-                        },
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        "Cette donnée est utilisée uniquement pour améliorer votre expérience.",
+                        style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
                       ),
                       const SizedBox(height: 32),
                       SizedBox(
@@ -517,9 +499,25 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                           onPressed: () async {
-                            if (selectedDate == null || selectedTask == null) {
+                            if (selectedDate == null) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Please select date and task')),
+                                const SnackBar(content: Text('Please select date')),
+                              );
+                              return;
+                            }
+                            
+                            final prixStr = prixController.text.trim();
+                            if (prixStr.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please enter the negotiated price')),
+                              );
+                              return;
+                            }
+
+                            final prix = double.tryParse(prixStr);
+                            if (prix == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Valid price required')),
                               );
                               return;
                             }
@@ -527,11 +525,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                             final updateData = {
                               'statut': 'ACCEPTEE',
                               'dateDebutIntervention': Timestamp.fromDate(selectedDate!),
-                              'idTacheExpert': selectedTask!.id,
-                              'tacheSnapshot': {
-                                'nom': selectedTask!.nom,
-                                'idService': selectedTask!.idService,
-                              },
+                              'prixNegocie': prix,
                               'updatedAt': FieldValue.serverTimestamp(),
                             };
                             
@@ -743,35 +737,30 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                         ],
                       ),
                       const SizedBox(height: 3),
-                      if (isPending || isRefused) ...[
-                        Text(
-                          serviceName,
-                          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.handyman_outlined, size: 13, color: Color(0xFF94A3B8)),
-                            const SizedBox(width: 4),
-                            Expanded(child: Text(taskName, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)))),
-                          ],
-                        ),
+                      Text(
+                        serviceName == 'Service not specified' ? taskName : serviceName,
+                        style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.handyman_outlined, size: 13, color: Color(0xFF94A3B8)),
+                          const SizedBox(width: 4),
+                          Expanded(child: Text(taskName, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)))),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.location_on_outlined, size: 13, color: Color(0xFF94A3B8)),
+                          const SizedBox(width: 4),
+                          Expanded(child: Text(displayAddress, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)))),
+                        ],
+                      ),
+                      if (!isPending && !isRefused) ...[
                         const SizedBox(height: 2),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.location_on_outlined, size: 13, color: Color(0xFF94A3B8)),
-                            const SizedBox(width: 4),
-                            Expanded(child: Text(displayAddress, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)))),
-                          ],
-                        ),
-                      ] else ...[
-                        Text(
-                          serviceName,
-                          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                        ),
-                        const SizedBox(height: 4),
                         Row(
                           children: [
                             const Icon(Icons.calendar_month_outlined, size: 13, color: Color(0xFF94A3B8)),
@@ -899,13 +888,17 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
     final currentStatus = _tabStatusMap[_tabs[_selectedTab]]!;
     final isWide = MediaQuery.of(context).size.width >= 700;
 
-    double gridExtent = 220;
+    double gridExtent = 250;
     switch (currentStatus) {
-      case "EN_ATTENTE": gridExtent = 205; break;
-      case "ACCEPTEE": gridExtent = 255; break;
+      case "EN_ATTENTE": gridExtent = 230; break;
+      case "ACCEPTEE": gridExtent = 310; break; // +55 for the extra lines
       case "TERMINEE": 
       case "ANNULEE": 
-      case "REFUSEE": gridExtent = 165; break;
+        gridExtent = 220; // +55 for the extra lines
+        break;
+      case "REFUSEE": 
+        gridExtent = 180; 
+        break;
     }
 
     return ProviderLayout(

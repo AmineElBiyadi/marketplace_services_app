@@ -455,7 +455,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                           onTap: () => Navigator.push(
                                             context,
                                             MaterialPageRoute(
-                                              builder: (_) => ExpertProfileScreen(expert: expert),
+                                                builder: (_) => ExpertProfileScreen(
+                                                  expert: expert,
+                                                  preSelectedService: _selectedCategory, 
+                                              ),
                                             ),
                                           ),
                                         );
@@ -499,7 +502,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                         onTap: () => Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (_) => ExpertProfileScreen(expert: expert),
+                                            builder: (_) => ExpertProfileScreen(
+                                                expert: expert,
+                                                preSelectedService: _selectedCategory,
+                                            ),
                                           ),
                                         ),
                                       );

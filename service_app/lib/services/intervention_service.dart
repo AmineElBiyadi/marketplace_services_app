@@ -161,10 +161,26 @@ class InterventionService {
     required Map<String, String> expertSnapshot,  // {nom, photo}
     required Map<String, dynamic> adresseSnapshot,
   }) async {
+    // Resolve the `clients` collection doc ID from the Firebase Auth UID
+    // so that idClient in interventions/chats matches what complaints queries use.
+    String resolvedClientId = clientId; // fallback to UID if lookup fails
+    try {
+      final clientQuery = await _db
+          .collection('clients')
+          .where('idUtilisateur', isEqualTo: clientId)
+          .limit(1)
+          .get();
+      if (clientQuery.docs.isNotEmpty) {
+        resolvedClientId = clientQuery.docs.first.id;
+      }
+    } catch (e) {
+      // If lookup fails, keep the UID as fallback
+    }
+
     // 1. Create the intervention doc
     final interventionRef = _db.collection('interventions').doc();
     await interventionRef.set({
-      'idClient': clientId,
+      'idClient': resolvedClientId,   // ← clients collection doc ID
       'idExpert': expertId,
       'idTacheExpert': idTacheExpert,
       'idAdresse': idAdresse,
@@ -183,9 +199,11 @@ class InterventionService {
     });
 
     // 2. Create the chat doc linked to this intervention
+    // NOTE: chats.idClient intentionally keeps the Firebase Auth UID (clientId)
+    // because chat_service.dart queries .where('idClient', isEqualTo: uid).
     final chatRef = _db.collection('chats').doc();
     await chatRef.set({
-      'idClient': clientId,
+      'idClient': clientId,          // ← Auth UID (chat service queries by UID)
       'idExpert': expertId,
       'idIntervention': interventionRef.id,
       'estOuvert': true,

@@ -105,7 +105,7 @@ class AdminDashboardService {
         .get();
     final openClaims = claimsSnap1.docs.length + claimsSnap2.docs.length;
 
-    // Revenue total: Somme des montants d'abonnements
+    // Revenue total + statuts premium
     final abonnementsSnap = await _db.collection('abonnements').get();
     double totalRevenue = 0;
     int premiumCount = 0;
@@ -113,8 +113,9 @@ class AdminDashboardService {
 
     for (var doc in abonnementsSnap.docs) {
       final data = doc.data();
+      final statut = (data['statut'] ?? '').toString().toUpperCase();
       totalRevenue += (data['montant'] ?? 0.0);
-      if (data['statut'] == 'ACTIVE') {
+      if (statut == 'ACTIVE' || statut == 'GRACE') {
         premiumCount++;
         premiumExpertIds.add(data['idExpert']);
       }
@@ -153,16 +154,11 @@ class AdminDashboardService {
       revGrowth = '${growth >= 0 ? '+' : ''}${growth.toInt()}%';
     }
 
-    // Total finished / cancelled
     int finishedCount = 0;
     int cancelledCount = 0;
-    double interventionRevenue = 0;
     for (var doc in allInterv) {
       final s = doc.data()['statut'];
-      if (s == 'TERMINEE') {
-        finishedCount++;
-        interventionRevenue += (doc.data()['prixNegocie'] ?? 0.0);
-      }
+      if (s == 'TERMINEE') finishedCount++;
       if (s == 'ANNULEE' || s == 'REFUSEE') cancelledCount++;
     }
 
@@ -177,7 +173,7 @@ class AdminDashboardService {
       averageRating: avgRating,
       freeProviders: freeCount,
       premiumProviders: premiumCount,
-      totalRevenue: totalRevenue + interventionRevenue, // Subscription + Finished Bookings
+      totalRevenue: totalRevenue, // Sum of all subscription 'montant' only
       unreadNotifications: unreadCount,
       userGrowth: userGrowth,
       revenueGrowth: revGrowth,
@@ -705,12 +701,28 @@ class AdminDashboardService {
     
     for (final doc in snap.docs) {
       final data = doc.data();
+      String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+      String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+      
+      // Fallback: Si les snapshots manquent, chercher dans l'intervention
+      if (clientName == 'Client' || expertName == 'Expert') {
+        final intervId = data['idIntervention'];
+        if (intervId != null) {
+          final intervDoc = await _db.collection('interventions').doc(intervId).get();
+          if (intervDoc.exists) {
+            final intervData = intervDoc.data()!;
+            clientName = intervData['clientSnapshot']?['nom'] ?? clientName;
+            expertName = intervData['expertSnapshot']?['nom'] ?? expertName;
+          }
+        }
+      }
+
       result.add({
         'id': doc.id,
         'note': (data['note'] ?? 0).toDouble(),
         'commentaire': data['commentaire'] ?? '',
-        'clientName': data['clientSnapshot']?['nom'] ?? 'Client',
-        'expertName': data['expertSnapshot']?['nom'] ?? 'Expert',
+        'clientName': clientName,
+        'expertName': expertName,
         'idIntervention': data['idIntervention'],
         'date': data['createdAt'] != null 
             ? DateFormat('dd/MM/yyyy').format((data['createdAt'] as Timestamp).toDate()) 
@@ -736,14 +748,30 @@ class AdminDashboardService {
     
     for (final doc in snap.docs) {
       final data = doc.data();
+      String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+      String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+
+      // Fallback: Si les snapshots manquent, chercher dans l'intervention
+      if (clientName == 'Client' || expertName == 'Expert') {
+        final intervId = data['idIntervention'];
+        if (intervId != null) {
+          final intervDoc = await _db.collection('interventions').doc(intervId).get();
+          if (intervDoc.exists) {
+            final intervData = intervDoc.data()!;
+            clientName = intervData['clientSnapshot']?['nom'] ?? clientName;
+            expertName = intervData['expertSnapshot']?['nom'] ?? expertName;
+          }
+        }
+      }
+
       result.add({
         'id': doc.id,
         'description': data['description'] ?? '',
         'typeReclamateur': data['typeReclamateur'] ?? 'CLIENT',
         'etat': data['etatReclamation'] ?? 'EN_ATTENTE',
         'idIntervention': data['idIntervention'],
-        'clientName': data['clientSnapshot']?['nom'] ?? 'Client',
-        'expertName': data['expertSnapshot']?['nom'] ?? 'Expert',
+        'clientName': clientName,
+        'expertName': expertName,
         'adminResponse': data['adminResponse'],
         'date': data['createdAt'] != null 
             ? DateFormat('dd/MM/yyyy').format((data['createdAt'] as Timestamp).toDate()) 
@@ -784,15 +812,103 @@ class AdminDashboardService {
       final ts = data['dateDebut'] as Timestamp?;
       final dateStr = ts != null ? DateFormat('dd/MM/yyyy').format(ts.toDate()) : 'N/A';
 
+      final tsEnd = data['dateFin'] as Timestamp?;
+      final dateEndStr = tsEnd != null ? DateFormat('dd/MM/yyyy').format(tsEnd.toDate()) : 'Auto';
+
+      final rawStatus = (data['statut'] ?? 'ACTIVE') as String;
+      String statusLabel;
+      switch (rawStatus.toUpperCase()) {
+        case 'ACTIVE':
+          statusLabel = 'Actif';
+          break;
+        case 'GRACE':
+          statusLabel = 'Grâce';
+          break;
+        case 'SUSPENDU':
+        case 'SUSPENDED':
+          statusLabel = 'Suspendu';
+          break;
+        case 'EXPIREE':
+        case 'EXPIRE':
+        case 'EXPIRED':
+          statusLabel = 'Expiré';
+          break;
+        case 'ANNULE':
+        case 'CANCELLED':
+          statusLabel = 'Annulé';
+          break;
+        default:
+          statusLabel = rawStatus;
+      }
+
       result.add({
         'id': doc.id,
         'expertName': expertName,
         'pack': data['packId'] ?? 'Premium',
-        'amount': data['prix'] ?? 0,
+        'amount': data['montant'] ?? data['prix'] ?? 0,
         'date': dateStr,
-        'status': 'Payé', // Abonnements in collection are usually successful ones
+        'renewal': dateEndStr,
+        'status': statusLabel,
       });
     }
     return result;
+  }
+
+  // ─── Grace Subscriptions (Paiements Échoués) ────────────────────────────────
+  /// Returns all subscriptions currently in GRACE period (failed payment, retrying).
+  Future<List<Map<String, dynamic>>> getGraceSubscriptions() async {
+    final snap = await _db
+        .collection('abonnements')
+        .where('statut', whereIn: ['GRACE', 'SUSPENDU', 'SUSPENDED'])
+        .get();
+    final List<Map<String, dynamic>> result = [];
+
+    for (final doc in snap.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final expertDoc = await _db.collection('experts').doc(data['idExpert']).get();
+      String expertName = 'Expert';
+      if (expertDoc.exists) {
+        final exUserDoc = await _db
+            .collection('utilisateurs')
+            .doc(expertDoc.data()?['idUtilisateur'])
+            .get();
+        expertName = exUserDoc.data()?['nom'] ?? exUserDoc.data()?['email'] ?? 'Expert';
+      }
+
+      final graceTs = (data['graceStartedAt'] ?? data['updatedAt']) as Timestamp?;
+      final dateStr = graceTs != null
+          ? DateFormat('dd/MM/yyyy').format(graceTs.toDate())
+          : 'N/A';
+
+      result.add({
+        'id': doc.id,
+        'idExpert': data['idExpert'],
+        'provider': expertName,
+        'amount': '${data['montant'] ?? 99} DH',
+        'date': dateStr,
+        'attempts': (data['retryCount'] ?? 1) as int,
+      });
+    }
+    return result;
+  }
+
+  /// Admin: manually suspends a subscription.
+  Future<void> suspendSubscription(String subscriptionId) async {
+    await _db.collection('abonnements').doc(subscriptionId).update({
+      'statut': 'SUSPENDU',
+      'suspendedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Admin: reactivates a suspended/grace subscription.
+  Future<void> reactivateSubscription(String subscriptionId) async {
+    await _db.collection('abonnements').doc(subscriptionId).update({
+      'statut': 'ACTIVE',
+      'suspendedAt': null,
+      'graceStartedAt': null,
+      'retryCount': 0,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 }
