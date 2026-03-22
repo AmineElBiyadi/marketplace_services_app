@@ -75,6 +75,7 @@ class InterventionModel {
       prixNegocie: (data['prixNegocie'] as num?)?.toDouble() ?? 0.0,
       codeValidationExpert: data['codeValidationExpert'],
       dateDebutIntervention: date,
+
       dateFinIntervention: (data['dateFinIntervention'] as Timestamp?)?.toDate(),
       motifeAnnulation: data['motifeAnnulation'],
       annulerPar: data['annulerPar'],
