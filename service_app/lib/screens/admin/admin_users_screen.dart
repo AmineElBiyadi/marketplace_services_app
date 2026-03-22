@@ -96,7 +96,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          const Text('Gestion des Utilisateurs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
+          const Text('Gestion des Clients', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
           const Spacer(),
           IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
         ],
@@ -129,36 +129,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDropdownFilter(
-                            value: _selectedRole,
-                            items: ['Tous', 'Client', 'Prestataire'],
-                            label: 'Rôle',
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() => _selectedRole = val);
-                                _applyFilters();
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildDropdownFilter(
-                            value: _selectedStatus,
-                            items: ['Tous', 'Actif', 'Suspendu'],
-                            label: 'Statut',
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() => _selectedStatus = val);
-                                _applyFilters();
-                              }
-                            },
-                          ),
-                        ),
-                      ],
+                    _buildDropdownFilter(
+                      value: _selectedStatus,
+                      items: ['Tous', 'Actif', 'Suspendu'],
+                      label: 'Statut',
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _selectedStatus = val);
+                          _applyFilters();
+                        }
+                      },
                     ),
                   ],
                 )

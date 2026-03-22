@@ -131,13 +131,13 @@ class AdminDashboardService {
     final notifSnap = await _db.collection('notifications').where('estLue', isEqualTo: false).get();
     final unreadCount = notifSnap.docs.length;
 
-    // Calcul de la croissance (Utilisateurs)
+    // Calcul de la croissance (Clients)
     final lastMonth = DateTime(now.year, now.month - 1, now.day);
-    final usersLastMonthSnap = await _db.collection('utilisateurs').where('created_At', isLessThan: Timestamp.fromDate(lastMonth)).get();
-    final usersLastMonth = usersLastMonthSnap.docs.length;
+    final clientsLastMonthSnap = await _db.collection('clients').where('createdAt', isLessThan: Timestamp.fromDate(lastMonth)).get();
+    final clientsLastMonth = clientsLastMonthSnap.docs.length;
     String userGrowth = '';
-    if (usersLastMonth > 0) {
-      double growth = ((totalUsers - usersLastMonth) / usersLastMonth) * 100;
+    if (clientsLastMonth > 0) {
+      double growth = ((totalClients - clientsLastMonth) / clientsLastMonth) * 100;
       userGrowth = '${growth >= 0 ? '+' : ''}${growth.toInt()}%';
     }
 
@@ -389,18 +389,21 @@ class AdminDashboardService {
 
     final List<Map<String, dynamic>> result = [];
     for (final doc in snap.docs) {
+      if (result.length >= limit) break;
+
       final data = doc.data() as Map<String, dynamic>;
       final name = data['nom'] ?? data['email'] ?? 'Utilisateur';
 
-      String type = 'Client';
       final expertCheck = await _db.collection('experts').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
       final adminCheck = await _db.collection('admins').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
-      if (adminCheck.docs.isNotEmpty) type = 'Admin';
-      else if (expertCheck.docs.isNotEmpty) type = 'Prestataire';
+      
+      if (adminCheck.docs.isNotEmpty || expertCheck.docs.isNotEmpty) {
+        continue; // Skip non-clients
+      }
 
       result.add({
         'name': name,
-        'type': type,
+        'type': 'Client',
         'date': _formatRelativeDate(data['created_At']),
         'phone': data['telephone'] ?? '',
         'imageUrl': data['image_profile'],
@@ -448,11 +451,8 @@ class AdminDashboardService {
       final adminCheck = await _db.collection('admins').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
       
       String status = 'Actif';
-      if (adminCheck.docs.isNotEmpty) {
-        continue; // Skip admins
-      } else if (expertCheck.docs.isNotEmpty) {
-        type = 'Prestataire';
-        status = expertCheck.docs.first.data()['etatCompte'] == 'ACTIVE' ? 'Actif' : 'Suspendu';
+      if (adminCheck.docs.isNotEmpty || expertCheck.docs.isNotEmpty) {
+        continue; // Skip admins and providers (experts)
       }
 
       result.add({

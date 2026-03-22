@@ -76,7 +76,7 @@ class _AdminSidebarState extends State<AdminSidebar> {
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
               children: [
                 _sidebarItem(LucideIcons.home, 'Tableau de bord', '/admin'),
-                _sidebarItem(LucideIcons.users, 'Utilisateurs', '/admin/users'),
+                _sidebarItem(LucideIcons.users, 'Clients', '/admin/users'),
                 _sidebarItem(LucideIcons.wrench, 'Prestataires', '/admin/providers'),
                 _sidebarItem(LucideIcons.calendarDays, 'Réservations', '/admin/reservations'),
                 _sidebarItem(LucideIcons.star, 'Avis & Réclamations', '/admin/reviews'),

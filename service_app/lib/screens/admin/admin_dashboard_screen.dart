@@ -230,7 +230,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       spacing: 16,
       runSpacing: 16,
       children: [
-        _kpiItem('Total Utilisateurs', s.totalUsers.toString(), LucideIcons.users, _primary.withOpacity(0.1), _primary, s.userGrowth),
+        _kpiItem('Total Clients', s.totalClients.toString(), LucideIcons.users, _primary.withOpacity(0.1), _primary, s.userGrowth),
         _kpiItem('Réservations du mois', s.reservationsThisMonth.toString(), LucideIcons.calendarDays, Colors.blue.withOpacity(0.1), Colors.blue, ''),
         _kpiItem('Revenus totaux', '${NumberFormat("#,##0", "fr_FR").format(s.totalRevenue)} DH', LucideIcons.dollarSign, Colors.green.withOpacity(0.1), Colors.green, s.revenueGrowth),
         _kpiItem('En attente', s.pendingProviders.toString(), LucideIcons.clock, Colors.amber.withOpacity(0.1), Colors.amber, ''),
@@ -505,7 +505,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               const SizedBox(width: 24),
               Expanded(child: _panelWrapper('Réclamations urgentes', _buildClaimsList(), '/admin/reviews')),
               const SizedBox(width: 24),
-              Expanded(child: _panelWrapper('Dernières inscriptions', _buildUsersList(), '/admin/users')),
+              Expanded(child: _panelWrapper('Derniers Clients', _buildUsersList(), '/admin/users')),
             ],
           )
         else ...[
@@ -513,7 +513,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 24),
           _panelWrapper('Réclamations urgentes', _buildClaimsList(), '/admin/reviews'),
           const SizedBox(height: 24),
-          _panelWrapper('Dernières inscriptions', _buildUsersList(), '/admin/users'),
+          _panelWrapper('Derniers Clients', _buildUsersList(), '/admin/users'),
         ],
       ],
     );
