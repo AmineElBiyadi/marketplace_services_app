@@ -14,6 +14,7 @@ import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
 import '../../../services/location_service.dart';
 import '../../shared/map_confirm_screen.dart';
+import '../../../models/service.dart';
 
 class ProviderSignupScreen extends StatefulWidget {
   const ProviderSignupScreen({super.key});
@@ -53,7 +54,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
   bool _detectingLoc = false;
 
   // ── Step 2 ─────────────────────────────────────────────────
-  List<Map<String, dynamic>> _services = [];
+  List<ServiceModel> _services = [];
   bool _isLoadingServices = false;
   final List<String> _selectedServiceIds = [];
   final _descriptionController = TextEditingController();
@@ -608,8 +609,8 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                     children: _services.map((service) {
-                      final id = service['id'] as String;
-                      final nom = service['nom'] as String;
+                      final id = service.id ?? '';
+                      final nom = service.nom;
                       final selected = _selectedServiceIds.contains(id);
                       return GestureDetector(
                         onTap: () {
