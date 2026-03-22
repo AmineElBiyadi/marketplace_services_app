@@ -406,6 +406,11 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
   bool _loading = true;
   Map<String, dynamic>? _user;
 
+  // Theme Constants matching the Admin Dashboard
+  static const Color _primary = Color(0xFF0F172A);
+  static const Color _textPrimary = Color(0xFF0F172A);
+  static const Color _textSecondary = Color(0xFF64748B);
+
   @override
   void initState() {
     super.initState();
@@ -472,7 +477,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                     label: const Text('Composer un E-mail personnalisé', style: TextStyle(fontSize: 12)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: _primary,
-                      side: const BorderSide(color: _primary),
+                      side: BorderSide(color: _primary),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
