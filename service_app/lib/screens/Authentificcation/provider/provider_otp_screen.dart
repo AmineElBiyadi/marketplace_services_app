@@ -8,7 +8,9 @@ import '../../../widgets/custom_button.dart';
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../services/firestore_service.dart';
+
 
 class ProviderOTPScreen extends StatefulWidget {
   final Map<String, dynamic>? extraData;
@@ -62,6 +64,15 @@ class _ProviderOTPScreenState extends State<ProviderOTPScreen> {
         cinFrontBase64: widget.extraData!['cinFront'],
         cinBackBase64: widget.extraData!['cinBack'],
         certificateBase64: widget.extraData!['certificate'],
+        ville: widget.extraData!['ville'],
+        pays: widget.extraData!['pays'],
+        numBatiment: widget.extraData!['num_batiment'],
+        rue: widget.extraData!['rue'],
+        quartier: widget.extraData!['quartier'],
+        codePostal: widget.extraData!['code_postal'],
+        location: (widget.extraData!['lat'] != null && widget.extraData!['lng'] != null)
+            ? GeoPoint(widget.extraData!['lat'], widget.extraData!['lng'])
+            : null,
       );
 
       if (mounted) {

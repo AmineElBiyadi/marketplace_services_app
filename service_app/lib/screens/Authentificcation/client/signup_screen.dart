@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:convert';
 import 'package:go_router/go_router.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../theme/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
 import '../../../services/location_service.dart';
 import '../../../utils/auth_errors.dart';
+import '../../shared/map_confirm_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -35,7 +40,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _paysController        = TextEditingController(text: 'Maroc');
 
   // ── Detected coords ───────────────────────────────────────────
-  GeoPoint? _detectedGeoPoint;
+  GeoPoint? _confirmedGeoPoint;  // user-confirmed via map
 
   // ── Services ──────────────────────────────────────────────────
   final _authService      = AuthService();
@@ -60,7 +65,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   bool get _step2Valid =>
-      _villeController.text.isNotEmpty && _quartierController.text.isNotEmpty;
+      _villeController.text.isNotEmpty;
 
   @override
   void dispose() {
@@ -78,7 +83,51 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  // ── Detect Location ───────────────────────────────────────────
+  // ── Smart Geocoding Fallback ────────────────────────────────
+  Future<Map<String, String>?> _fallbackReverseGeocode(double lat, double lon) async {
+    try {
+      final url = Uri.parse('https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon&zoom=18&addressdetails=1');
+      final headers = kIsWeb ? <String, String>{} : {'User-Agent': 'service_app_amine/1.0'};
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data != null && data['address'] != null) {
+          final addr = data['address'];
+          return {
+            'street': addr['road'] ?? '',
+            'subLocality': addr['suburb'] ?? addr['neighbourhood'] ?? '',
+            'locality': addr['city'] ?? addr['town'] ?? addr['village'] ?? addr['state'] ?? '',
+            'postalCode': addr['postcode'] ?? '',
+            'country': addr['country'] ?? 'Maroc',
+          };
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // ── Nominatim forward geocode (city/country → lat/lng) ────────
+  Future<Map<String, double>?> _forwardGeocode(String query) async {
+    try {
+      final encoded = Uri.encodeComponent(query);
+      final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/search?format=json&q=$encoded&limit=1');
+      final headers = kIsWeb ? <String, String>{} : {'User-Agent': 'service_app_amine/1.0'};
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List;
+        if (data.isNotEmpty) {
+          return {
+            'lat': double.parse(data[0]['lat'].toString()),
+            'lng': double.parse(data[0]['lon'].toString()),
+          };
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // ── Detect Location (GPS) ─────────────────────────────────────
   Future<void> _detectLocation() async {
     setState(() => _detectingLoc = true);
     try {
@@ -88,40 +137,52 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
 
-      setState(() {
-        _detectedGeoPoint = GeoPoint(pos.latitude, pos.longitude);
-      });
-
+      // Reverse geocode — fill only city + country
+      String city = '';
+      String country = 'Maroc';
       try {
         final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
         if (placemarks.isNotEmpty) {
           final p = placemarks.first;
-          setState(() {
-            // We only fill reliable information. We don't touch NumBatiment.
-            if (p.street != null && p.street!.isNotEmpty) _rueController.text = p.street!;
-            if (p.subLocality != null && p.subLocality!.isNotEmpty) {
-              _quartierController.text = p.subLocality!;
-            } else if (p.locality != null && p.locality!.isNotEmpty) {
-               _quartierController.text = p.locality!;
-            }
-            if (p.administrativeArea != null && p.administrativeArea!.isNotEmpty) {
-              _villeController.text = p.administrativeArea!;
-            } else if (p.locality != null && p.locality!.isNotEmpty) {
-              _villeController.text = p.locality!;
-            }
-            if (p.postalCode != null && p.postalCode!.isNotEmpty) _codePostalController.text = p.postalCode!;
-            if (p.country != null && p.country!.isNotEmpty) _paysController.text = p.country!;
-          });
+          city = p.administrativeArea ?? p.locality ?? '';
+          country = p.country ?? 'Maroc';
         }
-      } catch (e) {
-        // Geocoding failed (common on emulator without Play Services).
-        // We do absolutely nothing here because the GPS coordinates were already saved successfully.
+      } catch (_) {}
+
+      if (city.isEmpty) {
+        final fb = await _fallbackReverseGeocode(pos.latitude, pos.longitude);
+        if (fb != null) {
+          city = fb['locality'] ?? '';
+          country = fb['country'] ?? 'Maroc';
+        }
       }
-      
-      // Show success instead of error!
-      if (mounted) {
+
+      if (mounted) setState(() {
+        if (city.isNotEmpty) _villeController.text = city;
+        _paysController.text = country;
+      });
+
+      // Open map for user to confirm/adjust pin
+      if (!mounted) return;
+      final result = await Navigator.push<MapConfirmResult>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MapConfirmScreen(
+            initialLat: pos.latitude,
+            initialLng: pos.longitude,
+            initialCity: city,
+            initialCountry: country,
+          ),
+        ),
+      );
+      if (result != null && mounted) {
+        setState(() {
+          _confirmedGeoPoint = result.geoPoint;
+          if (result.city.isNotEmpty) _villeController.text = result.city;
+          if (result.country.isNotEmpty) _paysController.text = result.country;
+        });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Position GPS détectée avec succès !'),
+          content: Text('Position confirm\u00e9e !'),
           backgroundColor: Colors.green,
         ));
       }
@@ -131,19 +192,6 @@ class _SignupScreenState extends State<SignupScreen> {
     } finally {
       if (mounted) setState(() => _detectingLoc = false);
     }
-  }
-
-  // ── Geocode address to GeoPoint ───────────────────────────────
-  Future<GeoPoint?> _geocodeAddress() async {
-    try {
-      final address =
-          '${_numBatCtrl.text} ${_rueController.text}, ${_quartierController.text}, ${_villeController.text}, ${_paysController.text}';
-      final locations = await locationFromAddress(address);
-      if (locations.isNotEmpty) {
-        return GeoPoint(locations.first.latitude, locations.first.longitude);
-      }
-    } catch (_) {}
-    return null;
   }
 
   // ── Signup ────────────────────────────────────────────────────
@@ -172,16 +220,44 @@ class _SignupScreenState extends State<SignupScreen> {
         setState(() => _isLoading = false);
         if (mounted) {
           _showError(duplicateField == 'phone'
-              ? 'Ce numéro de téléphone est déjà utilisé.'
-              : 'Cet email est déjà utilisé.');
+              ? 'Ce num\u00e9ro de t\u00e9l\u00e9phone est d\u00e9j\u00e0 utilis\u00e9.'
+              : 'Cet email est d\u00e9j\u00e0 utilis\u00e9.');
         }
         return;
       }
 
-      // Geocode address if not already detected
-      GeoPoint? addressGeoPoint = _detectedGeoPoint ?? await _geocodeAddress();
+      // Use map-confirmed GeoPoint; if not yet confirmed, open map now
+      GeoPoint? addressGeoPoint = _confirmedGeoPoint;
+      if (addressGeoPoint == null && _step2Valid) {
+        final city = _villeController.text.trim();
+        final country = _paysController.text.trim();
+        double lat = 31.7917;
+        double lng = -7.0926;
+        setState(() => _isLoading = false);
+        final coords = await _forwardGeocode('$city, $country');
+        if (coords != null) { lat = coords['lat']!; lng = coords['lng']!; }
+        if (!mounted) return;
+        final result = await Navigator.push<MapConfirmResult>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MapConfirmScreen(
+              initialLat: lat,
+              initialLng: lng,
+              initialCity: city,
+              initialCountry: country,
+              initialZoom: 11.0,
+            ),
+          ),
+        );
+        if (result == null) return; // user cancelled
+        addressGeoPoint = result.geoPoint;
+        setState(() {
+          _confirmedGeoPoint = addressGeoPoint;
+          _isLoading = true;
+        });
+      }
 
-      // Build address data map  
+      // Build address data map
       final addressData = _step2Valid ? {
         'rue':        _rueController.text.trim(),
         'numBatiment': _numBatCtrl.text.trim(),
@@ -193,20 +269,29 @@ class _SignupScreenState extends State<SignupScreen> {
       } : null;
 
       final extraData = {
-        'name':    _nameController.text.trim(),
-        'phone':   _phoneController.text.trim(),
-        'email':   _emailController.text.trim(),
-        'role':    'client',
+        'name':  _nameController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'email': _emailController.text.trim(),
+        'role':  'client',
         if (addressData != null) 'address': addressData,
         if (addressGeoPoint != null) 'lat': addressGeoPoint.latitude,
         if (addressGeoPoint != null) 'lng': addressGeoPoint.longitude,
       };
 
+
       if (hasPhone) {
-        await _authService.signUpWithPhoneProxy(
-          phone: phoneToCheck,
-          password: _passwordController.text,
-        );
+        try {
+          await _authService.signUpWithPhoneProxy(
+            phone: phoneToCheck,
+            password: _passwordController.text,
+          );
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'email-already-in-use') {
+            throw Exception('Ce numéro de téléphone est déjà lié à un compte.');
+          }
+          rethrow;
+        }
+        
         await _authService.verifyPhoneNumber(
           phoneNumber: phoneToCheck,
           onVerificationCompleted: (_) => setState(() => _isLoading = false),
@@ -449,16 +534,16 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
       ),
     ),
-    if (_detectedGeoPoint != null)
-      Padding(
-        padding: const EdgeInsets.only(top: 8),
+    if (_confirmedGeoPoint != null)
+      const Padding(
+        padding: EdgeInsets.only(top: 8),
         child: Row(
           children: [
-            const Icon(Icons.check_circle, color: Colors.green, size: 16),
-            const SizedBox(width: 6),
+            Icon(Icons.check_circle, color: Colors.green, size: 16),
+            SizedBox(width: 6),
             Text(
-              'Position détectée (${_detectedGeoPoint!.latitude.toStringAsFixed(4)}, ${_detectedGeoPoint!.longitude.toStringAsFixed(4)})',
-              style: const TextStyle(fontSize: 12, color: Colors.green),
+              'Position confirmée sur la carte',
+              style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
             ),
           ],
         ),
