@@ -218,6 +218,29 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
         }
       }
 
+      // --- 5. Prepare Rating Evolution Chart Data (Last 6 months) ---
+      List<FlSpot> ratingSpots = [];
+      List<String> monthLabels = [];
+      final mNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+      for (int i = 5; i >= 0; i--) {
+        DateTime m = DateTime(now.year, now.month - i, 1);
+        int monthIdx = m.month;
+        monthLabels.add(mNames[monthIdx - 1]);
+
+        double avgM = 0.0;
+        if (ratingsByMonth.containsKey(monthIdx)) {
+          final notes = ratingsByMonth[monthIdx]!;
+          if (notes.isNotEmpty) {
+            avgM = notes.reduce((a, b) => a + b) / notes.length;
+          }
+        } else {
+          // If no notes for this month, use the global average or 0
+          avgM = 0.0; 
+        }
+        ratingSpots.add(FlSpot((6 - i).toDouble(), avgM));
+      }
+
       if (mounted) {
         setState(() {
           _profileViews = totalViewsForPeriod;
@@ -227,6 +250,7 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
           _loyalCustomers = loyalCustomers;
           _averageRating = averageRating;
           _topSkills = top5Skills.isEmpty ? {"General Plumbing": 45, "Leak repair": 32, "Sanitary installation": 28, "Unclogging": 18, "Water heater": 12} : top5Skills;
+
           _ratingEvolutionSpots = ratingSpots;
           _ratingEvolutionLabels = monthLabels;
           _averageRatingTrend = avgRatingTrend;
