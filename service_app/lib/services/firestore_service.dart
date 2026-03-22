@@ -9,6 +9,7 @@ import '../models/service.dart';
 import '../models/task_model.dart';
 import '../models/task_expert_model.dart';
 import '../models/expert_service_model.dart';
+import 'location_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -634,10 +635,24 @@ class FirestoreService {
     }
   }
 
-  /// Returns only experts that have a non-null GeoPoint location stored.
+  /// Returns only experts that have a non-null GeoPoint location stored (or falls back to city geocoding).
   Future<List<Expert>> getExpertsWithLocation() async {
     final all = await getExperts();
-    return all.where((e) => e.location != null).toList();
+    final locationService = LocationService();
+    
+    List<Expert> result = [];
+    for (var e in all) {
+      if (e.location != null) {
+        result.add(e);
+      } else if (e.ville.isNotEmpty) {
+        // Fallback to geocoding the expert's city
+        final geopoint = await locationService.getCoordinatesFromCity(e.ville);
+        if (geopoint != null) {
+          result.add(e.copyWith(location: geopoint));
+        }
+      }
+    }
+    return result;
   }
 
   Future<Expert?> getExpertDetailed(String expertId) async {
@@ -1581,6 +1596,14 @@ class FirestoreService {
     required String? cinFrontBase64,
     required String? cinBackBase64,
     required String? certificateBase64,
+    // Optional address fields
+    String? ville,
+    String? pays,
+    String? numBatiment,
+    String? rue,
+    String? quartier,
+    String? codePostal,
+    GeoPoint? location,
   }) async {
     final uid = _auth.currentUser!.uid;
 
@@ -1589,7 +1612,7 @@ class FirestoreService {
       'updated_At': FieldValue.serverTimestamp(),
       'email': email,
       'image_profile': null,
-      'location': null,
+      'location': location,
       'nom': name,
       'telephone': phone,
       'token': '',
@@ -1617,6 +1640,21 @@ class FirestoreService {
         'anneeExperience': 0,
         'estActive': true,
         'estCertifie': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Save address document if address data was provided
+    if (ville != null && ville.isNotEmpty) {
+      await _firestore.collection('adresses').add({
+        'idUtilisateur': uid,
+        'Rue': rue ?? '',
+        'NumBatiment': numBatiment ?? '',
+        'Quartier': quartier ?? '',
+        'Ville': ville,
+        'CodePostal': codePostal ?? '',
+        'Pays': pays ?? 'Maroc',
+        if (location != null) 'location': location,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
