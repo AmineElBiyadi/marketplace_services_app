@@ -452,10 +452,9 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundImage: _user!['imageUrl'] != null ? NetworkImage(_user!['imageUrl']) : null,
-                      child: _user!['imageUrl'] == null ? const Icon(LucideIcons.user, size: 40) : null,
+                    _buildResilientAvatar(
+                      _user!['imageUrl']?.toString(),
+                      _user!['name']?.toString() ?? 'U',
                     ),
                     const SizedBox(height: 16),
                     Text(_user!['name'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -671,24 +670,26 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
-            child: isUrl 
-              ? Image.network(
-                  value,
-                  errorBuilder: (context, error, stackTrace) => Column(
-                    children: [
-                      const Icon(LucideIcons.fileWarning, size: 48, color: Colors.orange),
-                      const SizedBox(height: 16),
-                      const Text("Impossible d'afficher l'aperçu directement.", textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: () => _launchExternalUrl(value),
-                        child: const Text("Ouvrir le document externe"),
-                      ),
-                    ],
-                  ),
-                )
-              : value.startsWith('data:image') || value.length > 500
-                ? const Text("Données du document (format volumineux ou base64).\nUtilisez un format d'image valide pour l'aperçu.", textAlign: TextAlign.center)
+            child: value.startsWith('data:image') 
+              ? Image.memory(base64Decode(value.split(',').last))
+              : isUrl 
+                ? Image.network(
+                    value,
+                    errorBuilder: (context, error, stackTrace) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(LucideIcons.fileWarning, size: 48, color: Colors.orange),
+                        const SizedBox(height: 16),
+                        const Text("L'aperçu est bloqué par la sécurité du navigateur (CORS) ou le fichier n'est pas une image.", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () => _launchExternalUrl(value),
+                          icon: const Icon(LucideIcons.externalLink, size: 14),
+                          label: const Text("Ouvrir dans un nouvel onglet"),
+                        ),
+                      ],
+                    ),
+                  )
                 : Text(value),
           ),
         ),
@@ -704,7 +705,46 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     }
   }
 
-  Widget _userActionBtn(String label, Color color, VoidCallback onTap, {bool isActive = false}) {
+  Widget _buildResilientAvatar(String? url, String name) {
+    if (url == null || url.isEmpty) {
+      return CircleAvatar(
+        radius: 40,
+        backgroundColor: _primary.withOpacity(0.1),
+        child: Text(name.length >= 2 ? name.substring(0, 2).toUpperCase() : name.characters.take(1).toString().toUpperCase(), 
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _primary)),
+      );
+    }
+
+    if (url.startsWith('data:image')) {
+      try {
+        final bytes = base64Decode(url.split(',').last);
+        return CircleAvatar(radius: 40, backgroundImage: MemoryImage(bytes));
+      } catch (e) {
+        return CircleAvatar(radius: 40, child: Icon(LucideIcons.user));
+      }
+    }
+
+    return CircleAvatar(
+      radius: 40,
+      backgroundColor: Colors.grey[200],
+      child: ClipOval(
+        child: Image.network(
+          url,
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Text(
+            name.characters.take(1).toString().toUpperCase(),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: _primary),
+          ),
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return const Center(child: CircularProgressIndicator(strokeWidth: 2));
+          },
+        ),
+      ),
+    );
+  }
     return ElevatedButton(
       onPressed: isActive ? null : onTap,
       style: ElevatedButton.styleFrom(

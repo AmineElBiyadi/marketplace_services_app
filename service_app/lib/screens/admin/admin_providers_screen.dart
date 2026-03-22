@@ -295,13 +295,22 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
       DataCell(
         Row(
           children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: _primary.withOpacity(0.1),
-              backgroundImage: p['imageUrl'] != null ? NetworkImage(p['imageUrl']) : null,
-              child: p['imageUrl'] == null
-                  ? Text(p['avatar'] ?? '??', style: const TextStyle(fontSize: 12, color: _primary, fontWeight: FontWeight.bold))
-                  : null,
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: _primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: ClipOval(
+                child: p['imageUrl'] != null 
+                  ? Image.network(
+                      p['imageUrl'],
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Center(child: Text(p['avatar'] ?? '??', style: const TextStyle(fontSize: 12, color: _primary, fontWeight: FontWeight.bold))),
+                    )
+                  : Center(child: Text(p['avatar'] ?? '??', style: const TextStyle(fontSize: 12, color: _primary, fontWeight: FontWeight.bold))),
+              ),
             ),
             const SizedBox(width: 12),
             Column(

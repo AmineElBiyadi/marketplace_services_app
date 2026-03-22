@@ -360,13 +360,22 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: _primary.withOpacity(0.1),
-                  backgroundImage: user['imageUrl'] != null ? NetworkImage(user['imageUrl']) : null,
-                  child: user['imageUrl'] == null
-                      ? Text(user['avatar'] ?? '??', style: const TextStyle(fontSize: 14, color: _primary, fontWeight: FontWeight.bold))
-                      : null,
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: user['imageUrl'] != null 
+                      ? Image.network(
+                          user['imageUrl'],
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Center(child: Text(user['avatar'] ?? '??', style: const TextStyle(fontSize: 14, color: _primary, fontWeight: FontWeight.bold))),
+                        )
+                      : Center(child: Text(user['avatar'] ?? '??', style: const TextStyle(fontSize: 14, color: _primary, fontWeight: FontWeight.bold))),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
