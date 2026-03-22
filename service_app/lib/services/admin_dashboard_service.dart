@@ -553,7 +553,7 @@ class AdminDashboardService {
         'date': _formatRelativeDate(data['createdAt']),
         'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
         'imageUrl': imageUrl,
-        'zone': data['region'] ?? 'N/A',
+        'zone': (services.isNotEmpty ? services.first : (data['region'] ?? 'N/A')),
         // New detailed fields
         'CarteNationale': data['CarteNationale'] ?? 'Non fourni',
         'CasierJudiciaire': data['CasierJudiciaire'] ?? 'Non fourni',
@@ -997,13 +997,13 @@ class AdminDashboardService {
     try {
       final response = await http.post(
         Uri.parse(scriptUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {
           'to': to,
           'subject': subject,
-          'text': text,
-          'html': html,
-        }),
+          'text': text ?? '',
+          'html': html ?? '',
+        },
       );
 
       if (response.statusCode == 200 || response.statusCode == 302) {

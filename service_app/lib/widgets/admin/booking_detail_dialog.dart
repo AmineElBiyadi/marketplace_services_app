@@ -3,6 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:convert';
 import '../../services/admin_dashboard_service.dart';
 import '../../theme/app_colors.dart';
 
@@ -745,6 +746,8 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
       ),
     );
   }
+
+  Widget _userActionBtn(String label, Color color, VoidCallback onTap, {bool isActive = false}) {
     return ElevatedButton(
       onPressed: isActive ? null : onTap,
       style: ElevatedButton.styleFrom(
