@@ -81,7 +81,6 @@ class _AdminSidebarState extends State<AdminSidebar> {
                 _sidebarItem(LucideIcons.calendarDays, 'Réservations', '/admin/reservations'),
                 _sidebarItem(LucideIcons.star, 'Avis & Réclamations', '/admin/reviews'),
                 _sidebarItem(LucideIcons.dollarSign, 'Finances', '/admin/finances'),
-                _sidebarItem(LucideIcons.barChart3, 'Statistiques', '/admin/statistics'),
                 _sidebarItem(LucideIcons.settings, 'Paramètres', '/admin/settings'),
               ],
             ),
