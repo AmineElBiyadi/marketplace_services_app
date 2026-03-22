@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/admin_dashboard_service.dart';
 import '../../theme/app_colors.dart';
 
@@ -28,9 +29,9 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
-      final results = await _service.getFilteredReservations(query: widget.bookingId, limit: 1);
-      if (results.isNotEmpty) {
-        _booking = results.first;
+      final result = await _service.getReservationById(widget.bookingId);
+      if (result != null) {
+        _booking = result;
         _timeline = await _service.getReservationTimeline(widget.bookingId);
       }
       if (mounted) setState(() => _loading = false);
@@ -284,27 +285,44 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
       icon: LucideIcons.users,
       child: Column(
         children: [
-          _profileItem('Client', _booking!['clientName']),
+          _profileItem('Client', _booking!['clientName'], _booking!['idClient']),
           const Divider(height: 24),
-          _profileItem('Expert', _booking!['expertName']),
+          _profileItem('Expert', _booking!['expertName'], _booking!['idExpert']),
         ],
       ),
     );
   }
 
-  Widget _profileItem(String role, String name) {
-    return Row(
-      children: [
-        const CircleAvatar(radius: 16, child: Icon(LucideIcons.user, size: 16)),
-        const SizedBox(width: 12),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _profileItem(String role, String name, String? id) {
+    return InkWell(
+      onTap: id != null ? () => _showUserProfileModal(id, role) : null,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
           children: [
-            Text(role, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-            Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+            const CircleAvatar(radius: 16, child: Icon(LucideIcons.user, size: 16)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(role, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            const Icon(LucideIcons.chevronRight, size: 14, color: Colors.grey),
           ],
         ),
-      ],
+      ),
+    );
+  }
+
+  void _showUserProfileModal(String id, String role) {
+    showDialog(
+      context: context,
+      builder: (context) => _UserProfileModal(id: id, role: role),
     );
   }
 
@@ -314,15 +332,15 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
       icon: LucideIcons.shieldCheck,
       child: Column(
         children: [
-          _actionBtn('Accepter', Colors.green, () => _updateStatus('ACCEPTEE')),
+          _bookingActionBtn('Accepter', Colors.green, () => _updateStatus('ACCEPTEE')),
           const SizedBox(height: 8),
-          _actionBtn('Annuler', Colors.red, () => _updateStatus('ANNULEE')),
+          _bookingActionBtn('Annuler', Colors.red, () => _updateStatus('ANNULEE')),
         ],
       ),
     );
   }
 
-  Widget _actionBtn(String label, Color color, VoidCallback onTap) {
+  Widget _bookingActionBtn(String label, Color color, VoidCallback onTap) {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton(
@@ -371,5 +389,188 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
       decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
       child: Text(status, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
     );
+  }
+}
+
+class _UserProfileModal extends StatefulWidget {
+  final String id;
+  final String role;
+  const _UserProfileModal({required this.id, required this.role});
+
+  @override
+  State<_UserProfileModal> createState() => _UserProfileModalState();
+}
+
+class _UserProfileModalState extends State<_UserProfileModal> {
+  final AdminDashboardService _service = AdminDashboardService();
+  bool _loading = true;
+  Map<String, dynamic>? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    setState(() => _loading = true);
+    final data = await _service.getUserProfile(widget.id, widget.role);
+    if (mounted) setState(() { _user = data; _loading = false; });
+  }
+
+  Future<void> _updateStatus(String status) async {
+    setState(() => _loading = true);
+    await _service.updateUserStatus(widget.id, widget.role, status);
+    await _loadUser();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Statut à jour. Email automatique envoyé à ${_user!['email']}'),
+          backgroundColor: Colors.green,
+        )
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        width: 400,
+        padding: const EdgeInsets.all(32),
+        child: _loading 
+          ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
+          : _user == null 
+            ? const Text('Profil non trouvé')
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundImage: _user!['imageUrl'] != null ? NetworkImage(_user!['imageUrl']) : null,
+                    child: _user!['imageUrl'] == null ? const Icon(LucideIcons.user, size: 40) : null,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(_user!['name'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text('${widget.role} • ${_user!['status']}', style: TextStyle(color: _getStatusColor(_user!['status']))),
+                  const Divider(height: 32),
+                  _infoTile(LucideIcons.mail, _user!['email']),
+                  _infoTile(LucideIcons.phone, _user!['phone']),
+                  if (_user!['region'] != null) _infoTile(LucideIcons.mapPin, _user!['region']),
+                  const SizedBox(height: 32),
+                  const Text('CONTACTER L\'UTILISATEUR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _contactBtn('WhatsApp', const Color(0xFF25D366), LucideIcons.messageCircle, () => _launchChannel('whatsapp'), enabled: _user!['phone'].isNotEmpty),
+                      _contactBtn('E-mail', const Color(0xFFEA4335), LucideIcons.mail, () => _launchChannel('email'), enabled: _user!['email'].isNotEmpty),
+                      _contactBtn('Appel', const Color(0xFF34A853), LucideIcons.phone, () => _launchChannel('phone'), enabled: _user!['phone'].isNotEmpty),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  const Text('ACTIONS ET NOTIFICATIONS AUTO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('Le changement de statut enverra un email automatique à l\'utilisateur.', style: TextStyle(fontSize: 9, fontStyle: FontStyle.italic, color: Colors.grey)),
+                  ),
+                  Row(
+                    children: [
+                      Expanded(child: _userActionBtn('Activer', Colors.green, () => _updateStatus('ACTIVE'), isActive: _user!['status'] == 'ACTIVE')),
+                      const SizedBox(width: 8),
+                      Expanded(child: _userActionBtn('Suspendre', Colors.orange, () => _updateStatus('SUSPENDUE'), isActive: _user!['status'] == 'SUSPENDUE')),
+                      const SizedBox(width: 8),
+                      Expanded(child: _userActionBtn('Désactiver', Colors.red, () => _updateStatus('DESACTIVE'), isActive: _user!['status'] == 'DESACTIVE')),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Future<void> _launchChannel(String type) async {
+    Uri uri;
+    switch (type) {
+      case 'whatsapp':
+        String phone = _user!['phone'].replaceAll(RegExp(r'[^0-9+]'), '');
+        if (!phone.startsWith('+')) {
+          if (phone.startsWith('0')) phone = '+212${phone.substring(1)}';
+          else phone = '+212$phone';
+        }
+        final message = Uri.encodeComponent("Bonjour ${_user!['name']}, je suis l'administrateur de l'application Marketplace...");
+        uri = Uri.parse("https://wa.me/$phone?text=$message");
+        break;
+      case 'email':
+        uri = Uri(scheme: 'mailto', path: _user!['email'], queryParameters: {'subject': 'Concernant votre compte Marketplace'});
+        break;
+      case 'phone':
+        uri = Uri(scheme: 'tel', path: _user!['phone']);
+        break;
+      default: return;
+    }
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Widget _contactBtn(String label, Color color, IconData icon, VoidCallback onTap, {bool enabled = true}) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 100,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: enabled ? color.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: enabled ? color.withOpacity(0.3) : Colors.grey.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: enabled ? color : Colors.grey, size: 20),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(color: enabled ? color : Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoTile(IconData icon, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey),
+          const SizedBox(width: 12),
+          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
+        ],
+      ),
+    );
+  }
+
+  Widget _userActionBtn(String label, Color color, VoidCallback onTap, {bool isActive = false}) {
+    return ElevatedButton(
+      onPressed: isActive ? null : onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: EdgeInsets.zero,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 11)),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    if (status == 'ACTIVE') return Colors.green;
+    if (status == 'SUSPENDUE') return Colors.orange;
+    return Colors.red;
   }
 }
