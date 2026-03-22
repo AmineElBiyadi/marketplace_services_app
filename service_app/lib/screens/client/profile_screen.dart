@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
+import '../../../theme/app_colors.dart';
 import 'edit_profile_screen.dart';
 import 'my_reviews_screen.dart';
 import 'my_complaints_screen.dart';
+import 'my_addresses_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -22,6 +25,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Map<String, dynamic>? _clientData;
   bool _isLoading = true;
+  int _bookingsCount = 0;
+  int _reviewsCount = 0;
 
   @override
   void initState() {
@@ -52,9 +57,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     await _authService.signOut();
-    if (mounted) {
-      context.go('/welcome');
-    }
+    if (mounted) context.go('/welcome');
   }
 
   ImageProvider? _buildImageProvider(String? imageString) {
@@ -72,177 +75,320 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Colors matching the provided design
-    const bgColor = Color(0xFFFCF9F2); // Soft cream background
-    const primaryBlue = Color(0xFF2A4278); // Dark blue text/icons
-    const lightTextBlue = Color(0xFF5B73A0); // Lighter blue for phone number
-    const redColor = Color(0xFFF05151); // Red for logout
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
 
-    String nom = _clientData?['nom'] ?? 'Client';
+    final String nom = _clientData?['nom'] ?? 'Client';
     String telephone = _clientData?['telephone'] ?? '';
     if (telephone.isEmpty && _authService.currentUser?.phoneNumber != null) {
       telephone = _authService.currentUser!.phoneNumber!;
     }
-    String initial = nom.isNotEmpty ? nom[0].toUpperCase() : 'C';
+    final String email = _clientData?['email'] ?? _authService.currentUser?.email ?? '';
+    final String city = _clientData?['ville'] ?? _clientData?['Ville'] ?? '';
+    final String initial = nom.isNotEmpty ? nom[0].toUpperCase() : 'C';
+    final ImageProvider? avatar = _buildImageProvider(_clientData?['image_profile']);
 
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    // ── Avatar Section ──
-                    Stack(
-                      alignment: Alignment.bottomRight,
-                      children: [
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundColor: const Color(0xFFDCDFEA),
-                          backgroundImage: _buildImageProvider(_clientData?['image_profile']),
-                          child: _buildImageProvider(_clientData?['image_profile']) == null
-                              ? Text(initial, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: primaryBlue))
-                              : null,
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(
-                            color: primaryBlue,
-                            shape: BoxShape.circle,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              const SizedBox(height: 24),
+
+              // ── Avatar ──
+              Stack(
+                children: [
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      shape: BoxShape.circle,
+                      image: avatar != null
+                          ? DecorationImage(image: avatar, fit: BoxFit.cover)
+                          : null,
+                    ),
+                    child: avatar == null
+                        ? Center(
+                            child: Text(
+                              initial,
+                              style: const TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          )
+                        : null,
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: GestureDetector(
+                      onTap: () async {
+                        if (_clientData == null) return;
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EditProfileScreen(clientData: _clientData!),
                           ),
-                          child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 16),
+                        );
+                        if (result == true) _loadProfileData();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // ── Name ──
+              Text(
+                nom,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 4),
+
+              // ── Contact info ──
+              Text(
+                telephone.isNotEmpty ? telephone : email,
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: Color(0xFF64748B),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // ── City + Member badge ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (city.isNotEmpty) ...[
+                    const Icon(LucideIcons.mapPin, size: 14, color: Color(0xFF64748B)),
+                    const SizedBox(width: 4),
+                    Text(
+                      city,
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFCBD5E1),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(LucideIcons.user, size: 13, color: AppColors.primary),
+                        SizedBox(width: 4),
+                        Text(
+                          'Client',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    
-                    // ── User Info ──
-                    Text(
-                      nom,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: primaryBlue,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      telephone,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: lightTextBlue,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    
-                    // ── Edit Profile Button ──
-                    if (_clientData != null)
-                      GestureDetector(
-                        onTap: () async {
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => EditProfileScreen(
-                                clientData: _clientData!,
-                              ),
-                            ),
-                          );
-                          if (result == true) {
-                            _loadProfileData();
-                          }
-                        },
-                        child: const Text(
-                          'Edit profile',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF3561A7), // slightly brighter blue
-                          ),
-                        ),
-                      ),
-                    if (_clientData == null)
-                      const SizedBox(height: 14), // Placeholder space if loading fail
-                    const SizedBox(height: 40),
-                    
-                    // ── Menu List ──
-                    _buildMenuItem(
-                      icon: Icons.calendar_today_outlined,
-                      label: 'My Bookings',
-                      color: primaryBlue,
-                      onTap: () => context.push('/bookings-list'),
-                    ),
-                    _buildMenuItem(
-                      icon: Icons.star_border_outlined,
-                      label: 'My Reviews',
-                      color: primaryBlue,
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyReviewsScreen())),
-                    ),
-                    _buildMenuItem(
-                      icon: Icons.warning_amber_outlined,
-                      label: 'My Complaints',
-                      color: primaryBlue,
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyComplaintsScreen())),
-                    ),
-                    const SizedBox(height: 16),
-                    
-                    _buildMenuItem(
-                      icon: Icons.text_snippet_outlined,
-                      label: 'Terms & Privacy',
-                      color: primaryBlue,
-                      onTap: () {
-                        // TODO
-                      },
-                    ),
-                    
-                    const SizedBox(height: 32),
-                    
-                    // ── Log Out Option ──
-                    _buildMenuItem(
-                      icon: Icons.logout,
-                      label: 'Log out',
-                      color: redColor,
-                      hideArrow: true,
-                      onTap: _handleLogout,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // ── Stats row ──
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Row(
+                  children: [
+                    _buildStat(_bookingsCount.toString(), 'Réservations'),
+                    _vDivider(),
+                    _buildStat(_reviewsCount.toString(), 'Avis'),
+                    _vDivider(),
+                    _buildStat(
+                      _clientData?['Pays'] ?? _clientData?['pays'] ?? 'Maroc',
+                      'Pays',
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 20),
+
+              // ── Edit profile button ──
+              if (_clientData != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EditProfileScreen(clientData: _clientData!),
+                          ),
+                        );
+                        if (result == true) _loadProfileData();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                      ),
+                      child: const Text(
+                        'Modifier mon profil',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 28),
+
+              // ── Menu Section ──
+              _buildMenuSection(context),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildMenuItem({
+  // ── Stats widget ──────────────────────────────────────────────
+  Widget _buildStat(String value, String label) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _vDivider() => Container(
+        width: 1,
+        height: 36,
+        color: const Color(0xFFE2E8F0),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+      );
+
+  // ── Menu ─────────────────────────────────────────────────────
+  Widget _buildMenuSection(BuildContext context) {
+    return Column(
+      children: [
+        _menuItem(
+          icon: LucideIcons.calendar,
+          title: 'Mes réservations',
+          onTap: () => context.push('/bookings-list'),
+        ),
+        _menuItem(
+          icon: LucideIcons.mapPin,
+          title: 'Mes adresses',
+          onTap: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const MyAddressesScreen())),
+        ),
+        _menuItem(
+          icon: LucideIcons.star,
+          title: 'Mes avis',
+          onTap: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const MyReviewsScreen())),
+        ),
+        _menuItem(
+          icon: LucideIcons.alertCircle,
+          title: 'Mes réclamations',
+          onTap: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const MyComplaintsScreen())),
+        ),
+        _menuItem(
+          icon: LucideIcons.fileText,
+          title: 'CGU / Confidentialité',
+          onTap: () {},
+        ),
+        const SizedBox(height: 16),
+        _menuItem(
+          icon: LucideIcons.logOut,
+          title: 'Se déconnecter',
+          textColor: const Color(0xFFEF4444),
+          iconColor: const Color(0xFFEF4444),
+          hideArrow: true,
+          onTap: _handleLogout,
+        ),
+      ],
+    );
+  }
+
+  Widget _menuItem({
     required IconData icon,
-    required String label,
-    required Color color,
+    required String title,
     required VoidCallback onTap,
+    Color textColor = const Color(0xFF1E293B),
+    Color iconColor = const Color(0xFF64748B),
     bool hideArrow = false,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
         child: Row(
           children: [
-            Icon(icon, color: color, size: 24),
+            Icon(icon, size: 22, color: iconColor),
             const SizedBox(width: 16),
             Expanded(
               child: Text(
-                label,
+                title,
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: color,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: textColor,
                 ),
               ),
             ),
             if (!hideArrow)
-              Icon(Icons.chevron_right, color: color.withValues(alpha: 0.6), size: 22),
+              const Icon(LucideIcons.chevronRight, size: 20, color: Color(0xFFCBD5E1)),
           ],
         ),
       ),
