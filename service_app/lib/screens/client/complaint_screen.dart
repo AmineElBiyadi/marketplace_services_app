@@ -6,8 +6,14 @@ import '../../models/booking.dart';
 
 class ComplaintScreen extends StatefulWidget {
   final String interventionId;
+  // 'client' ou 'expert'
+  final String role;
 
-  const ComplaintScreen({Key? key, required this.interventionId}) : super(key: key);
+  const ComplaintScreen({
+    Key? key,
+    required this.interventionId,
+    this.role = 'client',
+  }) : super(key: key);
 
   @override
   State<ComplaintScreen> createState() => _ComplaintScreenState();
@@ -61,7 +67,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
         'idExpert': _intervention?.idExpert,
         'description': description,
         'etatReclamation': 'EN_ATTENTE',
-        'typeReclamateur': 'CLIENT',
+        'typeReclamateur': widget.role == 'expert' ? 'EXPERT' : 'CLIENT',
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
@@ -129,9 +135,13 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
       );
     }
 
-    final expertSnap = _intervention?.expertSnapshot ?? {};
-    final expertName = expertSnap['nom'] ?? 'Expert';
-    final expertPhoto = expertSnap['photo'] ?? '';
+    // Si l'expert réclame → afficher les infos du client, sinon les infos de l'expert
+    final isExpert = widget.role == 'expert';
+    final personSnap = isExpert
+        ? (_intervention?.clientSnapshot ?? {})
+        : (_intervention?.expertSnapshot ?? {});
+    final personName = personSnap['nom'] ?? (isExpert ? 'Client' : 'Expert');
+    final personPhoto = personSnap['photo'] ?? '';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -150,14 +160,16 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "What went wrong?",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+            Text(
+              isExpert ? "Déposer une réclamation" : "What went wrong?",
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
             ),
             const SizedBox(height: 8),
-            const Text(
-              "We take your feedback seriously. Please tell us what happened with this booking.",
-              style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+            Text(
+              isExpert
+                  ? "Décrivez le problème rencontré avec ce client. Notre équipe examinera votre réclamation."
+                  : "We take your feedback seriously. Please tell us what happened with this booking.",
+              style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
             ),
             const SizedBox(height: 32),
             
@@ -175,17 +187,20 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                 children: [
                   CircleAvatar(
                     radius: 24,
-                    backgroundImage: expertPhoto.isNotEmpty ? NetworkImage(expertPhoto) : null,
+                    backgroundImage: personPhoto.isNotEmpty ? NetworkImage(personPhoto) : null,
                     backgroundColor: AppColors.primary.withOpacity(0.1),
-                    child: expertPhoto.isEmpty ? const Icon(Icons.person, color: AppColors.primary) : null,
+                    child: personPhoto.isEmpty ? const Icon(Icons.person, color: AppColors.primary) : null,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(expertName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        Text("Booking ID: ${widget.interventionId}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                        Text(personName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        Text(
+                          isExpert ? "Intervention ID: ${widget.interventionId}" : "Booking ID: ${widget.interventionId}",
+                          style: const TextStyle(color: Colors.grey, fontSize: 12),
+                        ),
                       ],
                     ),
                   ),
@@ -228,7 +243,10 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                 ),
                 child: _isLoading
                     ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text("Submit Complaint", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    : Text(
+                        isExpert ? "Envoyer la réclamation" : "Submit Complaint",
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      ),
               ),
             ),
              const SizedBox(height: 24),
