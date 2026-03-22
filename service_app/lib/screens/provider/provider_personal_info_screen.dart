@@ -62,10 +62,10 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
           
           _categoryCtrl.text = (_expertData?.services.isNotEmpty == true) 
               ? _expertData!.services.first 
-              : "Plomberie";
+              : "Plumbing";
           
           _rayon = (_expertModel?.rayonTravaille ?? 20).toDouble();
-          _bioCtrl.text = _expertModel?.experience ?? "Expert professionnel avec des années d'expérience.";
+          _bioCtrl.text = _expertModel?.experience ?? "Professional expert with years of experience.";
 
           _isLoading = false;
         });
@@ -97,7 +97,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Modifications enregistrées avec succès !"), backgroundColor: Colors.green),
+          const SnackBar(content: Text("Changes saved successfully!"), backgroundColor: Colors.green),
         );
         context.pop();
       }
@@ -105,7 +105,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erreur lors de l'enregistrement : $e"), backgroundColor: Colors.red),
+          SnackBar(content: Text("Error while saving : $e"), backgroundColor: Colors.red),
         );
       }
     }
@@ -126,7 +126,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
             onPressed: () => context.pop(),
           ),
           title: const Text(
-            "Informations personnelles",
+            "Personal Information",
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w800,
@@ -144,21 +144,21 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
                   children: [
                     Row(
                       children: [
-                        Expanded(child: _buildTextField("Prénom", LucideIcons.user, _prenomCtrl)),
+                        Expanded(child: _buildTextField("First Name", LucideIcons.user, _prenomCtrl)),
                         const SizedBox(width: 16),
-                        Expanded(child: _buildTextField("Nom", null, _nomCtrl, isLabeled: true)),
+                        Expanded(child: _buildTextField("Last Name", null, _nomCtrl, isLabeled: true)),
                       ],
                     ),
                     const SizedBox(height: 20),
-                    _buildTextField("Téléphone", LucideIcons.phone, _phoneCtrl),
+                    _buildTextField("Phone", LucideIcons.phone, _phoneCtrl),
                     const SizedBox(height: 20),
                     _buildTextField("Email", LucideIcons.mail, _emailCtrl),
                     const SizedBox(height: 20),
-                    _buildDropdownField("Ville", LucideIcons.mapPin, _villeCtrl),
+                    _buildDropdownField("City", LucideIcons.mapPin, _villeCtrl),
                     const SizedBox(height: 20),
-                    _buildTextField("Adresse", LucideIcons.mapPin, _adresseCtrl),
+                    _buildTextField("Address", LucideIcons.mapPin, _adresseCtrl),
                     const SizedBox(height: 20),
-                    _buildDropdownField("Catégorie de service", LucideIcons.briefcase, _categoryCtrl),
+                    _buildDropdownField("Service Category", LucideIcons.briefcase, _categoryCtrl),
                     const SizedBox(height: 24),
                     _buildRayonSlider(),
                     const SizedBox(height: 24),
@@ -182,7 +182,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
                                 height: 20,
                                 child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                               )
-                            : const Text("Enregistrer les modifications", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                            : const Text("Save Changes", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(height: 80),
@@ -286,7 +286,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
             const Icon(LucideIcons.search, size: 16, color: Color(0xFF64748B)), // Or any radius icon
             const SizedBox(width: 8),
             const Text(
-              "Rayon d'intervention",
+              "Working radius",
               style: TextStyle(
                 fontSize: 14,
                 color: Color(0xFF64748B),
@@ -307,7 +307,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("Distance maximale", style: TextStyle(color: Color(0xFF64748B))),
+                  const Text("Maximum distance", style: TextStyle(color: Color(0xFF64748B))),
                   Text(
                     "${_rayon.toInt()} km",
                     style: const TextStyle(
