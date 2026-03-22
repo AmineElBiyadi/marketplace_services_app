@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 
 class CategoryCard extends StatelessWidget {
   final String label;
@@ -24,8 +25,9 @@ class CategoryCard extends StatelessWidget {
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: 72,
-            height: 72,
+            width: 100,
+            height: 100,
+            clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               color: isSelected
                   ? const Color(0xFF3D5A99)
@@ -48,15 +50,8 @@ class CategoryCard extends StatelessWidget {
             child: Center(
               child: imagePath != null
                   ? Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Image.asset(
-                        imagePath!,
-                        fit: BoxFit.contain,
-                        color: isSelected
-                            ? const Color(0xFF3D5A99)
-                            : _getPastelColor(label),
-                        colorBlendMode: BlendMode.multiply,
-                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: _buildImage(imagePath!),
                     )
                   : Icon(
                       icon,
@@ -76,6 +71,30 @@ class CategoryCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildImage(String path) {
+    ImageProvider provider;
+    if (path.startsWith('assets/')) {
+      provider = AssetImage(path);
+    } else if (path.startsWith('http')) {
+      provider = NetworkImage(path);
+    } else {
+      try {
+        provider = MemoryImage(base64Decode(path));
+      } catch (e) {
+        provider = const AssetImage('assets/logo.png'); // Fallback
+      }
+    }
+
+    return Image(
+      image: provider,
+      fit: BoxFit.contain,
+      color: isSelected
+          ? const Color(0xFF3D5A99)
+          : _getPastelColor(label),
+      colorBlendMode: BlendMode.multiply,
     );
   }
 

@@ -19,6 +19,8 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
   final AdminDashboardService _dashboardService = AdminDashboardService();
 
   bool _isLoading = true;
+  String _premiumPriceInput = "99";
+  bool _isUpdatingPrice = false;
   double _totalRevenue = 0.0;
   int _premiumCount = 0;
   int _graceCount = 0;
@@ -150,6 +152,8 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                     _buildHeader(),
                     const SizedBox(height: 24),
                     _buildKPIGrid(),
+                    const SizedBox(height: 32),
+                    _buildPremiumPricingCard(),
                     const SizedBox(height: 32),
                     _buildChartCard(),
                     const SizedBox(height: 32),
@@ -704,6 +708,148 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                 content: Text('Erreur: $e'), backgroundColor: Colors.red),
           );
         }
+      }
+    }
+  }
+
+  // ── PREMIUM PRICING SETTINGS ────────────────────────────────────────────────
+
+  Widget _buildPremiumPricingCard() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.border.withOpacity(0.5)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 15,
+              offset: const Offset(0, 8))
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Configuration du Pack Premium',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.foreground,
+                  letterSpacing: -0.2)),
+          const SizedBox(height: 24),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Prix Premium mensuel (DH)',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.mutedForeground,
+                            letterSpacing: 0.5)),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      initialValue: _premiumPriceInput,
+                      keyboardType: TextInputType.number,
+                      onChanged: (v) => _premiumPriceInput = v,
+                      style: const TextStyle(fontSize: 14, color: AppColors.foreground),
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        fillColor: AppColors.muted.withOpacity(0.1),
+                        filled: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 24.0),
+                  child: ElevatedButton.icon(
+                    onPressed: _isUpdatingPrice ? null : _updatePremiumPrice,
+                    icon: _isUpdatingPrice 
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(LucideIcons.save, size: 14),
+                    label: const Text('Sauvegarder et Appliquer', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.foreground,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Text('Attention : la modification du prix mettra à jour le montant de tous les abonnements existants.',
+              style: TextStyle(fontSize: 12, color: AppColors.mutedForeground, fontStyle: FontStyle.italic)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updatePremiumPrice() async {
+    final double? newPrice = double.tryParse(_premiumPriceInput);
+    if (newPrice == null || newPrice <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Veuillez entrer un prix valide.'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Confirmation de mise à jour', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: Text('Êtes-vous sûr de vouloir appliquer le prix de ${newPrice.toStringAsFixed(2)} DH à tous les abonnements ?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+            child: const Text('Confirmer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    if (mounted) {
+      setState(() { _isUpdatingPrice = true; });
+    }
+
+    try {
+      await _dashboardService.updateAllSubscriptionsPrice(newPrice);
+      await _loadData(); // reload the UI
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Prix mis à jour avec succès pour tous les abonnements.'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() { _isUpdatingPrice = false; });
       }
     }
   }
