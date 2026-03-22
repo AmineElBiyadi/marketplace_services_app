@@ -8,6 +8,8 @@ import '../../models/expert.dart';
 import '../../services/firestore_service.dart';
 import '../../services/location_service.dart';
 import 'expert_details_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 const _kBlue = Color(0xFF2A4278);
 
@@ -173,9 +175,9 @@ class _ExpertMapScreenState extends State<ExpertMapScreen> {
             ),
             children: [
               TileLayer(
-                urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiYW1pbmVlbGJpeWFkaSIsImEiOiJjbW4xcjZ3N3Iwdnh0MzJzOTltamQwajZ5In0.7XFlqqLO-vBeZgXMItsz4w',
-                additionalOptions: const {
-                  'access_token': 'pk.eyJ1IjoiYW1pbmVlbGJpeWFkaSIsImEiOiJjbW4xcjZ3N3Iwdnh0MzJzOTltamQwajZ5In0.7XFlqqLO-vBeZgXMItsz4w',
+                urlTemplate: 'https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? ''}',
+                additionalOptions: {
+                  'access_token': dotenv.env['MAPBOX_ACCESS_TOKEN'] ?? '',
                 },
                 userAgentPackageName: 'com.example.service_app',
               ),
