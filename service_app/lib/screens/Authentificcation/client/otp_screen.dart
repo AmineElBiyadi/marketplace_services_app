@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../theme/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
@@ -97,10 +98,25 @@ class _OTPScreenState extends State<OTPScreen> {
     final role = widget.extraData!['role'];
     try {
       if (role == 'client') {
+        // Reconstruct GeoPoint from extraData if available
+        GeoPoint? geoPoint;
+        final lat = widget.extraData!['lat'];
+        final lng = widget.extraData!['lng'];
+        if (lat != null && lng != null) {
+          geoPoint = GeoPoint((lat as num).toDouble(), (lng as num).toDouble());
+        }
+
         final uid = await _firestoreService.registerClient(
           name: widget.extraData!['name'],
           phone: widget.extraData!['phone'],
           email: widget.extraData!['email'],
+          rue: widget.extraData!['address']?['rue'],
+          numBatiment: widget.extraData!['address']?['numBatiment'],
+          quartier: widget.extraData!['address']?['quartier'],
+          ville: widget.extraData!['address']?['ville'],
+          codePostal: widget.extraData!['address']?['codePostal'],
+          pays: widget.extraData!['address']?['pays'],
+          location: geoPoint,
         );
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('logged_client_id', uid);

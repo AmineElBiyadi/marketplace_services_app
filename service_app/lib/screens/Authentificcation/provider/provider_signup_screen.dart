@@ -5,8 +5,10 @@ import '../../../utils/auth_errors.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
+import '../../../services/location_service.dart';
 
 class ProviderSignupScreen extends StatefulWidget {
   const ProviderSignupScreen({super.key});
@@ -31,7 +33,11 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
 
   final _authService = AuthService();
   final _firestoreService = FirestoreService();
+  final _locationService = LocationService();
   bool _isLoading = false;
+
+  GeoPoint? _detectedGeoPoint;
+  bool _detectingLoc = false;
 
   // ── Step 2 ─────────────────────────────────────────────────
   List<Map<String, dynamic>> _services = [];
@@ -148,6 +154,22 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
     ));
   }
 
+  Future<void> _detectLocation() async {
+    setState(() => _detectingLoc = true);
+    try {
+      final pos = await _locationService.getCurrentPosition();
+      if (pos != null) {
+        setState(() => _detectedGeoPoint = GeoPoint(pos.latitude, pos.longitude));
+      } else {
+        _showError('Impossible de détecter la localisation.');
+      }
+    } catch (e) {
+      _showError('Erreur: $e');
+    } finally {
+      if (mounted) setState(() => _detectingLoc = false);
+    }
+  }
+
   void _handleSignup() async {
     if (!_step1Valid || !_step2Valid || !_step3Valid) return;
     setState(() => _isLoading = true);
@@ -188,6 +210,8 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         'cinBack': _cinBackBase64,
         'certificate': _certificateBase64,
         'role': 'provider',
+        if (_detectedGeoPoint != null) 'lat': _detectedGeoPoint!.latitude,
+        if (_detectedGeoPoint != null) 'lng': _detectedGeoPoint!.longitude,
       };
 
       final hasPhone = _phoneController.text.trim().isNotEmpty;
@@ -515,32 +539,37 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         const SizedBox(height: 8),
         _field(_zoneController, 'Ex: Casablanca, Rabat...',
             icon: Icons.location_on_outlined),
-        const SizedBox(height: 12),
-        Container(
-          height: 80,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+        // ── Location detector ──
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _detectingLoc ? null : _detectLocation,
+            icon: _detectingLoc
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.my_location, size: 18),
+            label: Text(_detectingLoc ? 'Détection...' : '📍 Détecter ma position actuelle pour la carte'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
           ),
-          child: const Center(
+        ),
+        if (_detectedGeoPoint != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.map_outlined,
-                    size: 18, color: Color(0xFF3F64B5)),
-                SizedBox(width: 6),
+                const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                const SizedBox(width: 6),
                 Text(
-                  'Carte interactive (bientôt disponible)',
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF3F64B5),
-                      fontStyle: FontStyle.italic),
+                  'Position détectée: ${_detectedGeoPoint!.latitude.toStringAsFixed(4)}, ${_detectedGeoPoint!.longitude.toStringAsFixed(4)}',
+                  style: const TextStyle(fontSize: 12, color: Colors.green),
                 ),
               ],
             ),
           ),
-        ),
         const SizedBox(height: 24),
         _continueButton(
             enabled: _step2Valid,

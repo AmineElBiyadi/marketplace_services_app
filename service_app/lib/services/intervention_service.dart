@@ -132,6 +132,7 @@ class InterventionService {
     required String ville,
     required String codePostal,
     required String pays,
+    GeoPoint? location,
   }) async {
     final ref = await _db.collection('adresses').add({
       'idUtilisateur': clientUserId,
@@ -141,6 +142,7 @@ class InterventionService {
       'Ville': ville,
       'CodePostal': codePostal,
       'Pays': pays,
+      if (location != null) 'location': location,
       'createdAt': FieldValue.serverTimestamp(),
     });
     return ref.id;

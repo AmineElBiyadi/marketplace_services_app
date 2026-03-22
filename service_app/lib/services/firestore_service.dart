@@ -634,6 +634,12 @@ class FirestoreService {
     }
   }
 
+  /// Returns only experts that have a non-null GeoPoint location stored.
+  Future<List<Expert>> getExpertsWithLocation() async {
+    final all = await getExperts();
+    return all.where((e) => e.location != null).toList();
+  }
+
   Future<Expert?> getExpertDetailed(String expertId) async {
     try {
       final doc = await _firestore.collection('experts').doc(expertId).get();
@@ -1006,6 +1012,14 @@ class FirestoreService {
     required String name,
     required String phone,
     required String email,
+    // Optional address fields
+    String? rue,
+    String? numBatiment,
+    String? quartier,
+    String? ville,
+    String? codePostal,
+    String? pays,
+    GeoPoint? location,
   }) async {
     final uid = _auth.currentUser!.uid;
 
@@ -1014,7 +1028,7 @@ class FirestoreService {
       'updated_At': FieldValue.serverTimestamp(),
       'email': email,
       'image_profile': null,
-      'location': null,
+      'location': location,   // GeoPoint or null
       'nom': name,
       'telephone': phone,
       'token': '',
@@ -1024,6 +1038,21 @@ class FirestoreService {
       'etatCompte': 'ACTIVE',
       'idUtilisateur': uid,
     });
+
+    // Save address document if address data was provided
+    if (ville != null && ville.isNotEmpty) {
+      await _firestore.collection('adresses').add({
+        'idUtilisateur': uid,
+        'Rue': rue ?? '',
+        'NumBatiment': numBatiment ?? '',
+        'Quartier': quartier ?? '',
+        'Ville': ville,
+        'CodePostal': codePostal ?? '',
+        'Pays': pays ?? 'Maroc',
+        if (location != null) 'location': location,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
 
     return clientDoc.id;
   }
