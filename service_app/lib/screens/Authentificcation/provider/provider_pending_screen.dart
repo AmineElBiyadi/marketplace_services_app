@@ -27,44 +27,10 @@ class ProviderPendingScreen extends StatelessWidget {
               children: [
                 const Spacer(flex: 2),
                 // ── Top illustration ──
-                Container(
-                  width: 160,
-                  height: 160,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEEF2FF),
-                    borderRadius: BorderRadius.circular(80),
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      const Icon(Icons.home_repair_service_rounded,
-                          size: 70, color: Color(0xFF2B4B9B)),
-                      Positioned(
-                        top: 22,
-                        right: 18,
-                        child: Icon(Icons.handyman,
-                            size: 26, color: const Color(0xFFE8A020)),
-                      ),
-                      Positioned(
-                        top: 20,
-                        left: 20,
-                        child: Icon(Icons.plumbing,
-                            size: 22, color: const Color(0xFF4CAF50)),
-                      ),
-                      Positioned(
-                        bottom: 22,
-                        left: 22,
-                        child: Icon(Icons.electrical_services,
-                            size: 20, color: const Color(0xFFE8A020)),
-                      ),
-                      Positioned(
-                        bottom: 20,
-                        right: 22,
-                        child: Icon(Icons.carpenter,
-                            size: 22, color: const Color(0xFF2B4B9B)),
-                      ),
-                    ],
-                  ),
+                Image.asset(
+                  'assets/logo.png',
+                  height: 120,
+                  errorBuilder: (context, error, stackTrace) => const SizedBox(height: 120),
                 ),
                 const SizedBox(height: 32),
                 // ── Hourglass badge ──

@@ -7,8 +7,13 @@ import '../../widgets/start_chat_sheet.dart';
 
 class ExpertProfileScreen extends StatefulWidget {
   final Expert expert;
+  final String? preSelectedService;
 
-  const ExpertProfileScreen({super.key, required this.expert});
+  const ExpertProfileScreen({
+    super.key, 
+    required this.expert,
+    this.preSelectedService,
+  });
 
   @override
   State<ExpertProfileScreen> createState() => _ExpertProfileScreenState();
@@ -17,6 +22,7 @@ class ExpertProfileScreen extends StatefulWidget {
 class _ExpertProfileScreenState extends State<ExpertProfileScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late ScrollController _scrollController;
 
   final FirestoreService _firestoreService = FirestoreService();
 
@@ -36,12 +42,14 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
     super.initState();
     _expert = widget.expert;
     _tabController = TabController(length: 4, vsync: this);
+    _scrollController = ScrollController();
     _loadExtraData();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -52,43 +60,42 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
           await _firestoreService.getExpertServicesDetailed(widget.expert.id);
 
       if (servicesDetailed.isNotEmpty) {
-        List<Map<String, dynamic>> flatList = [];
+        List<Map<String, dynamic>> groupedList = [];
         for (var s in servicesDetailed) {
           final tasks = s['tasks'] as List<dynamic>? ?? [];
-          if (tasks.isNotEmpty) {
-            for (var t in tasks) {
-              flatList.add({
-                'title': (t['nom'] != null && t['nom'].toString().isNotEmpty) ? t['nom'] : (s['serviceName'] ?? ''),
-                'description': (t['description'] != null && t['description'].toString().isNotEmpty) ? t['description'] : (s['description'] ?? ''),
-                'duration': '1-2h',
-                'serviceName': s['serviceName'] ?? '',
-                'taskName': t['nom'] ?? '',
-              });
-            }
-          } else {
-            flatList.add({
-              'title': s['serviceName'] ?? '',
-              'description': s['description'] ?? '',
-              'duration': '1h',
-              'serviceName': s['serviceName'] ?? '',
-              'taskName': null,
-            });
-          }
+          groupedList.add({
+            'title': s['serviceName'] ?? '',
+            'description': s['description'] ?? '',
+            'duration': '1h',
+            'serviceName': s['serviceName'] ?? '',
+            'tasks': tasks,
+          });
         }
+        if (widget.preSelectedService != null && widget.preSelectedService!.isNotEmpty) {
+          groupedList = groupedList.where((s) => s['serviceName'].toString().toLowerCase() == widget.preSelectedService!.toLowerCase()).toList();
+        }
+
         setState(() {
-          _services = flatList;
+          _services = groupedList;
         });
       } else {
-        setState(() {
-          _services = widget.expert.services
+        var fallbackList = widget.expert.services
               .map((s) => {
                     'title': s,
                     'description': '',
                     'duration': '',
                     'serviceName': s,
                     'taskName': null,
+                    'tasks': <dynamic>[],
                   })
               .toList();
+        
+        if (widget.preSelectedService != null && widget.preSelectedService!.isNotEmpty) {
+          fallbackList = fallbackList.where((s) => s['serviceName'].toString().toLowerCase() == widget.preSelectedService!.toLowerCase()).toList();
+        }
+
+        setState(() {
+          _services = fallbackList;
         });
       }
 
@@ -141,10 +148,13 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
-          child: Stack(
-            children: [
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              children: [
               // ── Scrollable content ─────────────────────────────
               NestedScrollView(
+                controller: _scrollController,
                 headerSliverBuilder: (context, innerBoxIsScrolled) => [
                   SliverAppBar(
                     expandedHeight: 160,
@@ -156,19 +166,7 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
                         bottomRight: Radius.circular(24),
                       ),
                     ),
-                    // Back button — remains visible even when collapsed
-                    leading: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: CircleAvatar(
-                        backgroundColor: Colors.white,
-                        child: IconButton(
-                          icon: const Icon(Icons.arrow_back,
-                              color: _kTextBlue, size: 20),
-                          onPressed: () => context.pop(),
-                          padding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ),
+                    automaticallyImplyLeading: false,
                     flexibleSpace: const FlexibleSpaceBar(
                       background: DecoratedBox(
                         decoration: BoxDecoration(
@@ -181,88 +179,78 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
                       ),
                     ),
                   ),
-                ],
-                body: CustomScrollView(
-                  slivers: [
-                    // Spacer so content doesn't hide behind the avatar overlay
-                    const SliverToBoxAdapter(child: SizedBox(height: 56)),
 
-                    // Name + rating row
-                    SliverToBoxAdapter(
+                  // Spacer so content doesn't hide behind the avatar overlay
+                  const SliverToBoxAdapter(child: SizedBox(height: 56)),
+
+                  // Name + rating row
+                  SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             // Name + premium badge
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
+                            Column(
                               children: [
-                                // Leave space for the avatar (98 px wide incl. margins)
-                                const SizedBox(width: 106),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              expert.nom,
-                                              style: const TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.w900,
-                                                color: _kTextBlue,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          if (expert.isPremium)
-                                            const Padding(
-                                              padding: EdgeInsets.only(left: 4),
-                                              child: Icon(Icons.workspace_premium,
-                                                  color: Colors.amber, size: 22),
-                                            ),
-                                        ],
-                                      ),
-                                      Text(
-                                        expert.services.isNotEmpty
-                                            ? expert.services.first
-                                            : '',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: _kTextBlue.withValues(alpha: 0.7),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        expert.nom,
+                                        style: const TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.w900,
+                                          color: _kTextBlue,
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
                                       ),
-                                    ],
+                                    ),
+                                    if (expert.isPremium)
+                                      const Padding(
+                                        padding: EdgeInsets.only(left: 6),
+                                        child: Icon(Icons.workspace_premium, color: Colors.amber, size: 26),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  expert.services.isNotEmpty ? expert.services.first : '',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: _kTextBlue.withValues(alpha: 0.7),
+                                    fontWeight: FontWeight.w500,
                                   ),
+                                  textAlign: TextAlign.center,
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             // Rating + response time
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.star, color: _kTextBlue, size: 18),
+                                const Icon(Icons.star, color: Colors.amber, size: 20),
                                 const SizedBox(width: 4),
                                 Text(
                                   _computedRating.toStringAsFixed(1),
                                   style: const TextStyle(
                                     color: _kTextBlue,
                                     fontWeight: FontWeight.w900,
-                                    fontSize: 14,
+                                    fontSize: 15,
                                   ),
                                 ),
-                                const SizedBox(width: 4),
+                                const SizedBox(width: 6),
                                 Text(
                                   _reviewCount,
                                   style: TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 14,
                                     color: _kTextBlue.withValues(alpha: 0.6),
                                   ),
                                 ),
-
                               ],
                             ),
                           ],
@@ -272,9 +260,11 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
 
                     const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-                    // Tabs
-                    SliverToBoxAdapter(
-                      child: Padding(
+                    // Tabs (Now Sticky via SliverPersistentHeader)
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _StickyTabBarDelegate(
+                        Padding(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 24, vertical: 8),
                         child: Container(
@@ -314,67 +304,145 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
                           ),
                         ),
                       ),
+                      _kBg,
                     ),
-
-                    // Tab content
-                    SliverFillRemaining(
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _ServicesTab(
-                            services: _services,
-                            isLoading: _isLoadingExtra,
-                            expert: expert,
-                          ),
-                          _PortfolioTab(
-                            images: _portfolioImages,
-                            isLoading: _isLoadingExtra,
-                          ),
-                          _ReviewsTab(
-                            reviews: _reviews,
-                            rating: _computedRating,
-                            isLoading: _isLoadingExtra,
-                          ),
-                          _InfoTab(expert: expert),
-                        ],
-                      ),
+                  ),
+                ],
+                body: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _ServicesTab(
+                      services: _services,
+                      isLoading: _isLoadingExtra,
+                      expert: expert,
                     ),
+                    _PortfolioTab(
+                      images: _portfolioImages,
+                      isLoading: _isLoadingExtra,
+                    ),
+                    _ReviewsTab(
+                      reviews: _reviews,
+                      rating: _computedRating,
+                      isLoading: _isLoadingExtra,
+                    ),
+                    _InfoTab(expert: expert),
                   ],
                 ),
               ),
 
-              // ── Avatar overlay — always on top of the blue bar ──
+              // ── Avatar overlay — smooth collapse animation ──
+              AnimatedBuilder(
+                animation: _scrollController,
+                builder: (context, child) {
+                  double offset = _scrollController.hasClients ? _scrollController.offset : 0;
+                  
+                  // The AppBar shrinks by roughly 104 pixels.
+                  double maxOffset = 90.0; 
+                  double progress = (offset / maxOffset).clamp(0.0, 1.0);
+                  
+                  // Interpolate Top
+                  double startTop = 115;
+                  double endTop = MediaQuery.of(context).padding.top + 8;
+                  double top = startTop - (startTop - endTop) * progress;
+
+                  // Interpolate Left (starts centered, moves to next to back button)
+                  double startSize = 90;
+                  double startLeft = (constraints.maxWidth - startSize) / 2;
+                  double endLeft = 56;
+                  double left = startLeft + (endLeft - startLeft) * progress;
+
+                  // Interpolate Size
+                  double endSize = 40;
+                  double size = startSize - (startSize - endSize) * progress;
+                  
+                  // Fade in name when scrolled
+                  double nameOpacity = ((progress - 0.5) * 2).clamp(0.0, 1.0);
+
+                  return Positioned(
+                    top: top,
+                    left: left,
+                    // We use an unbounded width so the Row can safely overflow the 
+                    // right constraint of the avatar Box constraints without wrapping incorrectly.
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: size,
+                          height: size,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24 - (12 * progress)), // shrinks from 24 to 12
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.12),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.all(4),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(20 - (10 * progress)),
+                            child: child,
+                          ),
+                        ),
+                        if (nameOpacity > 0) ...[
+                          const SizedBox(width: 12),
+                          Opacity(
+                            opacity: nameOpacity,
+                            child: Row(
+                              children: [
+                                Text(
+                                  expert.nom,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (expert.isPremium)
+                                  const Padding(
+                                    padding: EdgeInsets.only(left: 4),
+                                    child: Icon(Icons.workspace_premium, color: Colors.amber, size: 18),
+                                  )
+                              ],
+                            ),
+                          ),
+                        ]
+                      ],
+                    ),
+                  );
+                },
+                child: SmartImage(
+                  source: expert.photo,
+                  width: double.infinity,
+                  height: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              // ── Back button on top of everything ──
               Positioned(
-                top: 115, // bottom of collapsed header ≈ kToolbarHeight (56)
-                left: 24,
-                child: Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.12),
-                        blurRadius: 8,
-                        offset: const Offset(0, 4),
+                top: 0,
+                left: 0,
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.white,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back,
+                            color: _kTextBlue, size: 20),
+                        onPressed: () => context.pop(),
+                        padding: EdgeInsets.zero,
                       ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: SmartImage(
-                      source: expert.photo,
-                      width: 82,
-                      height: 82,
-                      fit: BoxFit.cover,
                     ),
                   ),
                 ),
               ),
             ],
-          ),
+          );
+          },
+        ),
         ),
       ),
 
@@ -410,15 +478,30 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
 }
 
 // ─────────────────────────────────────────────
-class _AvatarPlaceholder extends StatelessWidget {
-  const _AvatarPlaceholder();
+class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  final Color backgroundColor;
+
+  _StickyTabBarDelegate(this.child, this.backgroundColor);
 
   @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: const Color(0xFFEEEEEE),
-      child: Icon(Icons.person, size: 40, color: Colors.grey.shade400),
+  double get minExtent => 56.0;
+
+  @override
+  double get maxExtent => 56.0;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: backgroundColor,
+      child: child,
     );
+  }
+
+  @override
+  bool shouldRebuild(_StickyTabBarDelegate oldDelegate) {
+    return oldDelegate.child != child;
   }
 }
 
@@ -455,13 +538,10 @@ class _ServicesTab extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final service = services[index];
-        final title = (service['title'] as String?) ??
-            (service['nom'] as String?) ?? '';
+        final serviceName = (service['serviceName'] as String?) ?? (service['title'] as String?) ?? '';
         final description = (service['description'] as String?) ?? '';
-        final duration = (service['duration'] as String?) ??
-            (service['duree'] as String?) ?? '';
-        final serviceName = service['serviceName'] as String?;
-        final taskName = service['taskName'] as String?;
+        final duration = (service['duration'] as String?) ?? '';
+        final tasks = (service['tasks'] as List<dynamic>?) ?? [];
 
         return Container(
           decoration: BoxDecoration(
@@ -469,64 +549,87 @@ class _ServicesTab extends StatelessWidget {
             border: Border.all(color: _kPrimary.withValues(alpha: 0.2)),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              initiallyExpanded: services.length == 1,
+              title: Text(
+                serviceName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: _kPrimary,
+                ),
+              ),
+              subtitle: description.isNotEmpty ? Text(
+                description,
+                style: TextStyle(fontSize: 13, color: _kPrimary.withValues(alpha: 0.6)),
+              ) : null,
+              childrenPadding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: _kPrimary,
-                        ),
+                if (tasks.isEmpty)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text("Service standard", style: TextStyle(fontSize: 14)),
+                    trailing: _buildChatIcon(context, expert, serviceName, null),
+                  )
+                else
+                  ...tasks.map((t) {
+                    final taskTitle = t['nom'] ?? 'Tâche';
+                    final taskDesc = t['description'] ?? '';
+                    final taskDuration = t['duree']?.toString() ?? t['prix']?.toString() ?? '';
+                    
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                      title: Text(
+                        taskTitle,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                       ),
-                      if (description.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          description,
-                          style: TextStyle(fontSize: 13, color: _kPrimary.withValues(alpha: 0.6)),
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      Row(
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.access_time, size: 14, color: _kPrimary.withValues(alpha: 0.5)),
-                          const SizedBox(width: 4),
-                          Text(
-                            duration,
-                            style: TextStyle(fontSize: 12, color: _kPrimary.withValues(alpha: 0.6)),
-                          ),
+                          if (taskDesc.isNotEmpty)
+                            Text(taskDesc, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                          if (taskDuration.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.access_time, size: 12, color: _kPrimary.withValues(alpha: 0.5)),
+                                  const SizedBox(width: 4),
+                                  Text(taskDuration, style: TextStyle(fontSize: 11, color: _kPrimary.withValues(alpha: 0.6))),
+                                ],
+                              ),
+                            )
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => StartChatSheet.show(
-                    context, 
-                    expert: expert, 
-                    preSelectedService: serviceName ?? title,
-                    preSelectedTask: taskName,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: _kPrimary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.chat_bubble_outline, color: _kPrimary, size: 22),
-                  ),
-                ),
+                      trailing: _buildChatIcon(context, expert, serviceName, taskTitle),
+                    );
+                  }),
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildChatIcon(BuildContext context, Expert expert, String serviceName, String? taskName) {
+    return GestureDetector(
+      onTap: () => StartChatSheet.show(
+        context, 
+        expert: expert, 
+        preSelectedService: serviceName,
+        preSelectedTask: taskName,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: _kPrimary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Icon(Icons.chat_bubble_outline, color: _kPrimary, size: 22),
+      ),
     );
   }
 }

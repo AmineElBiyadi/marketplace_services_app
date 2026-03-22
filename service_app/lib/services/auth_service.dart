@@ -54,6 +54,17 @@ class AuthService {
     return await _auth.currentUser!.linkWithCredential(credential);
   }
 
+  Future<UserCredential> signInWithPhone({
+    required String verificationId,
+    required String smsCode,
+  }) async {
+    final credential = PhoneAuthProvider.credential(
+      verificationId: verificationId,
+      smsCode: smsCode,
+    );
+    return await _auth.signInWithCredential(credential);
+  }
+
   // ─── Email / Password ──────────────────────────────────────
 
   /// Creates a new Firebase Auth account with email + password and sends
