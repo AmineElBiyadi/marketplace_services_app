@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminSidebar extends StatefulWidget {
   final String activeRoute;
@@ -81,7 +82,6 @@ class _AdminSidebarState extends State<AdminSidebar> {
                 _sidebarItem(LucideIcons.calendarDays, 'Réservations', '/admin/reservations'),
                 _sidebarItem(LucideIcons.star, 'Avis & Réclamations', '/admin/reviews'),
                 _sidebarItem(LucideIcons.dollarSign, 'Finances', '/admin/finances'),
-                _sidebarItem(LucideIcons.barChart3, 'Statistiques', '/admin/statistics'),
                 _sidebarItem(LucideIcons.settings, 'Paramètres', '/admin/settings'),
               ],
             ),
@@ -107,7 +107,7 @@ class _AdminSidebarState extends State<AdminSidebar> {
       child: InkWell(
         onTap: () {
           if (route == '/logout') {
-            // Handle Logout
+            _handleLogout();
             return;
           }
           if (widget.activeRoute != route) {
@@ -149,5 +149,13 @@ class _AdminSidebarState extends State<AdminSidebar> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleLogout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('logged_admin_id');
+    if (mounted) {
+      context.go('/admin/login');
+    }
   }
 }

@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:geocoding/geocoding.dart';
 import '../../../theme/app_colors.dart';
 import '../../../utils/auth_errors.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
+import '../../../services/location_service.dart';
+import '../../shared/map_confirm_screen.dart';
+import '../../../models/service.dart';
 
 class ProviderSignupScreen extends StatefulWidget {
   const ProviderSignupScreen({super.key});
@@ -31,10 +39,22 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
 
   final _authService = AuthService();
   final _firestoreService = FirestoreService();
+  final _locationService = LocationService();
   bool _isLoading = false;
 
+  // Address fields
+  final _villeController      = TextEditingController();
+  final _paysController       = TextEditingController(text: 'Maroc');
+  final _numBatController     = TextEditingController();
+  final _rueController        = TextEditingController();
+  final _quartierController   = TextEditingController();
+  final _codePostalController = TextEditingController();
+
+  GeoPoint? _confirmedGeoPoint;  // map-confirmed coordinate
+  bool _detectingLoc = false;
+
   // ── Step 2 ─────────────────────────────────────────────────
-  List<Map<String, dynamic>> _services = [];
+  List<ServiceModel> _services = [];
   bool _isLoadingServices = false;
   final List<String> _selectedServiceIds = [];
   final _descriptionController = TextEditingController();
@@ -63,7 +83,8 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
   bool get _step2Valid =>
       _selectedServiceIds.isNotEmpty &&
       _descriptionController.text.isNotEmpty &&
-      _zoneController.text.isNotEmpty;
+      _zoneController.text.isNotEmpty &&
+      _villeController.text.isNotEmpty;
 
   bool get _step3Valid =>
       _cinFrontBase64 != null &&
@@ -85,6 +106,12 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
     _confirmController.dispose();
     _descriptionController.dispose();
     _zoneController.dispose();
+    _villeController.dispose();
+    _paysController.dispose();
+    _numBatController.dispose();
+    _rueController.dispose();
+    _quartierController.dispose();
+    _codePostalController.dispose();
     super.dispose();
   }
 
@@ -148,6 +175,113 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
     ));
   }
 
+  // ── Nominatim reverse geocode ─────────────────────────────────
+  Future<Map<String, String>?> _fallbackReverseGeocode(double lat, double lon) async {
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon&zoom=10&addressdetails=1');
+      final headers = kIsWeb ? <String, String>{} : {'User-Agent': 'service_app_amine/1.0'};
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data?['address'] != null) {
+          final addr = data['address'];
+          return {
+            'locality': addr['city'] ?? addr['town'] ?? addr['village'] ?? addr['state'] ?? '',
+            'country': addr['country'] ?? 'Maroc',
+          };
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // ── Nominatim forward geocode ─────────────────────────────────
+  Future<Map<String, double>?> _forwardGeocode(String query) async {
+    try {
+      final encoded = Uri.encodeComponent(query);
+      final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/search?format=json&q=$encoded&limit=1');
+      final headers = kIsWeb ? <String, String>{} : {'User-Agent': 'service_app_amine/1.0'};
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List;
+        if (data.isNotEmpty) {
+          return {
+            'lat': double.parse(data[0]['lat'].toString()),
+            'lng': double.parse(data[0]['lon'].toString()),
+          };
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // ── GPS Detection + Map Confirmation ─────────────────────────
+  Future<void> _detectLocation() async {
+    setState(() => _detectingLoc = true);
+    try {
+      final pos = await _locationService.getCurrentPosition();
+      if (pos == null) {
+        _showError('Impossible de détecter la localisation.');
+        return;
+      }
+
+      // Reverse geocode — city + country only
+      String city = '';
+      String country = 'Maroc';
+      try {
+        final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+        if (placemarks.isNotEmpty) {
+          final p = placemarks.first;
+          city = p.administrativeArea ?? p.locality ?? '';
+          country = p.country ?? 'Maroc';
+        }
+      } catch (_) {}
+
+      if (city.isEmpty) {
+        final fb = await _fallbackReverseGeocode(pos.latitude, pos.longitude);
+        if (fb != null) {
+          city = fb['locality'] ?? '';
+          country = fb['country'] ?? 'Maroc';
+        }
+      }
+
+      if (mounted) setState(() {
+        if (city.isNotEmpty) _villeController.text = city;
+        _paysController.text = country;
+      });
+
+      if (!mounted) return;
+      final result = await Navigator.push<MapConfirmResult>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MapConfirmScreen(
+            initialLat: pos.latitude,
+            initialLng: pos.longitude,
+            initialCity: city,
+            initialCountry: country,
+          ),
+        ),
+      );
+      if (result != null && mounted) {
+        setState(() {
+          _confirmedGeoPoint = result.geoPoint;
+          if (result.city.isNotEmpty) _villeController.text = result.city;
+          if (result.country.isNotEmpty) _paysController.text = result.country;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Position confirmée !'),
+          backgroundColor: Colors.green,
+        ));
+      }
+    } catch (e) {
+      _showError('Erreur: $e');
+    } finally {
+      if (mounted) setState(() => _detectingLoc = false);
+    }
+  }
+
   void _handleSignup() async {
     if (!_step1Valid || !_step2Valid || !_step3Valid) return;
     setState(() => _isLoading = true);
@@ -176,6 +310,37 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         return;
       }
 
+      // Force map confirmation if no coordinates yet but city is filled
+      GeoPoint? geoPoint = _confirmedGeoPoint;
+      if (geoPoint == null && _villeController.text.isNotEmpty) {
+        final city = _villeController.text.trim();
+        final country = _paysController.text.trim();
+        double lat = 31.7917;
+        double lng = -7.0926;
+        setState(() => _isLoading = false);
+        final coords = await _forwardGeocode('$city, $country');
+        if (coords != null) { lat = coords['lat']!; lng = coords['lng']!; }
+        if (!mounted) return;
+        final result = await Navigator.push<MapConfirmResult>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MapConfirmScreen(
+              initialLat: lat,
+              initialLng: lng,
+              initialCity: city,
+              initialCountry: country,
+              initialZoom: 11.0,
+            ),
+          ),
+        );
+        if (result == null) return; // User cancelled map confirm
+        geoPoint = result.geoPoint;
+        setState(() {
+          _confirmedGeoPoint = geoPoint;
+          _isLoading = true; // resume loading
+        });
+      }
+
       // extraData — no password sent to Firestore (Firebase Auth handles it)
       final extraData = {
         'name': _nameController.text.trim(),
@@ -184,10 +349,18 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         'serviceIds': _selectedServiceIds,
         'description': _descriptionController.text.trim(),
         'zone': _zoneController.text.trim(),
+        'ville': _villeController.text.trim(),
+        'pays': _paysController.text.trim(),
+        'num_batiment': _numBatController.text.trim(),
+        'rue': _rueController.text.trim(),
+        'quartier': _quartierController.text.trim(),
+        'code_postal': _codePostalController.text.trim(),
         'cinFront': _cinFrontBase64,
         'cinBack': _cinBackBase64,
         'certificate': _certificateBase64,
         'role': 'provider',
+        if (geoPoint != null) 'lat': geoPoint.latitude,
+        if (geoPoint != null) 'lng': geoPoint.longitude,
       };
 
       final hasPhone = _phoneController.text.trim().isNotEmpty;
@@ -195,10 +368,17 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
 
       if (hasPhone) {
         // Create proxy Firebase Auth account for phone user
-        await _authService.signUpWithPhoneProxy(
-          phone: phoneToCheck,
-          password: _passwordController.text,
-        );
+        try {
+          await _authService.signUpWithPhoneProxy(
+            phone: phoneToCheck,
+            password: _passwordController.text,
+          );
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'email-already-in-use') {
+            throw Exception('Ce numéro de téléphone est déjà lié à un compte.');
+          }
+          rethrow;
+        }
         await _authService.verifyPhoneNumber(
           phoneNumber: phoneToCheck,
           onVerificationCompleted: (_) =>
@@ -429,8 +609,8 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
                     crossAxisSpacing: 10,
                     mainAxisSpacing: 10,
                     children: _services.map((service) {
-                      final id = service['id'] as String;
-                      final nom = service['nom'] as String;
+                      final id = service.id ?? '';
+                      final nom = service.nom;
                       final selected = _selectedServiceIds.contains(id);
                       return GestureDetector(
                         onTap: () {
@@ -507,40 +687,69 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        const Text("Zone d'intervention",
+        const SizedBox(height: 20),
+        const Text("Zone d'intervention & Localisation",
             style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF1A237E))),
         const SizedBox(height: 8),
-        _field(_zoneController, 'Ex: Casablanca, Rabat...',
-            icon: Icons.location_on_outlined),
-        const SizedBox(height: 12),
-        Container(
-          height: 80,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+        _field(_zoneController, "Ex: Casablanca, Rabat (zone d'action)", icon: Icons.map_outlined),
+        const SizedBox(height: 14),
+
+        // Address Fields
+        Row(
+          children: [
+            Expanded(child: _field(_paysController, 'Pays', icon: Icons.public)),
+            const SizedBox(width: 14),
+            Expanded(child: _field(_villeController, 'Ville *', icon: Icons.location_city)),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            Expanded(child: _field(_numBatController, 'N° Bât/Appart', icon: Icons.home_work_outlined)),
+            const SizedBox(width: 14),
+            Expanded(child: _field(_codePostalController, 'Code postal', keyboardType: TextInputType.number)),
+          ],
+        ),
+        const SizedBox(height: 14),
+        _field(_quartierController, 'Quartier', icon: Icons.location_on_outlined),
+        const SizedBox(height: 14),
+        _field(_rueController, 'Rue / Avenue', icon: Icons.add_road),
+        const SizedBox(height: 16),
+
+        // ── Location detector ──
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _detectingLoc ? null : _detectLocation,
+            icon: _detectingLoc
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.my_location, size: 18),
+            label: Text(_detectingLoc ? 'Détection...' : '📍 Détecter ville et pays auto'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
           ),
-          child: const Center(
+        ),
+        if (_confirmedGeoPoint != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.map_outlined,
-                    size: 18, color: Color(0xFF3F64B5)),
-                SizedBox(width: 6),
-                Text(
-                  'Carte interactive (bientôt disponible)',
-                  style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF3F64B5),
-                      fontStyle: FontStyle.italic),
+                const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                const SizedBox(width: 6),
+                const Text(
+                  'Position exacte confirmée sur la carte',
+                  style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
           ),
-        ),
         const SizedBox(height: 24),
         _continueButton(
             enabled: _step2Valid,

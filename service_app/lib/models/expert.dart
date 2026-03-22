@@ -108,4 +108,30 @@ class Expert {
       location: data['location'] as GeoPoint?,
     );
   }
+
+  Expert copyWith({
+    String? id,
+    String? nom,
+    String? photo,
+    String? telephone,
+    double? noteMoyenne,
+    bool? isPremium,
+    List<String>? services,
+    String? ville,
+    double? prixMin,
+    GeoPoint? location,
+  }) {
+    return Expert(
+      id: id ?? this.id,
+      nom: nom ?? this.nom,
+      photo: photo ?? this.photo,
+      telephone: telephone ?? this.telephone,
+      noteMoyenne: noteMoyenne ?? this.noteMoyenne,
+      isPremium: isPremium ?? this.isPremium,
+      services: services ?? this.services,
+      ville: ville ?? this.ville,
+      prixMin: prixMin ?? this.prixMin,
+      location: location ?? this.location,
+    );
+  }
 }

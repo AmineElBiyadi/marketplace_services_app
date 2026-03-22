@@ -21,6 +21,8 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
   Stream<bool>? _isPremiumStream;
   String? _resolvedExpertId;
   bool _isSubscribing = false;
+  bool _isReactivating = false;
+  Map<String, dynamic>? _suspendedSub; // cached suspended subscription for reactivation
 
   @override
   void initState() {
@@ -69,68 +71,122 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: AppColors.primary));
           }
-          
-          final subscription = snapshot.data; // null = free, or Map with id, type, dateDebut, etc.
-          final isPremium = subscription != null;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "Mon abonnement",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
-                ),
-                Text(
-                  isPremium ? "Découvrez votre impact et vos statistiques" : "Gérez votre pack et vos paiements",
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-                const SizedBox(height: 24),
-                
-                _buildCurrentPlanCard(isPremium),
-                const SizedBox(height: 24),
+          final subscription = snapshot.data; // null = free, or Map with id, type, statut, etc.
+          final statut = (subscription?['statut'] ?? '').toString().toUpperCase();
+          final isPremium = subscription != null; // ACTIVE or GRACE
+          final isGrace = statut == 'GRACE';
 
-                if (isPremium) ...[
-                  // Subscription details card
-                  _buildSubscriptionDetailsCard(subscription),
-                  const SizedBox(height: 24),
-                  const Text(
-                    "Statistiques de performance",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildPremiumStats(subscription),
-                  const SizedBox(height: 32),
-                  // Cancel subscription button
-                  _buildCancelButton(subscription['id'] as String),
-                ] else ...[
-                  const Text(
-                    "Avantages du plan Gratuit",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildFreeAdvantages(),
-                  const SizedBox(height: 32),
-                  const Text(
-                    "Comparer les plans",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildComparisonTable(),
-                  const SizedBox(height: 24),
-                  _buildUpgradeButton(),
-                ],
-                
-                const SizedBox(height: 32),
-                const Text(
-                  "Historique des paiements",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+          // When subscription is null, also check for SUSPENDU
+          return FutureBuilder<QuerySnapshot>(
+            future: subscription == null
+                ? FirebaseFirestore.instance
+                    .collection('abonnements')
+                    .where('idExpert', isEqualTo: _resolvedExpertId!)
+                    .where('statut', isEqualTo: 'SUSPENDU')
+                    .limit(1)
+                    .get()
+                : null,
+            builder: (context, suspendedSnap) {
+              Map<String, dynamic>? suspendedSub;
+              if (subscription == null &&
+                  suspendedSnap.hasData &&
+                  suspendedSnap.data!.docs.isNotEmpty) {
+                final doc = suspendedSnap.data!.docs.first;
+                suspendedSub = {'id': doc.id, ...(doc.data() as Map<String, dynamic>)};
+              }
+              _suspendedSub = suspendedSub;
+              final isSuspended = suspendedSub != null;
+
+              return SingleChildScrollView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Mon abonnement",
+                      style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF1E293B)),
+                    ),
+                    Text(
+                      isPremium
+                          ? "Découvrez votre impact et vos statistiques"
+                          : isSuspended
+                              ? "Votre abonnement est suspendu"
+                              : "Gérez votre pack et vos paiements",
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── Plan card ──
+                    if (isPremium)
+                      _buildCurrentPlanCard(true, isGrace: isGrace)
+                    else if (isSuspended)
+                      _buildSuspendedCard(suspendedSub)
+                    else
+                      _buildCurrentPlanCard(false),
+
+                    const SizedBox(height: 24),
+
+                    if (isPremium) ...[
+                      if (isGrace) _buildGraceBanner(),
+                      if (isGrace) const SizedBox(height: 16),
+                      _buildSubscriptionDetailsCard(subscription),
+                      const SizedBox(height: 16),
+                      _buildPaymentMethodSection(),
+                      const SizedBox(height: 24),
+                      const Text(
+                        "Statistiques de performance",
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B)),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildPremiumStats(subscription),
+                      const SizedBox(height: 32),
+                      _buildCancelButton(subscription['id'] as String),
+                    ] else if (!isSuspended) ...[
+                      const Text(
+                        "Avantages du plan Gratuit",
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B)),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildFreeAdvantages(),
+                      const SizedBox(height: 32),
+                      const Text(
+                        "Comparer les plans",
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B)),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildComparisonTable(),
+                      const SizedBox(height: 24),
+                      _buildUpgradeButton(),
+                    ],
+
+                    const SizedBox(height: 32),
+                    const Text(
+                      "Historique des paiements",
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B)),
+                    ),
+                    const SizedBox(height: 12),
+                    _buildPaymentHistory(isPremium || isSuspended),
+                  ],
                 ),
-                const SizedBox(height: 12),
-                _buildPaymentHistory(isPremium),
-              ],
-            ),
+              );
+            },
           );
         },
       ),
@@ -142,22 +198,31 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
     String dateTxt = '';
     if (dateDebut is Timestamp) {
       final d = dateDebut.toDate();
-      dateTxt = '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+      dateTxt =
+          '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
     }
     final type = sub['type'] ?? 'PREMIUM';
     final montant = sub['montant'] ?? 99;
+    final statut = (sub['statut'] ?? 'ACTIVE').toString().toUpperCase();
+    final isGrace = statut == 'GRACE';
 
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6C63FF), Color(0xFF4A90D9)],
+        gradient: LinearGradient(
+          colors: isGrace
+              ? [const Color(0xFFD97706), const Color(0xFFF59E0B)]
+              : [const Color(0xFF6C63FF), const Color(0xFF4A90D9)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: const Color(0xFF6C63FF).withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 10)),
+          BoxShadow(
+              color: (isGrace ? const Color(0xFFD97706) : const Color(0xFF6C63FF))
+                  .withOpacity(0.3),
+              blurRadius: 20,
+              offset: const Offset(0, 10)),
         ],
       ),
       child: Column(
@@ -165,14 +230,28 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
         children: [
           Row(
             children: [
-              const Icon(LucideIcons.crown, color: Colors.amber, size: 20),
+              Icon(isGrace ? LucideIcons.alertTriangle : LucideIcons.crown,
+                  color: Colors.amber, size: 20),
               const SizedBox(width: 8),
-              Text('Abonnement $type', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+              Text('Abonnement $type',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16)),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
-                child: const Text('ACTIF', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20)),
+                child: Text(
+                  isGrace ? 'GRÂCE' : 'ACTIF',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
@@ -180,8 +259,10 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _subDetailItem(LucideIcons.calendar, 'Début', dateTxt.isEmpty ? '--' : dateTxt),
-              _subDetailItem(LucideIcons.banknote, 'Montant', '$montant DH/mois'),
+              _subDetailItem(LucideIcons.calendar, 'Début',
+                  dateTxt.isEmpty ? '--' : dateTxt),
+              _subDetailItem(
+                  LucideIcons.banknote, 'Montant', '$montant DH/mois'),
               _subDetailItem(LucideIcons.refreshCw, 'Renouvellement', 'Auto'),
             ],
           ),
@@ -212,12 +293,68 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
       child: OutlinedButton.icon(
         onPressed: () => _showCancelModal(subscriptionId),
         icon: const Icon(LucideIcons.xCircle, size: 18, color: Colors.red),
-        label: const Text("Annuler mon abonnement", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+        label: const Text("Suspendre mon abonnement",
+            style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Colors.red, width: 1.5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
+    );
+  }
+
+  Widget _buildPaymentMethodSection() {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _firestoreService.getStoredCard(_resolvedExpertId!),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final card = snapshot.data;
+        final cardNumber = card?['CardNumber'] ?? 'Aucune carte enregistrée';
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(LucideIcons.creditCard, color: AppColors.primary, size: 22),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Moyen de paiement', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    Text(
+                      cardNumber,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => _showPaymentModal(isUpdate: true),
+                child: const Text('Mettre à jour', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -229,16 +366,19 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
         title: const Row(children: [
           Icon(LucideIcons.alertTriangle, color: Colors.orange, size: 22),
           SizedBox(width: 10),
-          Text("Confirmer l'annulation", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text("Confirmer la suspension",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         ]),
         content: const Text(
-          "Êtes-vous sûr de vouloir annuler votre abonnement Premium ?\nVous reviendrez au plan Gratuit immédiatement.",
+          "Votre abonnement sera suspendu et votre accès Premium coupé.\nVos données sont conservées — vous pourrez réactiver sans ressaisir votre carte.",
           style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Non, garder Premium", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+            child: const Text("Non, garder Premium",
+                style: TextStyle(
+                    color: AppColors.primary, fontWeight: FontWeight.bold)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -247,13 +387,17 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                 await _firestoreService.cancelSubscription(subscriptionId);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Abonnement annulé."), backgroundColor: Colors.orange),
+                    const SnackBar(
+                        content: Text("Abonnement suspendu."),
+                        backgroundColor: Colors.orange),
                   );
                 }
               } catch (e) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Erreur: $e"), backgroundColor: Colors.red),
+                    SnackBar(
+                        content: Text("Erreur: $e"),
+                        backgroundColor: Colors.red),
                   );
                 }
               }
@@ -261,27 +405,49 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text("Oui, annuler"),
+            child: const Text("Oui, suspendre"),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCurrentPlanCard(bool isPremium) {
+  Widget _buildCurrentPlanCard(bool isPremium, {bool isGrace = false}) {
+    Color accent;
+    String planLabel;
+    String emoji;
+    String price;
+    if (isPremium && !isGrace) {
+      accent = AppColors.accent;
+      planLabel = 'Premium ⭐';
+      emoji = '🌟';
+      price = '99 DH/mois';
+    } else if (isPremium && isGrace) {
+      accent = const Color(0xFFD97706);
+      planLabel = 'Premium (Paiement en attente)';
+      emoji = '⏳';
+      price = '99 DH/mois';
+    } else {
+      accent = AppColors.primary;
+      planLabel = 'Gratuit';
+      emoji = '📦';
+      price = '0 DH/mois';
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: isPremium ? AppColors.accent : AppColors.primary, width: 2),
+        border: Border.all(color: accent, width: 2),
         boxShadow: [
           BoxShadow(
-            color: (isPremium ? AppColors.accent : AppColors.primary).withOpacity(0.1), 
-            blurRadius: 20, 
-            offset: const Offset(0, 10)
+            color: accent.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -292,32 +458,178 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: (isPremium ? AppColors.accent : AppColors.primary).withOpacity(0.1),
+                  color: accent.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   "Plan actuel",
                   style: TextStyle(
-                    color: isPremium ? AppColors.accent : AppColors.primary, 
-                    fontSize: 10, 
-                    fontWeight: FontWeight.bold
-                  ),
+                      color: accent, fontSize: 10, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                isPremium ? "Premium ⭐" : "Gratuit",
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
+                planLabel,
+                style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF1E293B)),
               ),
               Text(
-                isPremium ? "99 DH/mois" : "0 DH/mois",
+                price,
                 style: const TextStyle(fontSize: 14, color: Colors.grey),
               ),
             ],
           ),
-          Text(isPremium ? "🌟" : "📦", style: const TextStyle(fontSize: 40)),
+          Text(emoji, style: const TextStyle(fontSize: 40)),
+        ],
+      ),
+    );
+  }
+
+  /// Card shown when the expert's subscription is SUSPENDU
+  Widget _buildSuspendedCard(Map<String, dynamic>? sub) {
+    final montant = (sub ?? {})['montant'] ?? 99;
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFEF4444), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFEF4444).withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  "Plan actuel",
+                  style: TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  'SUSPENDU',
+                  style: TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Premium ⭐ — Suspendu',
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF1E293B)),
+                  ),
+                  Text(
+                    '$montant DH/mois',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                ],
+              ),
+              const Text('🔒', style: TextStyle(fontSize: 36)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: ElevatedButton.icon(
+              onPressed: _isReactivating ? null : _reactivateSubscription,
+              icon: _isReactivating
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(LucideIcons.refreshCw, size: 16),
+              label: Text(
+                _isReactivating ? 'Réactivation...' : 'Réactiver mon abonnement',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Orange banner shown at the top of the premium section when statut == GRACE
+  Widget _buildGraceBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF3C7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFBBF24)),
+      ),
+      child: Row(
+        children: [
+          const Icon(LucideIcons.alertTriangle, color: Color(0xFFD97706), size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'Paiement en cours de traitement',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF92400E)),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Votre accès Premium est maintenu pendant 7 jours, le temps que Stripe réessaie le prélèvement (3 tentatives max).',
+                  style:
+                      TextStyle(fontSize: 11, color: Color(0xFFB45309), height: 1.4),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -401,6 +713,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
               ));
             }
 
+            // ignore: unused_local_variable
             final kpis = (snapshot.data?[0] as Map<String, dynamic>?) ?? {
               'reservations_today': '0', 'rating': '0.0', 'revenue': '0 DH', 'views': '0'
             };
@@ -547,45 +860,6 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                 ),
             const SizedBox(height: 24),
 
-            // ── Subscription Revenue Summary ───────────────
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48, height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(LucideIcons.trendingUp, color: Colors.green, size: 22),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Revenu total abonnement', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                        Text(
-                          '${totalRevenue.toStringAsFixed(0)} DH',
-                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
-                        ),
-                        Text(
-                          '$monthsElapsed mois × $pricePerMonth DH',
-                          style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
 
             // ── Bar Chart ──────────────────────────────────
             Container(
@@ -598,8 +872,8 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Revenus d\'abonnement par mois', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                  const Text('(99 DH/mois)', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  const Text('Coût mensuel de votre abonnement', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                  const Text('Prélèvements de 99 DH/mois', style: TextStyle(fontSize: 11, color: Colors.grey)),
                   const SizedBox(height: 20),
                   SizedBox(
                     height: 180,
@@ -760,20 +1034,96 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
       width: double.infinity,
       height: 54,
       child: ElevatedButton.icon(
-        onPressed: _showPaymentModal,
+        onPressed: _checkCardAndUpgrade,
         icon: const Icon(LucideIcons.crown, size: 20),
-        label: const Text("Passer Premium — 99 DH/mois", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        label: const Text("Passer Premium — 99 DH/mois",
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
       ),
     );
   }
 
-  void _showPaymentModal() {
+  Future<void> _checkCardAndUpgrade() async {
+    final hasCard = await _firestoreService.hasStoredCard(_resolvedExpertId!);
+    if (!mounted) return;
+    if (hasCard) {
+      // Card already on file — subscribe directly without re-entering card details
+      setState(() => _isSubscribing = true);
+      try {
+        await _firestoreService.subscribeToPremium(_resolvedExpertId!);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Félicitations ! Vous êtes à nouveau Premium 🌟"),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text("Erreur: $e"), backgroundColor: Colors.red),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isSubscribing = false);
+      }
+    } else {
+      // First time — show card entry form
+      _showPaymentModal();
+    }
+  }
+
+  Future<void> _reactivateSubscription() async {
+    if (_suspendedSub == null) return;
+    final subId = _suspendedSub!['id'] as String;
+    setState(() => _isReactivating = true);
+    try {
+      final hasCard = await _firestoreService.hasStoredCard(_resolvedExpertId!);
+      if (!mounted) return;
+      if (hasCard) {
+        await _firestoreService.reactivateSubscription(subId);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Abonnement réactivé avec succès 🌟"),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        // No card on file → show payment modal for new card entry
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  "Votre carte a expiré. Veuillez saisir une nouvelle carte."),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          _showPaymentModal();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text("Erreur: $e"), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isReactivating = false);
+    }
+  }
+
+  void _showPaymentModal({bool isUpdate = false}) {
     final cardNumberController = TextEditingController();
     final expiryController = TextEditingController();
     final cvvController = TextEditingController();
@@ -790,7 +1140,12 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Entrez vos informations de carte pour passer Premium (99 DH/mois).", style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  Text(
+                    isUpdate 
+                      ? "Entrez les détails de votre nouvelle carte."
+                      : "Entrez vos informations de carte pour passer Premium (99 DH/mois).", 
+                    style: const TextStyle(fontSize: 13, color: Colors.grey)
+                  ),
                   const SizedBox(height: 20),
                   TextField(
                     controller: cardNumberController,
@@ -863,14 +1218,20 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                         expiryDate: expiryController.text,
                         cvv: cvvController.text,
                       );
-                      // 2. Create premium subscription in abonnements
-                      await _firestoreService.subscribeToPremium(_resolvedExpertId!);
+                      
+                      if (!isUpdate) {
+                        // 2. Create premium subscription in abonnements
+                        await _firestoreService.subscribeToPremium(_resolvedExpertId!);
+                      } else {
+                        // Force refresh so FutureBuilder sees the new card
+                        setState(() {});
+                      }
                       
                       if (context.mounted) {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Félicitations ! Vous êtes maintenant Premium 🌟"),
+                          SnackBar(
+                            content: Text(isUpdate ? "Carte mise à jour avec succès ✅" : "Félicitations ! Vous êtes maintenant Premium 🌟"),
                             backgroundColor: Colors.green,
                           ),
                         );

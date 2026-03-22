@@ -13,6 +13,7 @@ import '../../widgets/home/top_rated_card.dart';
 import 'expert_details_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
+import '../../models/service.dart';
 import '../../widgets/start_chat_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -38,13 +39,16 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Position GPS de l'utilisateur (null si permission refusée)
   Position? _userPosition;
 
-  final List<Map<String, dynamic>> categories = [
-    {'label': 'Plomberie', 'icon': Icons.plumbing, 'image': 'assets/categories/plumbing.png'},
-    {'label': 'Électricité', 'icon': Icons.electrical_services, 'image': 'assets/categories/electricity.png'},
-    {'label': 'Nettoyage', 'icon': Icons.cleaning_services, 'image': 'assets/categories/cleaning.png'},
-    {'label': 'Jardinage', 'icon': Icons.yard, 'image': 'assets/categories/gardening.png'},
-    {'label': 'Coiffure', 'icon': Icons.content_cut, 'image': 'assets/categories/hair.png'},
-  ];
+  List<Map<String, dynamic>> _categories = [];
+
+  // Map of category names to their assets/icons (for hardcoded ones)
+  final Map<String, Map<String, dynamic>> _categoryAssets = {
+    'Plomberie': {'icon': Icons.plumbing, 'image': 'assets/categories/plumbing.png'},
+    'Électricité': {'icon': Icons.electrical_services, 'image': 'assets/categories/electricity.png'},
+    'Nettoyage': {'icon': Icons.cleaning_services, 'image': 'assets/categories/cleaning.png'},
+    'Jardinage': {'icon': Icons.yard, 'image': 'assets/categories/gardening.png'},
+    'Coiffure': {'icon': Icons.content_cut, 'image': 'assets/categories/hair.png'},
+  };
 
   @override
   void initState() {
@@ -100,13 +104,32 @@ class _HomeScreenState extends State<HomeScreen> {
     final position = await _locationService.getCurrentPosition();
     if (mounted) setState(() => _userPosition = position);
 
-    // 3. Liste des experts et des villes
+    // 3. Liste des experts, des villes et des services
     final experts = await _firestoreService.getExperts();
     final villes = await _firestoreService.getVillesExperts();
+    final serviceModels = await _firestoreService.getServices();
+
     if (mounted) {
       setState(() {
         _experts = experts;
         _villesExperts = villes;
+        
+        // Map Firestore services to UI format
+        _categories = serviceModels.map((s) {
+          final label = s.nom;
+          // Check if we have hardcoded assets for this service name
+          final assets = _categoryAssets[label] ?? _categoryAssets.values.firstWhere(
+            (val) => label.toLowerCase().contains(val['image'].toString().split('/').last.split('.').first),
+            orElse: () => {'icon': Icons.business_center, 'image': s.image},
+          );
+          
+          return {
+            'label': label,
+            'icon': assets['icon'] ?? Icons.business_center,
+            'image': s.image ?? assets['image'],
+          };
+        }).toList();
+
         _isLoading = false;
       });
       _applyFilters();
@@ -351,7 +374,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text(
-                                'Popular',
+                                'Our Services',
                                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                               ),
                             ],
@@ -359,14 +382,14 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 16),
                         SizedBox(
-                          height: 110,
+                          height: 150,
                           child: ListView.separated(
                             padding: const EdgeInsets.symmetric(horizontal: 24),
                             scrollDirection: Axis.horizontal,
-                            itemCount: categories.length,
+                            itemCount: _categories.length,
                             separatorBuilder: (context, index) => const SizedBox(width: 20),
                             itemBuilder: (context, index) {
-                              final cat = categories[index];
+                              final cat = _categories[index];
                               final isSelected = _selectedCategory == cat['label'];
                               return CategoryCard(
                                 label: cat['label'],

@@ -26,8 +26,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
 
   bool _isOnline = true;
   bool _isPremium = false;
+  Map<String, dynamic>? _subscriptionData; // full subscription doc (includes statut, graceStartedAt)
   String _expertName = "Expert";
-  StreamSubscription<bool>? _premiumSub;
+  StreamSubscription<Map<String, dynamic>?>? _subDataSub;
 
   @override
   void initState() {
@@ -59,18 +60,38 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
 
   void _subscribeToPremium() {
     if (_resolvedExpertId == null || _resolvedExpertId == ':expertId') return;
-    
-    _premiumSub?.cancel();
-    _premiumSub = _firestoreService.isExpertPremium(_resolvedExpertId!).listen((isPremium) {
+
+    _subDataSub?.cancel();
+    _subDataSub = _firestoreService
+        .getActiveSubscription(_resolvedExpertId!)
+        .listen((sub) {
       if (mounted) {
-        setState(() => _isPremium = isPremium);
+        setState(() {
+          _subscriptionData = sub;
+          _isPremium = sub != null;
+        });
       }
     });
   }
 
+  /// Returns remaining days of the 7-day grace window, or null if not in GRACE.
+  int? get _graceRemainingDays {
+    final statut = (_subscriptionData?['statut'] ?? '').toString().toUpperCase();
+    if (statut != 'GRACE') return null;
+    
+    // Fallback to 'updatedAt' if 'graceStartedAt' is missing (e.g., manual DB edit)
+    final ts = _subscriptionData?['graceStartedAt'] ?? _subscriptionData?['updatedAt'];
+    if (ts == null) return 7; 
+    
+    final graceStart = (ts as dynamic).toDate() as DateTime;
+    final elapsed = DateTime.now().difference(graceStart).inDays;
+    final remaining = 7 - elapsed;
+    return remaining.clamp(0, 7) as int;
+  }
+
   @override
   void dispose() {
-    _premiumSub?.cancel();
+    _subDataSub?.cancel();
     super.dispose();
   }
 
@@ -183,31 +204,72 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            _isPremium ? "Premium ⭐" : "Gratuit",
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
+                        // Plan chip
+                        GestureDetector(
+                          onTap: () => context.push(AppRoutes.providerSubscription
+                              .replaceAll(':expertId', _resolvedExpertId!)),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _isPremium ? "Premium ⭐" : "Gratuit",
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),
-                        if (!_isPremium) ...[
+
+                        // Grace countdown badge
+                        if (_graceRemainingDays != null) ...[
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: () => context.push(AppRoutes
+                                .providerSubscription
+                                .replaceAll(':expertId', _resolvedExpertId!)),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7), // Beige/Yellow bg
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.warning_amber_rounded,
+                                      size: 14, color: Color(0xFF92400E)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Grâce – J-${_graceRemainingDays}',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF92400E), // Brown text
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ] else if (!_isPremium) ...[
                           const SizedBox(width: 12),
                           GestureDetector(
-                            onTap: () => context.push(AppRoutes.providerSubscription.replaceAll(':expertId', _resolvedExpertId!)),
+                            onTap: () => context.push(AppRoutes
+                                .providerSubscription
+                                .replaceAll(':expertId', _resolvedExpertId!)),
                             child: const Text(
                               "Upgrade",
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFFFFD700), // Gold/Yellow
+                                color: Color(0xFFFFD700),
                                 decoration: TextDecoration.underline,
                               ),
                             ),
