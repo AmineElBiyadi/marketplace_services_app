@@ -8,6 +8,7 @@ import '../../../services/firestore_service.dart';
 import 'edit_profile_screen.dart';
 import 'my_reviews_screen.dart';
 import 'my_complaints_screen.dart';
+import 'my_addresses_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -174,6 +175,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       label: 'My Bookings',
                       color: primaryBlue,
                       onTap: () => context.push('/bookings-list'),
+                    ),
+                    _buildMenuItem(
+                      icon: Icons.location_on_outlined,
+                      label: 'My Addresses',
+                      color: primaryBlue,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MyAddressesScreen())),
                     ),
                     _buildMenuItem(
                       icon: Icons.star_border_outlined,
