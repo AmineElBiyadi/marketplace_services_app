@@ -233,6 +233,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 340),
                       child: DataTable(
                         columnSpacing: 24,
+                        showCheckboxColumn: false,
                         headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: _textSecondary),
                         columns: const [
                           DataColumn(label: Text('Utilisateur')),
@@ -240,6 +241,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           DataColumn(label: Text('Statut')),
                           DataColumn(label: Text('Créé le')),
                           DataColumn(label: Text('Mis à jour le')),
+                          DataColumn(label: Text('Actions')),
                         ],
                         rows: _filteredUsers.map((user) {
                           return DataRow(
@@ -270,6 +272,17 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                               DataCell(_badge(user['status'] ?? 'Actif', user['status'] == 'Actif' ? Colors.green : Colors.red)),
                               DataCell(Text(user['createdAt'] ?? 'N/A', style: const TextStyle(color: _textSecondary))),
                               DataCell(Text(user['updatedAt'] ?? 'N/A', style: const TextStyle(color: _textSecondary))),
+                              DataCell(
+                                IconButton(
+                                  icon: const Icon(LucideIcons.eye, size: 18, color: _primary),
+                                  onPressed: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => UserProfileDetailDialog(id: user['id'], role: user['type'] ?? 'Client'),
+                                    );
+                                  },
+                                ),
+                              ),
                             ],
                           );
                         }).toList(),

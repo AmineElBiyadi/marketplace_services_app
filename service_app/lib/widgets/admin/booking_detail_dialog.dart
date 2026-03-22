@@ -459,17 +459,33 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                   _infoTile(LucideIcons.phone, _user!['phone']),
                   if (_user!['region'] != null) _infoTile(LucideIcons.mapPin, _user!['region']),
                   const SizedBox(height: 32),
+                  const SizedBox(height: 32),
                   const Text('CONTACTER L\'UTILISATEUR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
                   const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _contactBtn('WhatsApp', const Color(0xFF25D366), LucideIcons.messageCircle, () => _launchChannel('whatsapp'), enabled: _user!['phone'].isNotEmpty),
-                      _contactBtn('E-mail', const Color(0xFFEA4335), LucideIcons.mail, () => _launchChannel('email'), enabled: _user!['email'].isNotEmpty),
-                      _contactBtn('Appel', const Color(0xFF34A853), LucideIcons.phone, () => _launchChannel('phone'), enabled: _user!['phone'].isNotEmpty),
-                    ],
+                  Center(
+                    child: _contactBtn('E-mail', const Color(0xFFEA4335), LucideIcons.mail, () => _launchChannel('email'), enabled: _user!['email'].isNotEmpty),
                   ),
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: _user!['email'].isNotEmpty ? _showEmailComposer : null,
+                    icon: const Icon(LucideIcons.penTool, size: 14),
+                    label: const Text('Composer un E-mail personnalisé', style: TextStyle(fontSize: 12)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _primary,
+                      side: const BorderSide(color: _primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  if (widget.role == 'Expert' || widget.role == 'Prestataire') ...[
+                    const Divider(height: 48),
+                    const Text('DOCUMENTS PROFESSIONNELS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                    const SizedBox(height: 16),
+                    _infoTile(LucideIcons.contact, 'CNI: ${_user!['CarteNationale']}'),
+                    _infoTile(LucideIcons.fileText, 'Casier: ${_user!['CasierJudiciaire']}'),
+                    _infoTile(LucideIcons.briefcase, 'Expérience: ${_user!['Experience']}'),
+                    if ((_user!['services'] as List).isNotEmpty)
+                      _infoTile(LucideIcons.settings, 'Services: ${(_user!['services'] as List).join(", ")}'),
+                  ],
                   const SizedBox(height: 32),
                   const Text('ACTIONS ET NOTIFICATIONS AUTO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
                   const Padding(
@@ -489,6 +505,53 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                   TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
                 ],
               ),
+      ),
+    );
+  }
+
+  void _showEmailComposer() {
+    final subjectController = TextEditingController(text: 'Concernant votre compte Marketplace');
+    final bodyController = TextEditingController();
+    bool sending = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('Nouvel E-mail'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: subjectController,
+                decoration: const InputDecoration(labelText: 'Sujet', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: bodyController,
+                maxLines: 5,
+                decoration: const InputDecoration(labelText: 'Message', border: OutlineInputBorder(), alignLabelWithHint: true),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+            ElevatedButton(
+              onPressed: sending ? null : () async {
+                if (bodyController.text.isEmpty) return;
+                setLocalState(() => sending = true);
+                await _service.sendAutomaticEmail(
+                  to: _user!['email'],
+                  subject: subjectController.text,
+                  html: "<p>${bodyController.text.replaceAll('\n', '<br>')}</p><p>Cordialement,<br>L'administration.</p>",
+                );
+                if (context.mounted) Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('E-mail envoyé avec succès'), backgroundColor: Colors.green));
+              },
+              child: sending ? const SizedBox(height: 15, width: 15, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Envoyer'),
+            ),
+          ],
+        ),
       ),
     );
   }

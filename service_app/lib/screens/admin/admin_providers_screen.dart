@@ -254,6 +254,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                       constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 340),
                       child: DataTable(
                         columnSpacing: 24,
+                        showCheckboxColumn: false,
                         headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: _textSecondary),
                         columns: const [
                           DataColumn(label: Text('Prestataire')),
@@ -331,7 +332,12 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
             IconButton(
               icon: const Icon(LucideIcons.eye, size: 18, color: _primary),
               tooltip: 'Détails',
-              onPressed: () => _showDetailsDialog(p),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => UserProfileDetailDialog(id: p['id'], role: 'Prestataire'),
+                );
+              },
             ),
             if (status != 'ACTIVE')
               IconButton(

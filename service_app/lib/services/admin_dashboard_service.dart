@@ -921,6 +921,15 @@ class AdminDashboardService {
       'role': role,
       'imageUrl': userData['image_profile'] ?? userData['photoUrl'],
       'region': ville,
+      // Professional Docs and Stats (for Experts)
+      'CarteNationale': data['CarteNationale'] ?? 'N/A',
+      'CasierJudiciaire': data['CasierJudiciaire'] ?? 'N/A',
+      'Experience': data['Experience'] ?? 'N/A',
+      'rating': (data['rating'] ?? 0.0) as double,
+      'interventionsCount': data['interventionsCount'] ?? 0,
+      'rayonTravaille': data['rayonTravaille'],
+      'services': data['services'] ?? [],
+      'tasks': data['tasks'] ?? [],
     };
   }
 
