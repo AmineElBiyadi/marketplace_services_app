@@ -7,6 +7,7 @@ import '../../models/booking.dart';
 import '../../models/task_model.dart';
 import '../../models/chat_model.dart';
 import '../chat/chat_screen.dart';
+import '../client/complaint_screen.dart';
 
 const _tabs = ["Pending", "Confirmed", "Completed", "Cancelled", "Refused"];
 const _tabStatusMap = {
@@ -838,7 +839,25 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                       onTap: () => _showCancelDialog(intervention),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildActionButton(
+                      label: "Réclamer",
+                      icon: Icons.report_problem_outlined,
+                      color: Colors.orange,
+                      filled: false,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ComplaintScreen(
+                            interventionId: intervention.id!,
+                            role: 'expert',
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: _buildActionButton(
                       label: "Complete",
@@ -849,6 +868,27 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                     ),
                   ),
                 ],
+              ),
+            ],
+            if (isCompleted) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: _buildActionButton(
+                  label: "Déposer une réclamation",
+                  icon: Icons.report_problem_outlined,
+                  color: Colors.orange,
+                  filled: false,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ComplaintScreen(
+                        interventionId: intervention.id!,
+                        role: 'expert',
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
             if (isPending) ...[
@@ -891,10 +931,10 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
     double gridExtent = 250;
     switch (currentStatus) {
       case "EN_ATTENTE": gridExtent = 230; break;
-      case "ACCEPTEE": gridExtent = 310; break; // +55 for the extra lines
+      case "ACCEPTEE": gridExtent = 330; break;
       case "TERMINEE": 
       case "ANNULEE": 
-        gridExtent = 220; // +55 for the extra lines
+        gridExtent = 270;
         break;
       case "REFUSEE": 
         gridExtent = 180; 
