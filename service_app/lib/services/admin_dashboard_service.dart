@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 class AdminDashboardStats {
@@ -43,7 +43,6 @@ class AdminDashboardStats {
     required this.totalFinishedReservations,
   });
 }
-
 
 class AdminDashboardService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -411,7 +410,8 @@ class AdminDashboardService {
   }
 
   Future<void> updateProviderStatus(String expertId, String status) async {
-    await _db.collection('experts').doc(expertId).update({'etatCompte': status});
+    // Re-linking to the unified method that triggers email notifications
+    await updateUserStatus(expertId, 'Prestataire', status);
   }
 
   Future<void> approveProvider(String expertId) async {
@@ -888,7 +888,7 @@ class AdminDashboardService {
 
   /// Fetches a combined user profile (client or expert) for the admin management modal
   Future<Map<String, dynamic>?> getUserProfile(String id, String role) async {
-    final collection = role == 'Expert' ? 'experts' : 'clients';
+    final collection = (role == 'Expert' || role == 'Prestataire') ? 'experts' : 'clients';
     final doc = await _db.collection(collection).doc(id).get();
     if (!doc.exists) return null;
     
@@ -926,19 +926,22 @@ class AdminDashboardService {
 
   /// Updates the account status in the role collection (experts or clients)
   Future<void> updateUserStatus(String id, String role, String status) async {
-    final collection = role == 'Expert' ? 'experts' : 'clients';
+    final collection = (role == 'Expert' || role == 'Prestataire') ? 'experts' : 'clients';
     await _db.collection(collection).doc(id).update({
       'etatCompte': status,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
+    debugPrint('DEBUG: updateUserStatus called for $id ($role) to $status');
     // Automatically send an email notification for important status changes
     if (status == 'SUSPENDUE' || status == 'ACTIVE' || status == 'DESACTIVE') {
       final profile = await getUserProfile(id, role);
-      if (profile != null && profile['email'].isNotEmpty) {
+      debugPrint('DEBUG: profile resolved: ${profile?['name']} - ${profile?['email']}');
+      
+      if (profile != null && profile['email'] != null && profile['email'].isNotEmpty) {
         String subject = "";
         String body = "";
-
+        
         if (status == 'ACTIVE') {
           subject = "Votre compte a été activé";
           body = "Félicitations ${profile['name']}, votre compte est désormais actif sur notre plateforme.";
@@ -955,44 +958,46 @@ class AdminDashboardService {
           subject: subject,
           html: "<p>$body</p><p>L'équipe Support.</p>",
         );
+      } else {
+        debugPrint('DEBUG: No email found for user $id');
       }
     }
   }
 
-  /// Sends an automated email by calling a secure Cloud Function (Node.js)
+  /// Sends an automated email using a zero-cost Google Apps Script Bridge
   Future<void> sendAutomaticEmail({
     required String to,
     required String subject,
     String? text,
     String? html,
   }) async {
+    final scriptUrl = dotenv.get('GOOGLE_APPS_SCRIPT_URL', fallback: '');
+    debugPrint('DEBUG: sendAutomaticEmail hit for $to. URL: $scriptUrl');
+
+    if (scriptUrl.isEmpty || scriptUrl.contains('VOTRE_ID')) {
+      debugPrint("Email Error: GOOGLE_APPS_SCRIPT_URL is not configured in .env");
+      return;
+    }
+
     try {
-      // 1. Collect credentials from .env to pass to the function
-      final credentials = {
-        'fromEmail': dotenv.get('SMTP_USER', fallback: ''),
-        'fromName': dotenv.get('SMTP_FROM_NAME', fallback: 'Admin Marketplace'),
-        'smtpHost': dotenv.get('SMTP_HOST', fallback: ''),
-        'smtpPort': dotenv.get('SMTP_PORT', fallback: '465'),
-        'smtpPass': dotenv.get('SMTP_PASS', fallback: ''),
-        'sendGridKey': dotenv.get('SENDGRID_API_KEY', fallback: ''),
-      };
+      final response = await http.post(
+        Uri.parse(scriptUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'to': to,
+          'subject': subject,
+          'text': text,
+          'html': html,
+        }),
+      );
 
-      // 2. Call the Cloud Function
-      HttpsCallable callable = FirebaseFunctions.instance.httpsCallable('sendEmail');
-      
-      final result = await callable.call({
-        'to': to,
-        'subject': subject,
-        'text': text,
-        'html': html,
-        'credentials': credentials,
-      });
-
-      if (result.data['success'] == true) {
-        debugPrint('Cloud Function: Email sent via ${result.data['method']}');
+      if (response.statusCode == 200 || response.statusCode == 302) {
+        debugPrint('Google Bridge: Email sent successfully');
+      } else {
+        debugPrint('Google Bridge Error: ${response.statusCode}');
       }
     } catch (e) {
-      debugPrint("Error calling Cloud Function: $e");
+      debugPrint("Error calling Google Email Bridge: $e");
     }
   }
 }

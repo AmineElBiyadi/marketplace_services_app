@@ -322,7 +322,7 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
   void _showUserProfileModal(String id, String role) {
     showDialog(
       context: context,
-      builder: (context) => _UserProfileModal(id: id, role: role),
+      builder: (context) => UserProfileDetailDialog(id: id, role: role),
     );
   }
 
@@ -392,16 +392,16 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
   }
 }
 
-class _UserProfileModal extends StatefulWidget {
+class UserProfileDetailDialog extends StatefulWidget {
   final String id;
   final String role;
-  const _UserProfileModal({required this.id, required this.role});
+  const UserProfileDetailDialog({super.key, required this.id, required this.role});
 
   @override
-  State<_UserProfileModal> createState() => _UserProfileModalState();
+  State<UserProfileDetailDialog> createState() => _UserProfileDetailDialogState();
 }
 
-class _UserProfileModalState extends State<_UserProfileModal> {
+class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
   final AdminDashboardService _service = AdminDashboardService();
   bool _loading = true;
   Map<String, dynamic>? _user;
