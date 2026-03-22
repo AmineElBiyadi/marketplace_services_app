@@ -23,8 +23,10 @@ import '../screens/provider/provider_subscription_screen.dart';
 import '../screens/provider/provider_profile_screen.dart';
 import '../screens/provider/provider_personal_info_screen.dart';
 import '../screens/provider/provider_statistics_screen.dart';
+import '../screens/provider/provider_cgu_screen.dart';
 import '../navigation/main_navigation.dart';
 import '../screens/client/booking_detail_screen.dart';
+import '../screens/client/bookings_screen.dart';
 import '../screens/client/review_screen.dart';
 import '../screens/client/complaint_screen.dart';
 import '../screens/splash_screen.dart';
@@ -81,12 +83,12 @@ class AppRouter {
       final path = state.uri.path;
       final bool isAdminPath = path.startsWith('/admin');
 
-      // 1. Maintenance Mode Blocking
+      // 1. Priorité absolue : Mode Maintenance (sauf pour Admin)
       if (maintenanceService.isMaintenance && !isAdminPath && path != AppRoutes.maintenance) {
         return AppRoutes.maintenance;
       }
 
-      // 2. Auth checks
+      // 2. Chemins Publics (Accessibles sans Auth)
       final publicPaths = [
         '/',
         AppRoutes.maintenance,
@@ -101,7 +103,7 @@ class AppRouter {
         '/welcome',
       ];
 
-      // Protect admin routes separately
+      // 3. Protection Spécifique Admin
       if (path.startsWith('/admin') && path != AppRoutes.adminLogin) {
         final prefs = await SharedPreferences.getInstance();
         final adminId = prefs.getString('logged_admin_id');
@@ -111,7 +113,7 @@ class AppRouter {
         return null; 
       }
 
-      // Protect all other routes
+      // 4. Protection Générale des autres routes (Client & Provider)
       if (!publicPaths.contains(path)) {
         final user = FirebaseAuth.instance.currentUser;
         if (user == null) {
@@ -119,13 +121,15 @@ class AppRouter {
         }
       }
 
-      return null;
+      return null; // Pas de redirection nécessaire
     },
     routes: [
+      // ── Entry ──
       GoRoute(
         path: '/',
         builder: (context, state) => const SplashScreen(),
       ),
+      // ── Client ──
       GoRoute(
         path: AppRoutes.login,
         builder: (context, state) => const client_login.LoginScreen(),
@@ -161,6 +165,13 @@ class AppRouter {
         },
       ),
       GoRoute(
+        path: '/bookings-list',
+        builder: (context, state) {
+          final user = FirebaseAuth.instance.currentUser;
+          return BookingsScreen(clientId: user?.uid ?? '', showBackButton: true);
+        },
+      ),
+      GoRoute(
         path: AppRoutes.review,
         builder: (context, state) {
           final interventionId = state.pathParameters['interventionId'] ?? '';
@@ -174,6 +185,8 @@ class AppRouter {
           return ComplaintScreen(interventionId: interventionId);
         },
       ),
+
+      // ── Provider ──
       GoRoute(
         path: AppRoutes.providerLogin,
         builder: (context, state) => const provider_login.ProviderLoginScreen(),
@@ -235,6 +248,13 @@ class AppRouter {
               return ProviderStatisticsScreen(expertId: expertId);
             },
           ),
+          GoRoute(
+            path: 'cgu',
+            builder: (context, state) {
+              final expertId = state.pathParameters['expertId'] ?? '';
+              return ProviderCguScreen(expertId: expertId);
+            },
+          ),
         ],
       ),
       GoRoute(
@@ -251,6 +271,8 @@ class AppRouter {
           return ProviderSubscriptionScreen(expertId: expertId);
         },
       ),
+
+      // ── Admin ──
       GoRoute(
         path: AppRoutes.adminLogin,
         builder: (context, state) => const admin_login.AdminLoginScreen(),
@@ -283,6 +305,8 @@ class AppRouter {
         path: AppRoutes.adminSettings,
         pageBuilder: (context, state) => const NoTransitionPage(child: AdminSettingsScreen()),
       ),
+
+      // ── System ──
       GoRoute(
         path: AppRoutes.maintenance,
         builder: (context, state) => Consumer<MaintenanceService>(

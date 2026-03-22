@@ -18,6 +18,32 @@ class FirestoreService {
 
   // ─── Expert Profile ────────────────────────────────────────
 
+  Future<void> recordProfileView(String expertId) async {
+    final now = DateTime.now();
+    final monthKey = "${now.year}-${now.month.toString().padLeft(2, '0')}";
+    final dayKey = now.day.toString();
+    final docId = "${expertId}_$monthKey";
+
+    try {
+      final docRef = _firestore.collection('profileViews').doc(docId);
+      await docRef.set({
+        'idExpert': expertId,
+        'month': monthKey,
+        'count': FieldValue.increment(1),
+        'dailyCounts': {
+          dayKey: FieldValue.increment(1),
+        },
+      }, SetOptions(merge: true));
+
+      // Update legacy field on expert doc
+      await _firestore.collection('experts').doc(expertId).update({
+        'profileViews': FieldValue.increment(1),
+      });
+    } catch (e) {
+      debugPrint("Error recording profile view: $e");
+    }
+  }
+
   Future<ExpertModel?> getExpertProfile(String expertId) async {
     try {
       DocumentSnapshot expertDoc =
@@ -537,7 +563,7 @@ class FirestoreService {
 
   // ─── Search Experts ────────────────────────────────────────
 
-  Future<List<ServiceModel>> getServices() async {
+    Future<List<ServiceModel>> getServices() async {
     try {
       final snapshot = await _firestore.collection('services').orderBy('nom').get();
       return snapshot.docs.map((doc) => ServiceModel.fromFirestore(doc)).toList();
@@ -546,6 +572,24 @@ class FirestoreService {
       return [];
     }
   }
+
+  Future<Map<String, dynamic>?> getLatestExpertCGU() async {
+    try {
+      final snap = await _firestore.collection('cgu')
+          .where('type', isEqualTo: 'EXPERT')
+          .where('is_active', isEqualTo: true)
+          .limit(1)
+          .get();
+      if (snap.docs.isNotEmpty) {
+        return snap.docs.first.data();
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching CGU: $e');
+      return null;
+    }
+  }
+
 
   Future<List<Expert>> getExperts() async {
     try {
@@ -802,7 +846,119 @@ class FirestoreService {
     }
   }
 
-  // ─── Portfolio images depuis imagesExemplaires ─────────────
+  /// Fetches all reviews (evaluations) left BY a client with expert names resolved.
+  Future<List<Map<String, dynamic>>> getClientReviews(String clientId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('evaluations')
+          .where('idClient', isEqualTo: clientId)
+          .get();
+
+      final results = await Future.wait(snapshot.docs.map((doc) async {
+        final data = doc.data();
+        String expertNom = 'Expert';
+        String expertPhoto = '';
+        String tacheNom = '';
+        final idExpert = data['idExpert'] as String?;
+
+        if (idExpert != null && idExpert.isNotEmpty) {
+          try {
+            final expertDoc = await _firestore.collection('experts').doc(idExpert).get();
+            final idUtilisateur = expertDoc.data()?['idUtilisateur'];
+            if (idUtilisateur != null) {
+              final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
+              expertNom = userDoc.data()?['nom'] ?? 'Expert';
+              expertPhoto = userDoc.data()?['image_profile'] ?? '';
+            }
+          } catch (e) {
+            debugPrint('Error resolving expert name for client review: \$e');
+          }
+        }
+
+        final idIntervention = data['idIntervention'] as String?;
+        if (idIntervention != null && idIntervention.isNotEmpty) {
+          try {
+            final intDoc = await _firestore.collection('interventions').doc(idIntervention).get();
+            tacheNom = intDoc.data()?['tacheSnapshot']?['nom'] ?? '';
+          } catch (_) {}
+        }
+
+        return {
+          'id': doc.id,
+          'expertNom': expertNom,
+          'expertPhoto': expertPhoto,
+          'tacheNom': tacheNom,
+          'note': (data['note'] ?? 0.0).toDouble(),
+          'commentaire': data['commentaire'] ?? data['comment'] ?? '',
+          'date': data['createdAt'],
+          'idIntervention': idIntervention ?? '',
+        };
+      }).toList());
+
+      results.sort((a, b) {
+        final aDate = a['date'];
+        final bDate = b['date'];
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return bDate.compareTo(aDate);
+      });
+      return results;
+    } catch (e) {
+      debugPrint('Error fetching client reviews: \$e');
+      return [];
+    }
+  }
+
+  /// Fetches all complaints (reclamations) made BY a client, with expert names resolved.
+  Future<List<Map<String, dynamic>>> getClientComplaints(String clientId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('reclamations')
+          .where('idClient', isEqualTo: clientId)
+          .get();
+
+      final results = await Future.wait(snapshot.docs.map((doc) async {
+        final data = doc.data();
+        String expertNom = 'Expert';
+        final idExpert = data['idExpert'] as String?;
+
+        if (idExpert != null && idExpert.isNotEmpty) {
+          try {
+            final expertDoc = await _firestore.collection('experts').doc(idExpert).get();
+            final idUtilisateur = expertDoc.data()?['idUtilisateur'];
+            if (idUtilisateur != null) {
+              final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
+              expertNom = userDoc.data()?['nom'] ?? 'Expert';
+            }
+          } catch (_) {}
+        }
+
+        return {
+          'id': doc.id,
+          'expertNom': expertNom,
+          'description': data['description'] ?? '',
+          'etat': data['etatReclamation'] ?? 'EN_ATTENTE',
+          'date': data['createdAt'],
+          'idIntervention': data['idIntervention'] ?? '',
+        };
+      }).toList());
+
+      results.sort((a, b) {
+        final aDate = a['date'];
+        final bDate = b['date'];
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return bDate.compareTo(aDate);
+      });
+      return results;
+    } catch (e) {
+      debugPrint('Error fetching client complaints: \$e');
+      return [];
+    }
+  }
+
 
   /// Récupère toutes les images de portfolio d'un expert.
   Future<List<String>> getExpertPortfolioImages(String expertId) async {
@@ -943,6 +1099,24 @@ class FirestoreService {
     data['id'] = uid; // This remains the 'utilisateurs' UID for backwards compatibility
     data['clientId'] = clientQuery.docs.first.id; // Correct clients collection document ID
     return data;
+  }
+
+  /// Updates the client's profile in Firestore using the current Firebase Auth UID.
+  Future<void> updateClientProfile({
+    required String uid,
+    required String name,
+    required String phone,
+    String? imageBase64,
+  }) async {
+    final updateData = <String, dynamic>{
+      'nom': name,
+      'telephone': phone,
+      'updated_At': FieldValue.serverTimestamp(),
+    };
+    if (imageBase64 != null) {
+      updateData['image_profile'] = imageBase64;
+    }
+    await _firestore.collection('utilisateurs').doc(uid).update(updateData);
   }
 
   // ─── Provider Services & Tasks ─────────────────────────────
