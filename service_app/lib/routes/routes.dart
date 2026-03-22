@@ -149,6 +149,13 @@ final GoRouter router = GoRouter(
       },
     ),
     GoRoute(
+      path: '/bookings-list',
+      builder: (context, state) {
+        final user = FirebaseAuth.instance.currentUser;
+        return BookingsScreen(clientId: user?.uid ?? '', showBackButton: true);
+      },
+    ),
+    GoRoute(
       path: AppRoutes.review,
       builder: (context, state) {
         final interventionId = state.pathParameters['interventionId'] ?? '';
