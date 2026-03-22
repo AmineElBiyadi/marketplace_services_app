@@ -84,6 +84,11 @@ class _ExpertMapScreenState extends State<ExpertMapScreen> {
         _isLoading = false;
       });
       _applyFilters();
+      
+      final mCenter = _selectedAddressLatLng ?? _userLatLng;
+      if (mCenter != null) {
+        _mapController.move(mCenter, 12.0);
+      }
     }
   }
 
@@ -299,11 +304,12 @@ class _ExpertMapScreenState extends State<ExpertMapScreen> {
   List<Marker> _buildMarkers() {
     final markers = <Marker>[];
 
-    // User Location Marker
-    if (_userLatLng != null) {
+    // Selected Location (or User Location) Marker
+    final centerPos = _selectedAddressLatLng ?? _userLatLng;
+    if (centerPos != null) {
       markers.add(
         Marker(
-          point: _userLatLng!,
+          point: centerPos,
           width: 40,
           height: 40,
           child: const Icon(Icons.my_location, color: Colors.blue, size: 30),
@@ -317,11 +323,46 @@ class _ExpertMapScreenState extends State<ExpertMapScreen> {
       markers.add(
         Marker(
           point: LatLng(e.location!.latitude, e.location!.longitude),
-          width: 50,
-          height: 50,
+          width: 100,
+          height: 65,
           child: GestureDetector(
             onTap: () => _showExpertSheet(e),
-            child: const Icon(Icons.location_on, color: Colors.red, size: 40),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))],
+                  ),
+                  child: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: const Color(0xFFDCDFEA),
+                    backgroundImage: e.photo.isNotEmpty ? NetworkImage(e.photo) : null,
+                    child: e.photo.isEmpty
+                        ? Text(e.nom.isNotEmpty ? e.nom[0].toUpperCase() : 'E', style: const TextStyle(fontWeight: FontWeight.bold, color: _kBlue, fontSize: 14))
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(4),
+                    boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 2)],
+                  ),
+                  child: Text(
+                    e.nom,
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: _kBlue),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
