@@ -18,6 +18,32 @@ class FirestoreService {
 
   // ─── Expert Profile ────────────────────────────────────────
 
+  Future<void> recordProfileView(String expertId) async {
+    final now = DateTime.now();
+    final monthKey = "${now.year}-${now.month.toString().padLeft(2, '0')}";
+    final dayKey = now.day.toString();
+    final docId = "${expertId}_$monthKey";
+
+    try {
+      final docRef = _firestore.collection('profileViews').doc(docId);
+      await docRef.set({
+        'idExpert': expertId,
+        'month': monthKey,
+        'count': FieldValue.increment(1),
+        'dailyCounts': {
+          dayKey: FieldValue.increment(1),
+        },
+      }, SetOptions(merge: true));
+
+      // Update legacy field on expert doc
+      await _firestore.collection('experts').doc(expertId).update({
+        'profileViews': FieldValue.increment(1),
+      });
+    } catch (e) {
+      debugPrint("Error recording profile view: $e");
+    }
+  }
+
   Future<ExpertModel?> getExpertProfile(String expertId) async {
     try {
       DocumentSnapshot expertDoc =
@@ -536,6 +562,23 @@ class FirestoreService {
   }
 
   // ─── Search Experts ────────────────────────────────────────
+
+  Future<Map<String, dynamic>?> getLatestExpertCGU() async {
+    try {
+      final snap = await _firestore.collection('cgu')
+          .where('type', isEqualTo: 'EXPERT')
+          .where('is_active', isEqualTo: true)
+          .limit(1)
+          .get();
+      if (snap.docs.isNotEmpty) {
+        return snap.docs.first.data();
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching CGU: $e');
+      return null;
+    }
+  }
 
   Future<List<Expert>> getExperts() async {
     try {
