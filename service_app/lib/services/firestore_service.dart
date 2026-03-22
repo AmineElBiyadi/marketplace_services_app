@@ -537,6 +537,16 @@ class FirestoreService {
 
   // ─── Search Experts ────────────────────────────────────────
 
+  Future<List<ServiceModel>> getServices() async {
+    try {
+      final snapshot = await _firestore.collection('services').orderBy('nom').get();
+      return snapshot.docs.map((doc) => ServiceModel.fromFirestore(doc)).toList();
+    } catch (e) {
+      debugPrint("Error fetching services: $e");
+      return [];
+    }
+  }
+
   Future<List<Expert>> getExperts() async {
     try {
       final expertsSnapshot = await _firestore.collection('experts').get();
@@ -991,6 +1001,7 @@ class FirestoreService {
         final serviceDoc = await _firestore.collection('services').doc(serviceId).get();
         final serviceData = serviceDoc.data();
         final serviceName = serviceData != null ? (serviceData['nom'] ?? 'Unknown Service') : 'Unknown Service';
+        final serviceImage = serviceData != null ? serviceData['image'] : null;
 
         // Get images for the service expert
         final imgSnapshot = await _firestore
@@ -1039,6 +1050,7 @@ class FirestoreService {
           'id': seDoc.id,
           'idService': serviceId,
           'serviceName': serviceName,
+          'serviceImage': serviceImage,
           'description': seData['description'] ?? '',
           'estActive': seData['estActive'] ?? true,
           'anneeExperience': seData['anneeExperience'] ?? 0,
@@ -1400,16 +1412,6 @@ class FirestoreService {
   }
 
   // ─── Providers / Experts ───────────────────────────────────
-
-  /// Returns a list of all services from the `services` collection.
-  Future<List<Map<String, dynamic>>> getServices() async {
-    final query = await _firestore.collection('services').get();
-    return query.docs.map((doc) => {
-      'id': doc.id,
-      'nom': doc.data()['nom'] ?? '',
-      'description': doc.data()['description'] ?? '',
-    }).toList();
-  }
 
   /// Registers a new provider in Firestore using the current Firebase Auth UID.
   Future<void> registerProvider({

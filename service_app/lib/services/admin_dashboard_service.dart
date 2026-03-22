@@ -911,4 +911,182 @@ class AdminDashboardService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
+
+  /// Admin: met à jour le montant de tous les abonnements actuels
+  Future<void> updateAllSubscriptionsPrice(double newPrice) async {
+    final snap = await _db.collection('abonnements').get();
+    
+    // Firestore batch writes have a limit of 500 operations per batch
+    List<WriteBatch> batches = [];
+    WriteBatch currentBatch = _db.batch();
+    int opCount = 0;
+
+    for (var doc in snap.docs) {
+      if (opCount == 490) {
+        batches.add(currentBatch);
+        currentBatch = _db.batch();
+        opCount = 0;
+      }
+      currentBatch.update(doc.reference, {
+        'montant': newPrice,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      opCount++;
+    }
+    
+    if (opCount > 0) {
+      batches.add(currentBatch);
+    }
+
+    for (var batch in batches) {
+      await batch.commit();
+    }
+  }
+
+  // ─── CGU Management ────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>?> getActiveCgu(String type) async {
+    final snap = await _db
+        .collection('cgu')
+        .where('type', isEqualTo: type)
+        .where('is_active', isEqualTo: true)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return {'id': snap.docs.first.id, ...snap.docs.first.data()};
+  }
+
+  Future<void> createNewCguVersion(String type, String content, String version) async {
+    final batch = _db.batch();
+
+    // 1. Deactivate old versions
+    final oldActiveSnap = await _db
+        .collection('cgu')
+        .where('type', isEqualTo: type)
+        .where('is_active', isEqualTo: true)
+        .get();
+
+    for (var doc in oldActiveSnap.docs) {
+      batch.update(doc.reference, {'is_active': false});
+    }
+
+    // 2. Create new version
+    final newDocRef = _db.collection('cgu').doc();
+    batch.set(newDocRef, {
+      'type': type,
+      'content': content,
+      'version': version,
+      'is_active': true,
+      'created_at': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
+  Future<List<Map<String, dynamic>>> getCguHistory(String type) async {
+    final snap = await _db
+        .collection('cgu')
+        .where('type', isEqualTo: type)
+        .get();
+
+    final docs = snap.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        ...data,
+      };
+    }).toList();
+
+    // Sort in memory by created_at descending
+    docs.sort((a, b) {
+      final ta = a['created_at'] as Timestamp?;
+      final tb = b['created_at'] as Timestamp?;
+      if (ta == null) return 1;
+      if (tb == null) return -1;
+      return tb.compareTo(ta);
+    });
+
+    return docs;
+  }
+
+  Future<Map<String, dynamic>?> getMaintenanceSettings() async {
+    final doc = await _db.collection('settings').doc('global_config').get();
+    return doc.data();
+  }
+
+  Future<void> updateMaintenanceSettings(bool isMaintenance, String message) async {
+    await _db.collection('settings').doc('global_config').set({
+      'is_maintenance': isMaintenance,
+      'maintenance_message': message,
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  // ─── Services & Tasks Management ──────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getServices() async {
+    final snap = await _db.collection('services').orderBy('nom').get();
+    return snap.docs.map((doc) => {
+      'id': doc.id,
+      ...doc.data(),
+    }).toList();
+  }
+
+  Future<void> addService(Map<String, dynamic> data) async {
+    await _db.collection('services').add({
+      ...data,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateService(String id, Map<String, dynamic> data) async {
+    await _db.collection('services').doc(id).update(data);
+  }
+
+  Future<void> deleteService(String id) async {
+    // Delete service
+    await _db.collection('services').doc(id).delete();
+
+    // Delete tasks associated with this service
+    final tasksSnap = await _db.collection('taches').where('idService', isEqualTo: id).get();
+    final batch = _db.batch();
+    for (var doc in tasksSnap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  Future<List<Map<String, dynamic>>> getTasksByService(String serviceId) async {
+    final snap = await _db.collection('taches')
+        .where('idService', isEqualTo: serviceId)
+        .get();
+
+    final docs = snap.docs
+        .map((doc) => {'id': doc.id, ...doc.data()})
+        .where((task) => task['idExpert'] == null || task['idExpert'] == "" || task['idExpert'] == "null")
+        .toList();
+
+    docs.sort((a, b) => (a['nom'] ?? '').toString().compareTo((b['nom'] ?? '').toString()));
+
+    return docs;
+  }
+
+  Future<void> addTask(Map<String, dynamic> data) async {
+    await _db.collection('taches').add({
+      ...data,
+      'idExpert': null,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateTask(String id, Map<String, dynamic> data) async {
+    await _db.collection('taches').doc(id).update({
+      ...data,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> deleteTask(String id) async {
+    await _db.collection('taches').doc(id).delete();
+  }
 }
