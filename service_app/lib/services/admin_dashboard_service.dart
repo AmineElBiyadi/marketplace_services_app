@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class AdminDashboardStats {
   final int totalUsers;
@@ -128,13 +132,13 @@ class AdminDashboardService {
     final notifSnap = await _db.collection('notifications').where('estLue', isEqualTo: false).get();
     final unreadCount = notifSnap.docs.length;
 
-    // Calcul de la croissance (Utilisateurs)
+    // Calcul de la croissance (Clients)
     final lastMonth = DateTime(now.year, now.month - 1, now.day);
-    final usersLastMonthSnap = await _db.collection('utilisateurs').where('created_At', isLessThan: Timestamp.fromDate(lastMonth)).get();
-    final usersLastMonth = usersLastMonthSnap.docs.length;
+    final clientsLastMonthSnap = await _db.collection('clients').where('createdAt', isLessThan: Timestamp.fromDate(lastMonth)).get();
+    final clientsLastMonth = clientsLastMonthSnap.docs.length;
     String userGrowth = '';
-    if (usersLastMonth > 0) {
-      double growth = ((totalUsers - usersLastMonth) / usersLastMonth) * 100;
+    if (clientsLastMonth > 0) {
+      double growth = ((totalClients - clientsLastMonth) / clientsLastMonth) * 100;
       userGrowth = '${growth >= 0 ? '+' : ''}${growth.toInt()}%';
     }
 
@@ -381,18 +385,21 @@ class AdminDashboardService {
 
     final List<Map<String, dynamic>> result = [];
     for (final doc in snap.docs) {
+      if (result.length >= limit) break;
+
       final data = doc.data() as Map<String, dynamic>;
       final name = data['nom'] ?? data['email'] ?? 'Utilisateur';
 
-      String type = 'Client';
       final expertCheck = await _db.collection('experts').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
       final adminCheck = await _db.collection('admins').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
-      if (adminCheck.docs.isNotEmpty) type = 'Admin';
-      else if (expertCheck.docs.isNotEmpty) type = 'Prestataire';
+      
+      if (adminCheck.docs.isNotEmpty || expertCheck.docs.isNotEmpty) {
+        continue; // Skip non-clients
+      }
 
       result.add({
         'name': name,
-        'type': type,
+        'type': 'Client',
         'date': _formatRelativeDate(data['created_At']),
         'phone': data['telephone'] ?? '',
         'imageUrl': data['image_profile'],
@@ -402,7 +409,8 @@ class AdminDashboardService {
   }
 
   Future<void> updateProviderStatus(String expertId, String status) async {
-    await _db.collection('experts').doc(expertId).update({'etatCompte': status});
+    // Re-linking to the unified method that triggers email notifications
+    await updateUserStatus(expertId, 'Prestataire', status);
   }
 
   Future<void> approveProvider(String expertId) async {
@@ -439,11 +447,8 @@ class AdminDashboardService {
       final adminCheck = await _db.collection('admins').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
       
       String status = 'Actif';
-      if (adminCheck.docs.isNotEmpty) {
-        continue; // Skip admins
-      } else if (expertCheck.docs.isNotEmpty) {
-        type = 'Prestataire';
-        status = expertCheck.docs.first.data()['etatCompte'] == 'ACTIVE' ? 'Actif' : 'Suspendu';
+      if (adminCheck.docs.isNotEmpty || expertCheck.docs.isNotEmpty) {
+        continue; // Skip admins and providers (experts)
       }
 
       result.add({
@@ -544,7 +549,7 @@ class AdminDashboardService {
         'date': _formatRelativeDate(data['createdAt']),
         'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
         'imageUrl': imageUrl,
-        'zone': data['region'] ?? 'N/A',
+        'zone': (services.isNotEmpty ? services.first : (data['region'] ?? 'N/A')),
         // New detailed fields
         'CarteNationale': data['CarteNationale'] ?? 'Non fourni',
         'CasierJudiciaire': data['CasierJudiciaire'] ?? 'Non fourni',
@@ -674,9 +679,13 @@ class AdminDashboardService {
   /// Fetches the timeline logs for a specific reservation.
   Future<List<Map<String, dynamic>>> getReservationTimeline(String id) async {
     final snap = await _db.collection('interventions').doc(id).collection('logs').orderBy('timestamp', descending: false).get();
-    return snap.docs.map((doc) => {
-      'id': doc.id,
-      ...doc.data(),
+    return snap.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        ...data,
+        'toStatus': data['toStatus'] ?? data['statut'] ?? 'ACTION',
+      };
     }).toList();
   }
 
@@ -852,6 +861,185 @@ class AdminDashboardService {
       });
     }
     return result;
+  }
+
+  /// Fetches a single reservation by ID
+  Future<Map<String, dynamic>?> getReservationById(String id) async {
+    final doc = await _db.collection('interventions').doc(id).get();
+    if (!doc.exists) return null;
+    
+    final data = doc.data()!;
+    String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+    String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+
+    // If names are generic, try fetching from users
+    if (clientName == 'Client' && data['idClient'] != null) {
+      final cDoc = await _db.collection('clients').doc(data['idClient']).get();
+      if (cDoc.exists) {
+        final uDoc = await _db.collection('utilisateurs').doc(cDoc.data()?['idUtilisateur']).get();
+        if (uDoc.exists) clientName = uDoc.data()?['nom'] ?? clientName;
+      }
+    }
+    if (expertName == 'Expert' && data['idExpert'] != null) {
+      final eDoc = await _db.collection('experts').doc(data['idExpert']).get();
+      if (eDoc.exists) {
+        final uDoc = await _db.collection('utilisateurs').doc(eDoc.data()?['idUtilisateur']).get();
+        if (uDoc.exists) expertName = uDoc.data()?['nom'] ?? expertName;
+      }
+    }
+
+    return {
+      'id': doc.id,
+      'idClient': data['idClient'],
+      'idExpert': data['idExpert'],
+      'clientName': clientName,
+      'expertName': expertName,
+      'service': data['tacheSnapshot']?['serviceNom'] ?? 
+                 data['serviceNom'] ?? 
+                 data['nomService'] ?? 'Service',
+      'date': data['dateDebutIntervention'] != null 
+          ? DateFormat('dd/MM/yyyy').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
+          : 'N/A',
+      'time': data['dateDebutIntervention'] != null 
+          ? DateFormat('HH:mm').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
+          : 'N/A',
+      'amount': data['prixNegocie'] ?? data['prix'] ?? 0,
+      'status': data['statut'] ?? 'EN_ATTENTE',
+      'isUrgent': data['isUrgent'] ?? false,
+      'createdAt': data['createdAt'],
+      'motifAnnulation': data['motifAnnulation'],
+      'motifRefus': data['motifRefus'],
+    };
+  }
+
+  /// Fetches a combined user profile (client or expert) for the admin management modal
+  Future<Map<String, dynamic>?> getUserProfile(String id, String role) async {
+    final collection = (role == 'Expert' || role == 'Prestataire') ? 'experts' : 'clients';
+    DocumentSnapshot<Map<String, dynamic>> doc = await _db.collection(collection).doc(id).get();
+    
+    // Fallback: If not found by direct ID, search by idUtilisateur
+    if (!doc.exists) {
+      final snap = await _db.collection(collection).where('idUtilisateur', isEqualTo: id).limit(1).get();
+      if (snap.docs.isEmpty) return null;
+      doc = snap.docs.first;
+    }
+    
+    final data = doc.data()!;
+    final userId = data['idUtilisateur'];
+    final userDoc = await _db.collection('utilisateurs').doc(userId).get();
+    final userData = userDoc.data() ?? {};
+    
+    // Resolve City from addresses
+    String ville = 'N/A';
+    try {
+      final addrSnap = await _db.collection('adresses')
+          .where('idUtilisateur', isEqualTo: userId)
+          .limit(1)
+          .get();
+      if (addrSnap.docs.isNotEmpty) {
+        final a = addrSnap.docs.first.data();
+        ville = '${a['Ville'] ?? a['ville'] ?? ''}${a['Quartier'] != null ? ', ${a['Quartier']}' : ''}';
+        if (ville.isEmpty) ville = 'N/A';
+      }
+    } catch (_) {}
+
+    return {
+      'id': id,
+      'userId': userId,
+      'name': userData['nom'] ?? userData['name'] ?? userData['email'] ?? role,
+      'email': userData['email'] ?? '',
+      'phone': userData['telephone'] ?? userData['phone'] ?? '',
+      'status': data['etatCompte'] ?? 'ACTIVE',
+      'role': role,
+      'imageUrl': userData['image_profile'] ?? userData['photoUrl'],
+      'region': ville,
+      // Professional Docs and Stats (for Experts)
+      'CarteNationale': data['CarteNationale'] ?? 'N/A',
+      'CasierJudiciaire': data['CasierJudiciaire'] ?? 'N/A',
+      'Experience': data['Experience'] ?? 'N/A',
+      'rating': (data['rating'] ?? 0.0) as double,
+      'interventionsCount': data['interventionsCount'] ?? 0,
+      'rayonTravaille': data['rayonTravaille'],
+      'services': data['services'] ?? [],
+      'tasks': data['tasks'] ?? [],
+    };
+  }
+
+  /// Updates the account status in the role collection (experts or clients)
+  Future<void> updateUserStatus(String id, String role, String status) async {
+    final collection = (role == 'Expert' || role == 'Prestataire') ? 'experts' : 'clients';
+    await _db.collection(collection).doc(id).update({
+      'etatCompte': status,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    debugPrint('DEBUG: updateUserStatus called for $id ($role) to $status');
+    // Automatically send an email notification for important status changes
+    if (status == 'SUSPENDUE' || status == 'ACTIVE' || status == 'DESACTIVE') {
+      final profile = await getUserProfile(id, role);
+      debugPrint('DEBUG: profile resolved: ${profile?['name']} - ${profile?['email']}');
+      
+      if (profile != null && profile['email'] != null && profile['email'].isNotEmpty) {
+        String subject = "";
+        String body = "";
+        
+        if (status == 'ACTIVE') {
+          subject = "Votre compte a été activé";
+          body = "Félicitations ${profile['name']}, votre compte est désormais actif sur notre plateforme.";
+        } else if (status == 'SUSPENDUE') {
+          subject = "Votre compte a été suspendu";
+          body = "Bonjour ${profile['name']}, votre compte a été suspendu par l'administration pour vérification.";
+        } else if (status == 'DESACTIVE') {
+          subject = "Votre compte a été désactivé";
+          body = "Bonjour ${profile['name']}, votre compte a été désactivé.";
+        }
+
+        await sendAutomaticEmail(
+          to: profile['email'],
+          subject: subject,
+          html: "<p>$body</p><p>L'équipe Support.</p>",
+        );
+      } else {
+        debugPrint('DEBUG: No email found for user $id');
+      }
+    }
+  }
+
+  /// Sends an automated email using a zero-cost Google Apps Script Bridge
+  Future<void> sendAutomaticEmail({
+    required String to,
+    required String subject,
+    String? text,
+    String? html,
+  }) async {
+    final scriptUrl = dotenv.get('GOOGLE_APPS_SCRIPT_URL', fallback: '');
+    debugPrint('DEBUG: sendAutomaticEmail hit for $to. URL: $scriptUrl');
+
+    if (scriptUrl.isEmpty || scriptUrl.contains('VOTRE_ID')) {
+      debugPrint("Email Error: GOOGLE_APPS_SCRIPT_URL is not configured in .env");
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse(scriptUrl),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {
+          'to': to,
+          'subject': subject,
+          'text': text ?? '',
+          'html': html ?? '',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 302) {
+        debugPrint('Google Bridge: Email sent successfully');
+      } else {
+        debugPrint('Google Bridge Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint("Error calling Google Email Bridge: $e");
+    }
   }
 
   // ─── Grace Subscriptions (Paiements Échoués) ────────────────────────────────
