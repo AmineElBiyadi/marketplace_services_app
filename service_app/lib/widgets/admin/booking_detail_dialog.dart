@@ -447,68 +447,69 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
         child: _loading 
           ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
           : _user == null 
-            ? const Text('Profil non trouvé')
-            : Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundImage: _user!['imageUrl'] != null ? NetworkImage(_user!['imageUrl']) : null,
-                    child: _user!['imageUrl'] == null ? const Icon(LucideIcons.user, size: 40) : null,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(_user!['name'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                  Text('${widget.role} • ${_user!['status']}', style: TextStyle(color: _getStatusColor(_user!['status']))),
-                  const Divider(height: 32),
-                  _infoTile(LucideIcons.mail, _user!['email']),
-                  _infoTile(LucideIcons.phone, _user!['phone']),
-                  if (_user!['region'] != null) _infoTile(LucideIcons.mapPin, _user!['region']),
-                  const SizedBox(height: 32),
-                  const SizedBox(height: 32),
-                  const Text('CONTACTER L\'UTILISATEUR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
-                  const SizedBox(height: 16),
-                  Center(
-                    child: _contactBtn('E-mail', const Color(0xFFEA4335), LucideIcons.mail, () => _launchChannel('email'), enabled: _user!['email'].isNotEmpty),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton.icon(
-                    onPressed: _user!['email'].isNotEmpty ? _showEmailComposer : null,
-                    icon: const Icon(LucideIcons.penTool, size: 14),
-                    label: const Text('Composer un E-mail personnalisé', style: TextStyle(fontSize: 12)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _primary,
-                      side: BorderSide(color: _primary),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ? const Center(child: Text('Profil non trouvé'))
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundImage: _user!['imageUrl'] != null ? NetworkImage(_user!['imageUrl']) : null,
+                      child: _user!['imageUrl'] == null ? const Icon(LucideIcons.user, size: 40) : null,
                     ),
-                  ),
-                  if (widget.role == 'Expert' || widget.role == 'Prestataire') ...[
-                    const Divider(height: 48),
-                    const Text('DOCUMENTS PROFESSIONNELS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
                     const SizedBox(height: 16),
-                    _infoTile(LucideIcons.contact, 'CNI: ${_user!['CarteNationale']}'),
-                    _infoTile(LucideIcons.fileText, 'Casier: ${_user!['CasierJudiciaire']}'),
-                    _infoTile(LucideIcons.briefcase, 'Expérience: ${_user!['Experience']}'),
-                    if ((_user!['services'] as List).isNotEmpty)
-                      _infoTile(LucideIcons.settings, 'Services: ${(_user!['services'] as List).join(", ")}'),
-                  ],
-                  const SizedBox(height: 32),
-                  const Text('ACTIONS ET NOTIFICATIONS AUTO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('Le changement de statut enverra un email automatique à l\'utilisateur.', style: TextStyle(fontSize: 9, fontStyle: FontStyle.italic, color: Colors.grey)),
-                  ),
-                  Row(
-                    children: [
-                      Expanded(child: _userActionBtn('Activer', Colors.green, () => _updateStatus('ACTIVE'), isActive: _user!['status'] == 'ACTIVE')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _userActionBtn('Suspendre', Colors.orange, () => _updateStatus('SUSPENDUE'), isActive: _user!['status'] == 'SUSPENDUE')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _userActionBtn('Désactiver', Colors.red, () => _updateStatus('DESACTIVE'), isActive: _user!['status'] == 'DESACTIVE')),
+                    Text(_user!['name'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    Text('${widget.role} • ${_user!['status']}', style: TextStyle(color: _getStatusColor(_user!['status']))),
+                    const Divider(height: 32),
+                    _infoTile(LucideIcons.mail, _user!['email']),
+                    _infoTile(LucideIcons.phone, _user!['phone']),
+                    if (_user!['region'] != null) _infoTile(LucideIcons.mapPin, _user!['region']),
+                    const SizedBox(height: 32),
+                    const Text('CONTACTER L\'UTILISATEUR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                    const SizedBox(height: 16),
+                    Center(
+                      child: _contactBtn('E-mail', const Color(0xFFEA4335), LucideIcons.mail, () => _launchChannel('email'), enabled: _user!['email'].isNotEmpty),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: _user!['email'].isNotEmpty ? _showEmailComposer : null,
+                      icon: const Icon(LucideIcons.penTool, size: 14),
+                      label: const Text('Composer un E-mail personnalisé', style: TextStyle(fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _primary,
+                        side: BorderSide(color: _primary),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    if (widget.role == 'Expert' || widget.role == 'Prestataire') ...[
+                      const Divider(height: 48),
+                      const Text('DOCUMENTS PROFESSIONNELS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                      const SizedBox(height: 16),
+                      _docTile(LucideIcons.contact, 'Carte Nationale', _user!['CarteNationale']?.toString() ?? 'Non fourni'),
+                      _docTile(LucideIcons.fileText, 'Casier Judiciaire', _user!['CasierJudiciaire']?.toString() ?? 'Non fourni'),
+                      _infoTile(LucideIcons.briefcase, 'Expérience: ${_user!['Experience']?.toString() ?? 'N/A'}'),
+                      if (_user!['services'] != null && (_user!['services'] as List).isNotEmpty)
+                        _infoTile(LucideIcons.settings, 'Services: ${(_user!['services'] as List).join(", ")}'),
                     ],
-                  ),
-                  const SizedBox(height: 24),
-                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
-                ],
+                    const SizedBox(height: 32),
+                    const Text('ACTIONS ET NOTIFICATIONS AUTO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Text('Le changement de statut enverra un email automatique à l\'utilisateur.', style: TextStyle(fontSize: 9, fontStyle: FontStyle.italic, color: Colors.grey)),
+                    ),
+                    Row(
+                      children: [
+                        Expanded(child: _userActionBtn('Activer', Colors.green, () => _updateStatus('ACTIVE'), isActive: _user!['status'] == 'ACTIVE')),
+                        const SizedBox(width: 8),
+                        Expanded(child: _userActionBtn('Suspendre', Colors.orange, () => _updateStatus('SUSPENDUE'), isActive: _user!['status'] == 'SUSPENDUE')),
+                        const SizedBox(width: 8),
+                        Expanded(child: _userActionBtn('Désactiver', Colors.red, () => _updateStatus('DESACTIVE'), isActive: _user!['status'] == 'DESACTIVE')),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+                  ],
+                ),
               ),
       ),
     );
@@ -620,6 +621,87 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
         ],
       ),
     );
+  }
+
+  Widget _docTile(IconData icon, String label, String value) {
+    final strValue = value.toString();
+    final isLong = strValue.length > 50;
+    final isUrl = strValue.startsWith('http');
+    final displayValue = isLong ? "Document fourni (cliquer pour voir)" : strValue;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
+                Text(displayValue, style: const TextStyle(fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          if (isLong || isUrl)
+            TextButton(
+              onPressed: () => _showFullDocument(label, strValue),
+              child: const Text('Visualiser', style: TextStyle(fontSize: 12)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showFullDocument(String label, String value) {
+    final bool isPdf = value.toLowerCase().endsWith('.pdf');
+    final bool isUrl = value.startsWith('http');
+
+    if (isPdf && isUrl) {
+      // Pour les PDFs, on ouvre dans le navigateur
+      _launchExternalUrl(value);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(label),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: isUrl 
+              ? Image.network(
+                  value,
+                  errorBuilder: (context, error, stackTrace) => Column(
+                    children: [
+                      const Icon(LucideIcons.fileWarning, size: 48, color: Colors.orange),
+                      const SizedBox(height: 16),
+                      const Text("Impossible d'afficher l'aperçu directement.", textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => _launchExternalUrl(value),
+                        child: const Text("Ouvrir le document externe"),
+                      ),
+                    ],
+                  ),
+                )
+              : value.startsWith('data:image') || value.length > 500
+                ? const Text("Données du document (format volumineux ou base64).\nUtilisez un format d'image valide pour l'aperçu.", textAlign: TextAlign.center)
+                : Text(value),
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer'))],
+      ),
+    );
+  }
+
+  Future<void> _launchExternalUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   Widget _userActionBtn(String label, Color color, VoidCallback onTap, {bool isActive = false}) {

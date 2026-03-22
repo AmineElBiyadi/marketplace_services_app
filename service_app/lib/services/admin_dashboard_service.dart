@@ -889,8 +889,14 @@ class AdminDashboardService {
   /// Fetches a combined user profile (client or expert) for the admin management modal
   Future<Map<String, dynamic>?> getUserProfile(String id, String role) async {
     final collection = (role == 'Expert' || role == 'Prestataire') ? 'experts' : 'clients';
-    final doc = await _db.collection(collection).doc(id).get();
-    if (!doc.exists) return null;
+    DocumentSnapshot<Map<String, dynamic>> doc = await _db.collection(collection).doc(id).get();
+    
+    // Fallback: If not found by direct ID, search by idUtilisateur
+    if (!doc.exists) {
+      final snap = await _db.collection(collection).where('idUtilisateur', isEqualTo: id).limit(1).get();
+      if (snap.docs.isEmpty) return null;
+      doc = snap.docs.first;
+    }
     
     final data = doc.data()!;
     final userId = data['idUtilisateur'];

@@ -377,9 +377,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          _badge(user['type'] ?? 'Client', user['type'] == 'Prestataire' ? Colors.purple : _primary),
+                          _badge(user['type']?.toString() ?? 'Client', user['type'] == 'Prestataire' ? Colors.purple : _primary),
                           const SizedBox(width: 8),
-                          _badge(user['status'] ?? 'Actif', user['status'] == 'Actif' ? Colors.green : Colors.red),
+                          _badge(user['status']?.toString() ?? 'Actif', user['status'] == 'Actif' ? Colors.green : Colors.red),
                         ],
                       ),
                     ],
