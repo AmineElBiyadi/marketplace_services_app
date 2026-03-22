@@ -105,8 +105,8 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
             'abonnements': (e['revenue'] as num).toDouble(),
           }).toList();
 
-          // All subscriptions (ACTIVE + GRACE) for the main table
-          _subscriptions = transactions.map((t) => {
+          // All subscriptions (ACTIVE) for the main table (Wait, the data comes mapped, I filter for 'Actif')
+          final allSubsMapped = transactions.map((t) => {
             'id': t['id'] ?? '',
             'provider': t['expertName'] ?? 'Prestataire',
             'pack': t['pack'] ?? 'Premium',
@@ -116,7 +116,9 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
             'status': t['status'] ?? 'Actif',
           }).toList();
 
-          // Grace subscriptions populate the "Paiements Échoués" tab
+          _subscriptions = allSubsMapped.where((s) => s['status'] == 'Actif').toList();
+          _failedPayments = graceList; // This now contains GRACE and SUSPENDED from the service using whereIn
+
           _failedPayments = graceList;
           _isLoading = false;
         });
@@ -126,8 +128,6 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
-
 
   @override
   void dispose() {
@@ -153,7 +153,10 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                     const SizedBox(height: 32),
                     _buildChartCard(),
                     const SizedBox(height: 32),
-                    _buildTabsIndicator(),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: _buildTabsIndicator(),
+                    ),
                     const SizedBox(height: 16),
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
@@ -446,7 +449,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
           index: 0,
           controller: _tabController,
           icon: LucideIcons.checkCircle,
-          label: 'Abonnements (Actifs + Grâce)',
+          label: 'Abonnements',
           count: _subscriptions.length,
           activeColor: const Color(0xFF16A34A),
           activeBg: const Color(0xFFF0FDF4),
@@ -455,11 +458,11 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
         _TabButton(
           index: 1,
           controller: _tabController,
-          icon: LucideIcons.alertCircle,
-          label: 'Paiements Échoués',
+          icon: LucideIcons.ban,
+          label: 'Abonnements Suspendus',
           count: _failedPayments.length,
-          activeColor: const Color(0xFFDC2626),
-          activeBg: const Color(0xFFFEF2F2),
+          activeColor: const Color(0xFFEA580C),
+          activeBg: const Color(0xFFFFF7ED),
         ),
       ],
     );
@@ -601,7 +604,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
               ),
               const SizedBox(width: 8),
               _ActionButton(
-                label: 'Bloquer',
+                label: 'Suspendre',
                 icon: LucideIcons.ban,
                 color: AppColors.destructive,
                 bg: const Color(0xFFFEF2F2),
@@ -613,6 +616,8 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       }).toList(),
     );
   }
+
+
 
   Future<void> _confirmReactivate(String subscriptionId) async {
     final confirmed = await showDialog<bool>(

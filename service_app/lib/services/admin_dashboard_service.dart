@@ -859,7 +859,7 @@ class AdminDashboardService {
   Future<List<Map<String, dynamic>>> getGraceSubscriptions() async {
     final snap = await _db
         .collection('abonnements')
-        .where('statut', isEqualTo: 'GRACE')
+        .where('statut', whereIn: ['GRACE', 'SUSPENDU', 'SUSPENDED'])
         .get();
     final List<Map<String, dynamic>> result = [];
 
