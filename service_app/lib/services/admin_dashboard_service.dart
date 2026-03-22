@@ -105,7 +105,7 @@ class AdminDashboardService {
         .get();
     final openClaims = claimsSnap1.docs.length + claimsSnap2.docs.length;
 
-    // Revenue total: Somme des montants d'abonnements
+    // Revenue total + statuts premium
     final abonnementsSnap = await _db.collection('abonnements').get();
     double totalRevenue = 0;
     int premiumCount = 0;
@@ -113,8 +113,9 @@ class AdminDashboardService {
 
     for (var doc in abonnementsSnap.docs) {
       final data = doc.data();
+      final statut = (data['statut'] ?? '').toString().toUpperCase();
       totalRevenue += (data['montant'] ?? 0.0);
-      if (data['statut'] == 'ACTIVE') {
+      if (statut == 'ACTIVE' || statut == 'GRACE') {
         premiumCount++;
         premiumExpertIds.add(data['idExpert']);
       }
@@ -788,6 +789,13 @@ class AdminDashboardService {
         case 'ACTIVE':
           statusLabel = 'Actif';
           break;
+        case 'GRACE':
+          statusLabel = 'Grâce';
+          break;
+        case 'SUSPENDU':
+        case 'SUSPENDED':
+          statusLabel = 'Suspendu';
+          break;
         case 'EXPIREE':
         case 'EXPIRE':
         case 'EXPIRED':
@@ -812,5 +820,63 @@ class AdminDashboardService {
       });
     }
     return result;
+  }
+
+  // ─── Grace Subscriptions (Paiements Échoués) ────────────────────────────────
+  /// Returns all subscriptions currently in GRACE period (failed payment, retrying).
+  Future<List<Map<String, dynamic>>> getGraceSubscriptions() async {
+    final snap = await _db
+        .collection('abonnements')
+        .where('statut', isEqualTo: 'GRACE')
+        .get();
+    final List<Map<String, dynamic>> result = [];
+
+    for (final doc in snap.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final expertDoc = await _db.collection('experts').doc(data['idExpert']).get();
+      String expertName = 'Expert';
+      if (expertDoc.exists) {
+        final exUserDoc = await _db
+            .collection('utilisateurs')
+            .doc(expertDoc.data()?['idUtilisateur'])
+            .get();
+        expertName = exUserDoc.data()?['nom'] ?? exUserDoc.data()?['email'] ?? 'Expert';
+      }
+
+      final graceTs = (data['graceStartedAt'] ?? data['updatedAt']) as Timestamp?;
+      final dateStr = graceTs != null
+          ? DateFormat('dd/MM/yyyy').format(graceTs.toDate())
+          : 'N/A';
+
+      result.add({
+        'id': doc.id,
+        'idExpert': data['idExpert'],
+        'provider': expertName,
+        'amount': '${data['montant'] ?? 99} DH',
+        'date': dateStr,
+        'attempts': (data['retryCount'] ?? 1) as int,
+      });
+    }
+    return result;
+  }
+
+  /// Admin: manually suspends a subscription.
+  Future<void> suspendSubscription(String subscriptionId) async {
+    await _db.collection('abonnements').doc(subscriptionId).update({
+      'statut': 'SUSPENDU',
+      'suspendedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Admin: reactivates a suspended/grace subscription.
+  Future<void> reactivateSubscription(String subscriptionId) async {
+    await _db.collection('abonnements').doc(subscriptionId).update({
+      'statut': 'ACTIVE',
+      'suspendedAt': null,
+      'graceStartedAt': null,
+      'retryCount': 0,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 }

@@ -93,6 +93,11 @@ class FirestoreService {
           .where('idExpert', isEqualTo: expertId)
           .get();
 
+      final evaluations = await _firestore
+          .collection('evaluations')
+          .where('idExpert', isEqualTo: expertId)
+          .get();
+
       final today = DateTime.now();
       int reservationsToday = 0;
       double totalRating = 0;
@@ -101,19 +106,28 @@ class FirestoreService {
 
       for (var doc in interventions.docs) {
         final data = doc.data();
-        final date = (data['dateDebutIntervention'] as dynamic)?.toDate();
-        if (date != null &&
-            date.year == today.year &&
-            date.month == today.month &&
-            date.day == today.day) {
+        final dateDebut = (data['dateDebutIntervention'] as dynamic)?.toDate();
+        final dateFin = (data['dateFinIntervention'] as dynamic)?.toDate();
+        
+        if (dateDebut != null && dateDebut.year == today.year && dateDebut.month == today.month && dateDebut.day == today.day) {
           reservationsToday++;
         }
+        
+        if (dateFin != null && dateFin.year == today.year && dateFin.month == today.month) {
+          if (data['statut'] == 'TERMINEE') {
+            final price = data['prixNegocie'] ?? data['prix'];
+            if (price != null) {
+              revenue += (price as num).toDouble();
+            }
+          }
+        }
+      }
+
+      for (var doc in evaluations.docs) {
+        final data = doc.data();
         if (data['note'] != null) {
           totalRating += (data['note'] as num).toDouble();
           ratedCount++;
-        }
-        if (data['statut'] == 'TERMINEE' && data['prix'] != null) {
-          revenue += (data['prix'] as num).toDouble();
         }
       }
 
@@ -180,21 +194,22 @@ class FirestoreService {
     }
   }
 
+  /// Returns true if expert has ACTIVE or GRACE subscription (both grant access).
   Stream<bool> isExpertPremium(String expertId) {
     return _firestore
         .collection('abonnements')
         .where('idExpert', isEqualTo: expertId)
-        .where('statut', isEqualTo: 'ACTIVE')
+        .where('statut', whereIn: ['ACTIVE', 'GRACE'])
         .snapshots()
         .map((snapshot) => snapshot.docs.isNotEmpty);
   }
 
-  /// Returns the full active subscription document, or null if not premium.
+  /// Returns the full active/grace subscription document, or null if not premium.
   Stream<Map<String, dynamic>?> getActiveSubscription(String expertId) {
     return _firestore
         .collection('abonnements')
         .where('idExpert', isEqualTo: expertId)
-        .where('statut', isEqualTo: 'ACTIVE')
+        .where('statut', whereIn: ['ACTIVE', 'GRACE'])
         .limit(1)
         .snapshots()
         .map((snapshot) {
@@ -204,10 +219,36 @@ class FirestoreService {
         });
   }
 
+  /// Checks whether this expert already has a stored card in cartesBancaires.
+  Future<bool> hasStoredCard(String expertId) async {
+    try {
+      final snap = await _firestore
+          .collection('cartesBancaires')
+          .where('idExpert', isEqualTo: expertId)
+          .limit(1)
+          .get();
+      return snap.docs.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Reactivates a SUSPENDU subscription by setting its statut back to ACTIVE.
+  Future<void> reactivateSubscription(String subscriptionId) async {
+    await _firestore.collection('abonnements').doc(subscriptionId).update({
+      'statut': 'ACTIVE',
+      'suspendedAt': null,
+      'graceStartedAt': null,
+      'retryCount': 0,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Cancels (expert-initiated) → sets statut to SUSPENDU. Data is preserved.
   Future<void> cancelSubscription(String subscriptionId) async {
     await _firestore.collection('abonnements').doc(subscriptionId).update({
-      'statut': 'DESACTIVE',
-      'dateFin': FieldValue.serverTimestamp(),
+      'statut': 'SUSPENDU',
+      'suspendedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
@@ -320,18 +361,49 @@ class FirestoreService {
     required String expiryDate,
     required String cvv,
   }) async {
+    // 1. Delete old cards
+    final oldCards = await _firestore
+        .collection('cartesBancaires')
+        .where('idExpert', isEqualTo: expertId)
+        .get();
+        
+    final batch = _firestore.batch();
+    for (var doc in oldCards.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // 2. Format new card
     final last4 = cardNumber.replaceAll(' ', '').length >= 4
         ? cardNumber.replaceAll(' ', '').substring(cardNumber.replaceAll(' ', '').length - 4)
         : '????';
     final maskedNumber = '**** **** **** $last4';
 
-    await _firestore.collection('cartesBancaires').add({
+    // 3. Add new card
+    final newDoc = _firestore.collection('cartesBancaires').doc();
+    batch.set(newDoc, {
       'idExpert': expertId,
       'CardNumber': maskedNumber,
       'CVV': '***',
       'ExpirationDate': expiryDate,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    
+    await batch.commit();
+  }
+
+  /// Retrieves the masked card information for the expert (if any).
+  Future<Map<String, dynamic>?> getStoredCard(String expertId) async {
+    try {
+      final snap = await _firestore
+          .collection('cartesBancaires')
+          .where('idExpert', isEqualTo: expertId)
+          .limit(1)
+          .get();
+      if (snap.docs.isEmpty) return null;
+      return snap.docs.first.data();
+    } catch (e) {
+      return null;
+    }
   }
 
   /// Returns list of subscription payment records derived from the active subscription.

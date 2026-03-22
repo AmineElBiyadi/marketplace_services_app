@@ -21,6 +21,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
   bool _isLoading = true;
   double _totalRevenue = 0.0;
   int _premiumCount = 0;
+  int _graceCount = 0;
   double _currentMonthRevenue = 0.0;
 
   List<Map<String, dynamic>> _revenueData = [];
@@ -57,8 +58,8 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       'colorFg': const Color(0xFF2563EB),
     },
     {
-      'label': "Impayés",
-      'value': "${_failedPayments.length}",
+      'label': "Impayés (Grâce)",
+      'value': "$_graceCount",
       'icon': LucideIcons.alertTriangle,
       'colorBg': const Color(0xFFFEF2F2),
       'colorFg': const Color(0xFFEF4444),
@@ -81,18 +82,22 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       final stats = await _dashboardService.getDashboardStats();
       final monthlyRev = await _dashboardService.getMonthlyRevenue();
       final transactions = await _dashboardService.getFinancialTransactions();
+      final graceList = await _dashboardService.getGraceSubscriptions();
 
-      final last6Months = monthlyRev.length > 6 ? monthlyRev.sublist(monthlyRev.length - 6) : monthlyRev;
-      
+      final last6Months = monthlyRev.length > 6
+          ? monthlyRev.sublist(monthlyRev.length - 6)
+          : monthlyRev;
+
       double currentPackRev = 0;
       if (last6Months.isNotEmpty) {
-         currentPackRev = (last6Months.last['revenue'] as num).toDouble();
+        currentPackRev = (last6Months.last['revenue'] as num).toDouble();
       }
 
       if (mounted) {
         setState(() {
           _totalRevenue = stats.totalRevenue;
           _premiumCount = stats.premiumProviders;
+          _graceCount = graceList.length;
           _currentMonthRevenue = currentPackRev;
 
           _revenueData = last6Months.map((e) => {
@@ -100,7 +105,9 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
             'abonnements': (e['revenue'] as num).toDouble(),
           }).toList();
 
+          // All subscriptions (ACTIVE + GRACE) for the main table
           _subscriptions = transactions.map((t) => {
+            'id': t['id'] ?? '',
             'provider': t['expertName'] ?? 'Prestataire',
             'pack': t['pack'] ?? 'Premium',
             'start': t['date'] ?? 'N/A',
@@ -108,8 +115,9 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
             'amount': '${t['amount']} DH',
             'status': t['status'] ?? 'Actif',
           }).toList();
-          
-          _failedPayments = [];
+
+          // Grace subscriptions populate the "Paiements Échoués" tab
+          _failedPayments = graceList;
           _isLoading = false;
         });
       }
@@ -438,7 +446,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
           index: 0,
           controller: _tabController,
           icon: LucideIcons.checkCircle,
-          label: 'Abonnements Actifs',
+          label: 'Abonnements (Actifs + Grâce)',
           count: _subscriptions.length,
           activeColor: const Color(0xFF16A34A),
           activeBg: const Color(0xFFF0FDF4),
@@ -554,18 +562,19 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
         4: FlexColumnWidth(2.0),
       },
       headerLabels: const [
-        'PRESTATAIRE', 'MONTANT', 'DATE', 'TENTATIVES', 'ACTIONS',
+        'PRESTATAIRE', 'MONTANT', 'DATE ÉCHEC', 'TENTATIVES', 'ACTIONS',
       ],
       dataRows: _failedPayments.asMap().entries.map((e) {
         final f = e.value;
+        final subId = f['id'] as String? ?? '';
         return _TableRowData(
           isEven: e.key.isEven,
           cells: [
             Row(children: [
-              _Avatar(name: f['provider'], danger: true),
+              _Avatar(name: f['provider'] ?? 'Expert', danger: true),
               const SizedBox(width: 10),
               Flexible(
-                child: Text(f['provider'],
+                child: Text(f['provider'] ?? 'Expert',
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                         fontWeight: FontWeight.w700,
@@ -573,22 +582,22 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                         fontSize: 14)),
               ),
             ]),
-            Text(f['amount'],
+            Text(f['amount'] ?? '--',
                 style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     color: AppColors.foreground,
                     fontSize: 14)),
-            Text(f['date'],
+            Text(f['date'] ?? '--',
                 style: const TextStyle(
                     color: AppColors.mutedForeground, fontSize: 13)),
-            _AttemptsIndicator(count: f['attempts']),
+            _AttemptsIndicator(count: (f['attempts'] as int?) ?? 1),
             Row(children: [
               _ActionButton(
                 label: 'Relancer',
                 icon: LucideIcons.refreshCw,
                 color: AppColors.primary,
                 bg: const Color(0xFFEFF6FF),
-                onTap: () {},
+                onTap: () => _confirmReactivate(subId),
               ),
               const SizedBox(width: 8),
               _ActionButton(
@@ -596,7 +605,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                 icon: LucideIcons.ban,
                 color: AppColors.destructive,
                 bg: const Color(0xFFFEF2F2),
-                onTap: () {},
+                onTap: () => _confirmSuspend(subId),
               ),
             ]),
           ],
@@ -604,7 +613,97 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       }).toList(),
     );
   }
+
+  Future<void> _confirmReactivate(String subscriptionId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Relancer l\'abonnement',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: const Text(
+            'Souhaitez-vous réactiver cet abonnement et restaurer l\'accès Premium ?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary, foregroundColor: Colors.white),
+            child: const Text('Relancer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      try {
+        await _dashboardService.reactivateSubscription(subscriptionId);
+        _loadData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Abonnement relancé avec succès.'),
+                backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _confirmSuspend(String subscriptionId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Suspendre l\'abonnement',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: const Text(
+            'Souhaitez-vous suspendre définitivement cet abonnement ? L\'accès Premium sera coupé immédiatement.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.destructive,
+                foregroundColor: Colors.white),
+            child: const Text('Suspendre'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      try {
+        await _dashboardService.suspendSubscription(subscriptionId);
+        _loadData();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Abonnement suspendu.'),
+                backgroundColor: Colors.orange),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
 }
+
 
 // ════════════════════════════════════════════════════════════════════════════
 // TABLE — Flutter native Table fills 100% width automatically via FlexColumnWidth
@@ -763,32 +862,40 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool active = status == "Actif";
+    // Determine color set based on status
+    Color bg;
+    Color dot;
+    Color text;
+    if (status == 'Actif') {
+      bg = const Color(0xFFDCFCE7);
+      dot = const Color(0xFF16A34A);
+      text = const Color(0xFF166534);
+    } else if (status == 'Grâce') {
+      bg = const Color(0xFFFEF3C7);
+      dot = const Color(0xFFD97706);
+      text = const Color(0xFF92400E);
+    } else {
+      // Suspendu / Annulé / Expiré
+      bg = const Color(0xFFFEE2E2);
+      dot = const Color(0xFFDC2626);
+      text = const Color(0xFF991B1B);
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-          color: active ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
-          borderRadius: BorderRadius.circular(25)),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(25)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: active
-                    ? const Color(0xFF16A34A)
-                    : const Color(0xFFDC2626)),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: dot),
           ),
           const SizedBox(width: 6),
           Text(status,
               style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: active
-                      ? const Color(0xFF166534)
-                      : const Color(0xFF991B1B))),
+                  fontSize: 11, fontWeight: FontWeight.w800, color: text)),
         ],
       ),
     );
