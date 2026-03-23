@@ -9,6 +9,8 @@ class ExpertModel {
   final int rayonTravaille;
   final bool casierJudiciaire;
   final String? carteNationale;
+  final String? carteNationaleVerso;
+  final String? certificatDocs;
   final int profileViews;
   final bool estDisponible;
   final bool desactiveParAdmin;
@@ -25,6 +27,8 @@ class ExpertModel {
     required this.rayonTravaille,
     required this.casierJudiciaire,
     this.carteNationale,
+    this.carteNationaleVerso,
+    this.certificatDocs,
     this.profileViews = 0,
     this.estDisponible = true,
     this.desactiveParAdmin = false,
@@ -43,6 +47,8 @@ class ExpertModel {
       rayonTravaille: data['rayonTravaille'] ?? 0,
       casierJudiciaire: data['CasierJudiciaire'] ?? false,
       carteNationale: data['CarteNationale'],
+      carteNationaleVerso: data['CarteNationaleVerso'],
+      certificatDocs: data['CertificatDocs'],
       profileViews: data['profileViews'] ?? 0,
       estDisponible: data['estDisponible'] ?? data['estdisponible'] ?? true,
       desactiveParAdmin: data['desactiveParAdmin'] ?? false,
@@ -58,6 +64,8 @@ class ExpertModel {
       'rayonTravaille': rayonTravaille,
       'CasierJudiciaire': casierJudiciaire,
       'CarteNationale': carteNationale,
+      'CarteNationaleVerso': carteNationaleVerso,
+      'CertificatDocs': certificatDocs,
       'profileViews': profileViews,
       'estDisponible': estDisponible,
       'desactiveParAdmin': desactiveParAdmin,
