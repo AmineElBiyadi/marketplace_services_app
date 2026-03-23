@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../../services/firestore_service.dart';
+import '../../../theme/app_colors.dart';
 
 class MyComplaintsScreen extends StatefulWidget {
   const MyComplaintsScreen({super.key});
@@ -62,48 +63,112 @@ class _MyComplaintsScreenState extends State<MyComplaintsScreen> {
     });
   }
 
-  @override
   Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF2A4278);
-    const bgColor = Color(0xFFF8F9FC);
+    const bgColor = Color(0xFFFBFBFB);
 
     return Scaffold(
       backgroundColor: bgColor,
-      appBar: AppBar(
-        title: const Text('My Complaints', style: TextStyle(color: primaryBlue, fontWeight: FontWeight.bold)),
-        backgroundColor: bgColor,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: primaryBlue),
-      ),
-      body: Column(
-        children: [
-          // ── Filter chips ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Row(
-              children: [
-                _buildChip('All', 'ALL'),
-                const SizedBox(width: 8),
-                _buildChip('Pending', 'EN_ATTENTE'),
-                const SizedBox(width: 8),
-                _buildChip('Resolved', 'TRAITEE'),
-              ],
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Custom Gradient Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primary, Color(0xFF818CF8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Image.asset(
+                              'assets/logo.png',
+                              height: 30,
+                              errorBuilder: (context, error, stackTrace) => const SizedBox(height: 30),
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Presto — snap your fingers, we handle the rest.',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'My Complaints',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Track issues you reported',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          // ── List ──
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filtered.isEmpty
-                    ? _buildEmpty()
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                        itemCount: _filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) => _buildComplaintCard(_filtered[index]),
-                      ),
-          ),
-        ],
+            const SizedBox(height: 16),
+            // ── Filter chips ──
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+              child: Row(
+                children: [
+                  _buildChip('All', 'ALL'),
+                  const SizedBox(width: 8),
+                  _buildChip('Pending', 'EN_ATTENTE'),
+                  const SizedBox(width: 8),
+                  _buildChip('Resolved', 'TRAITEE'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            // ── List ──
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filtered.isEmpty
+                      ? _buildEmpty()
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          itemCount: _filtered.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) => _buildComplaintCard(_filtered[index]),
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }

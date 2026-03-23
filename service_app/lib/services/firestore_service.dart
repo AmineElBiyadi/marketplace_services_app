@@ -1207,10 +1207,29 @@ class FirestoreService {
   }
 
   /// Updates the client's profile in Firestore using the current Firebase Auth UID.
+  Future<bool> isPhoneAlreadyUsed(String phone, String excludeUid) async {
+    final snapshot = await _firestore
+        .collection('utilisateurs')
+        .where('telephone', isEqualTo: phone)
+        .where(FieldPath.documentId, isNotEqualTo: excludeUid)
+        .get();
+    return snapshot.docs.isNotEmpty;
+  }
+
+  Future<bool> isEmailAlreadyUsed(String email, String excludeUid) async {
+    final snapshot = await _firestore
+        .collection('utilisateurs')
+        .where('email', isEqualTo: email)
+        .where(FieldPath.documentId, isNotEqualTo: excludeUid)
+        .get();
+    return snapshot.docs.isNotEmpty;
+  }
+
   Future<void> updateClientProfile({
     required String uid,
     required String name,
     required String phone,
+    String? email,
     String? imageBase64,
   }) async {
     final updateData = <String, dynamic>{
@@ -1218,6 +1237,9 @@ class FirestoreService {
       'telephone': phone,
       'updated_At': FieldValue.serverTimestamp(),
     };
+    if (email != null) {
+      updateData['email'] = email;
+    }
     if (imageBase64 != null) {
       updateData['image_profile'] = imageBase64;
     }
