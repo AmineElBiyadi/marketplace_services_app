@@ -1974,9 +1974,7 @@ class FirestoreService {
     final expertRef = await _firestore.collection('experts').add({
       'CarteNationale': cinFrontUrl ?? '',
       'CarteNationaleVerso': cinBackUrl ?? '',
-      'CasierJudiciaire':
-          certificateUrl != null && certificateUrl.isNotEmpty,
-      'CertificatDocs': certificateUrl ?? '',
+      'CasierJudiciaire': certificateUrl ?? '',
       'Experience': description,
       'etatCompte': 'PENDING',
       'idUtilisateur': uid,
