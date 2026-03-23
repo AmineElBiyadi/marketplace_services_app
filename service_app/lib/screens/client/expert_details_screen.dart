@@ -62,8 +62,14 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
           await _firestoreService.getExpertServicesDetailed(widget.expert.id);
 
       if (servicesDetailed.isNotEmpty) {
+        // Filter out hidden or inactive services from the client view
+        final visibleServices = servicesDetailed.where((s) => 
+            (s['estActive'] ?? true) == true && 
+            (s['isVisibleByPlan'] ?? true) == true
+        ).toList();
+
         List<Map<String, dynamic>> groupedList = [];
-        for (var s in servicesDetailed) {
+        for (var s in visibleServices) {
           final tasks = s['tasks'] as List<dynamic>? ?? [];
           groupedList.add({
             'title': s['serviceName'] ?? '',
@@ -220,7 +226,7 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  expert.services.isNotEmpty ? expert.services.first : '',
+                                  expert.services.join('  •  '),
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: _kTextBlue.withValues(alpha: 0.7),

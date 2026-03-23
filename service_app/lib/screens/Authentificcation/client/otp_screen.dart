@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:go_router/go_router.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,6 +9,7 @@ import '../../../theme/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
 import '../../../utils/auth_errors.dart';
+import '../../../services/cloudinary_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class OTPScreen extends StatefulWidget {
@@ -124,6 +126,21 @@ class _OTPScreenState extends State<OTPScreen> {
         await prefs.setString('logged_client_id', uid);
         if (mounted) context.go('/home');
       } else if (role == 'provider') {
+        // Upload documents to Cloudinary first
+        String? cinFrontUrl, cinBackUrl, certificateUrl;
+        if (widget.extraData!['cinFront'] != null) {
+          final bytes = Uint8List.fromList(List<int>.from(widget.extraData!['cinFront']));
+          cinFrontUrl = await CloudinaryService.uploadImage(bytes);
+        }
+        if (widget.extraData!['cinBack'] != null) {
+          final bytes = Uint8List.fromList(List<int>.from(widget.extraData!['cinBack']));
+          cinBackUrl = await CloudinaryService.uploadImage(bytes);
+        }
+        if (widget.extraData!['certificate'] != null) {
+          final bytes = Uint8List.fromList(List<int>.from(widget.extraData!['certificate']));
+          certificateUrl = await CloudinaryService.uploadImage(bytes);
+        }
+
         await _firestoreService.registerProvider(
           name: widget.extraData!['name'],
           phone: widget.extraData!['phone'],
@@ -131,10 +148,19 @@ class _OTPScreenState extends State<OTPScreen> {
           serviceIds: List<String>.from(widget.extraData!['serviceIds'] ?? []),
           description: widget.extraData!['description'] ?? '',
           zone: widget.extraData!['zone'] ?? '',
-          cinFrontUrl: widget.extraData!['cinFront'] ?? '',
-          cinBackUrl: widget.extraData!['cinBack'] ?? '',
-          certificateUrl: widget.extraData!['certificate'] ?? '',
+          cinFrontUrl: cinFrontUrl,
+          cinBackUrl: cinBackUrl,
+          certificateUrl: certificateUrl,
           acceptedCguVersion: widget.extraData!['acceptedCguVersion'] ?? '1.0',
+          ville: widget.extraData!['ville'],
+          pays: widget.extraData!['pays'],
+          numBatiment: widget.extraData!['num_batiment'],
+          rue: widget.extraData!['rue'],
+          quartier: widget.extraData!['quartier'],
+          codePostal: widget.extraData!['code_postal'],
+          location: (widget.extraData!['lat'] != null && widget.extraData!['lng'] != null)
+              ? GeoPoint(widget.extraData!['lat'], widget.extraData!['lng'])
+              : null,
         );
         if (mounted) context.go('/provider/pending');
       }
