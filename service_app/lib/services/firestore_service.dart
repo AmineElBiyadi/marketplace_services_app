@@ -1734,6 +1734,7 @@ class FirestoreService {
     final data = userDoc.data()!;
     data['id'] = uid;
     data['etatCompte'] = expertQuery.docs.first.data()['etatCompte'] ?? 'PENDING';
+    data['desactiveParAdmin'] = expertQuery.docs.first.data()['desactiveParAdmin'] ?? false;
     data['expertId'] = expertQuery.docs.first.id;
     return data;
   }
@@ -1761,6 +1762,28 @@ class FirestoreService {
   Future<void> updateExpertRadius(String expertId, int radius) async {
     await _firestore.collection('experts').doc(expertId).update({
       'rayonTravaille': radius,
+    });
+  }
+
+  Future<void> deactivateExpertSelf(String expertId) async {
+    await _firestore.collection('experts').doc(expertId).update({
+      'etatCompte': 'DESACTIVE',
+      'desactiveParAdmin': false,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> reactivateExpertSelf(String expertId) async {
+    // Only reactivate if not disabled by admin
+    final doc = await _firestore.collection('experts').doc(expertId).get();
+    if (doc.exists && (doc.data()?['desactiveParAdmin'] ?? false) == true) {
+      throw Exception("Compte désactivé par l'administrateur. Veuillez contacter le support.");
+    }
+
+    await _firestore.collection('experts').doc(expertId).update({
+      'etatCompte': 'ACTIVE',
+      'desactiveParAdmin': false,
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 }

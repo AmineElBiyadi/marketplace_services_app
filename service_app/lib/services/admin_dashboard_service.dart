@@ -968,10 +968,18 @@ class AdminDashboardService {
   /// Updates the account status in the role collection (experts or clients)
   Future<void> updateUserStatus(String id, String role, String status) async {
     final collection = (role == 'Expert' || role == 'Prestataire') ? 'experts' : 'clients';
-    await _db.collection(collection).doc(id).update({
+    Map<String, dynamic> updates = {
       'etatCompte': status,
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    if (collection == 'experts') {
+      if (status == 'DESACTIVE' || status == 'SUSPENDUE') {
+        updates['desactiveParAdmin'] = true;
+      } else if (status == 'ACTIVE') {
+        updates['desactiveParAdmin'] = false;
+      }
+    }
+    await _db.collection(collection).doc(id).update(updates);
 
     debugPrint('DEBUG: updateUserStatus called for $id ($role) to $status');
     // Automatically send an email notification for important status changes

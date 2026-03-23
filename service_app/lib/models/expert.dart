@@ -11,6 +11,7 @@ class ExpertModel {
   final String? carteNationale;
   final int profileViews;
   final bool estDisponible;
+  final bool desactiveParAdmin;
   
   // Potential joined data
   final UserModel? user;
@@ -26,6 +27,7 @@ class ExpertModel {
     this.carteNationale,
     this.profileViews = 0,
     this.estDisponible = true,
+    this.desactiveParAdmin = false,
     this.user,
     this.location,
   });
@@ -43,6 +45,7 @@ class ExpertModel {
       carteNationale: data['CarteNationale'],
       profileViews: data['profileViews'] ?? 0,
       estDisponible: data['estDisponible'] ?? data['estdisponible'] ?? true,
+      desactiveParAdmin: data['desactiveParAdmin'] ?? false,
       user: user,
     );
   }
@@ -57,6 +60,7 @@ class ExpertModel {
       'CarteNationale': carteNationale,
       'profileViews': profileViews,
       'estDisponible': estDisponible,
+      'desactiveParAdmin': desactiveParAdmin,
     };
   }
 }
@@ -72,6 +76,7 @@ class Expert {
   final List<String> services;
   final String ville;
   final bool estDisponible;
+  final bool desactiveParAdmin;
 
 
   /// Prix minimum affiché (ex: champ [prixMin] dans Firestore ou calculé
@@ -91,6 +96,7 @@ class Expert {
     required this.services,
     required this.ville,
     this.estDisponible = true,
+    this.desactiveParAdmin = false,
     this.prixMin,
     this.location,
   });
@@ -107,6 +113,7 @@ class Expert {
       services: List<String>.from(data['services'] ?? []),
       ville: data['ville'] ?? '',
       estDisponible: data['estDisponible'] ?? data['estdisponible'] ?? true,
+      desactiveParAdmin: data['desactiveParAdmin'] ?? false,
       prixMin: data['prixMin'] != null
           ? (data['prixMin'] as num).toDouble()
           : null,
@@ -125,6 +132,7 @@ class Expert {
     List<String>? services,
     String? ville,
     bool? estDisponible,
+    bool? desactiveParAdmin,
     double? prixMin,
     GeoPoint? location,
   }) {
@@ -138,6 +146,7 @@ class Expert {
       services: services ?? this.services,
       ville: ville ?? this.ville,
       estDisponible: estDisponible ?? this.estDisponible,
+      desactiveParAdmin: desactiveParAdmin ?? this.desactiveParAdmin,
       prixMin: prixMin ?? this.prixMin,
       location: location ?? this.location,
     );
