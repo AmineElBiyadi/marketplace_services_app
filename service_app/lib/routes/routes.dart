@@ -33,6 +33,7 @@ import '../screens/splash_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/chat/chat_list_screen.dart';
+import '../screens/cgu_update_screen.dart';
 import '../screens/provider/provider_deactivated_screen.dart';
 import 'package:provider/provider.dart';
 import '../services/maintenance_service.dart';
@@ -47,6 +48,7 @@ class AppRoutes {
   static const String signup = '/signup';
   static const String otp = '/otp';
   static const String forgotPassword = '/forgot-password';
+  static const String cguUpdate = '/cgu_update';
 
   static const String providerLogin = '/provider/login';
   static const String providerSignup = '/provider/signup';
@@ -157,6 +159,13 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.home,
         builder: (context, state) => const MainNavigation(),
+      ),
+      GoRoute(
+        path: AppRoutes.cguUpdate,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return CguUpdateScreen(extraData: extra);
+        },
       ),
       GoRoute(
         path: AppRoutes.forgotPassword,

@@ -1140,6 +1140,7 @@ class FirestoreService {
     required String name,
     required String phone,
     required String email,
+    required String acceptedCguVersion,
     // Optional address fields
     String? rue,
     String? numBatiment,
@@ -1160,6 +1161,7 @@ class FirestoreService {
       'nom': name,
       'telephone': phone,
       'token': '',
+      'acceptedCguVersion': acceptedCguVersion,
     });
 
     final clientDoc = await _firestore.collection('clients').add({
@@ -1748,9 +1750,11 @@ class FirestoreService {
     required List<String> serviceIds,
     required String description,
     required String zone,
-    required String? cinFrontBase64,
-    required String? cinBackBase64,
-    required String? certificateBase64,
+    required String? cinFrontUrl,
+    required String? cinBackUrl,
+    required String? certificateUrl,
+    required String acceptedCguVersion,
+
     // Optional address fields
     String? ville,
     String? pays,
@@ -1771,14 +1775,15 @@ class FirestoreService {
       'nom': name,
       'telephone': phone,
       'token': '',
+      'acceptedCguVersion': acceptedCguVersion,
     });
 
     final expertRef = await _firestore.collection('experts').add({
-      'CarteNationale': cinFrontBase64 ?? '',
-      'CarteNationaleVerso': cinBackBase64 ?? '',
+      'CarteNationale': cinFrontUrl ?? '',
+      'CarteNationaleVerso': cinBackUrl ?? '',
       'CasierJudiciaire':
-          certificateBase64 != null && certificateBase64.isNotEmpty,
-      'CertificatDocs': certificateBase64 ?? '',
+          certificateUrl != null && certificateUrl.isNotEmpty,
+      'CertificatDocs': certificateUrl ?? '',
       'Experience': description,
       'etatCompte': 'PENDING',
       'idUtilisateur': uid,
@@ -1855,6 +1860,41 @@ class FirestoreService {
     final data = userDoc.data()!;
     data['id'] = uid;
     return data;
+  }
+
+  // ─── CGU (Terms & Conditions) ───────────────────────────────
+
+  Future<Map<String, String>?> fetchActiveCGU(String type) async {
+    try {
+      final snapshot = await _firestore
+          .collection('cgu')
+          .where('type', isEqualTo: type)
+          .where('is_active', isEqualTo: true)
+          .limit(1)
+          .get();
+          
+      if (snapshot.docs.isNotEmpty) {
+        final data = snapshot.docs.first.data();
+        return {
+          'content': data['content'] as String? ?? '',
+          'version': data['version'] as String? ?? '1.0',
+        };
+      }
+      return null;
+    } catch (e) {
+      if (kDebugMode) print('Error fetching CGU: $e');
+      return null;
+    }
+  }
+
+  Future<void> updateCguVersion(String uid, String newVersion) async {
+    try {
+      await _firestore.collection('utilisateurs').doc(uid).update({
+        'acceptedCguVersion': newVersion,
+      });
+    } catch (e) {
+      if (kDebugMode) print('Error updating CGU version: $e');
+    }
   }
 
   Future<void> updateExpertRadius(String expertId, int radius) async {

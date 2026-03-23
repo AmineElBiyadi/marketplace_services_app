@@ -59,10 +59,20 @@ class _LoginScreenState extends State<LoginScreen> {
       // Try client first
       final clientData = await _firestoreService.getClientByUid(uid);
       if (clientData != null) {
+        final activeCgu = await _firestoreService.fetchActiveCGU('CLIENT');
+        final acceptedVersion = clientData['acceptedCguVersion'] ?? 'none';
+        final activeVersion = activeCgu?['version'] ?? '1.0';
+
         final clientId = clientData['clientId'] ?? '';
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('logged_client_id', clientId);
-        if (mounted) context.go('/home');
+        if (mounted) {
+          if (acceptedVersion != activeVersion) {
+            context.go('/cgu_update', extra: {'role': 'CLIENT', 'uid': uid, 'cgu': activeCgu});
+          } else {
+            context.go('/home');
+          }
+        }
         return;
       }
 
@@ -70,9 +80,18 @@ class _LoginScreenState extends State<LoginScreen> {
       final providerData = await _firestoreService.getProviderByUid(uid);
       if (providerData != null) {
         final expertId = providerData['expertId'] ?? '';
+        final activeCgu = await _firestoreService.fetchActiveCGU('EXPERT');
+        final acceptedVersion = providerData['acceptedCguVersion'] ?? 'none';
+        final activeVersion = activeCgu?['version'] ?? '1.0';
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('logged_expert_id', expertId);
         if (mounted) {
+          if (acceptedVersion != activeVersion) {
+            context.go('/cgu_update', extra: {'role': 'EXPERT', 'uid': uid, 'cgu': activeCgu});
+            return;
+          }
+
           final etatCompte = providerData['etatCompte'] ?? 'PENDING';
           if (etatCompte == 'ACTIVE') {
             context.go('/provider/$expertId/dashboard');
