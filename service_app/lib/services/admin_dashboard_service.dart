@@ -366,8 +366,8 @@ class AdminDashboardService {
       }
 
       final complainerStr = data['typeReclamateur'] == 'EXPERT' 
-          ? '$expertName (Expert) réclame contre $clientName'
-          : '$clientName (Client) réclame contre $expertName';
+          ? 'Plaintif: $expertName (Expert) • Contre: $clientName'
+          : 'Plaintif: $clientName (Client) • Contre: $expertName';
 
       result.add({
         'id': doc.id,
@@ -765,14 +765,13 @@ class AdminDashboardService {
   Future<List<Map<String, dynamic>>> getAdminClaims() async {
     final snap = await _db.collection('reclamations').orderBy('createdAt', descending: true).get();
     
-    final Map<String, int> expertClaimCounts = {};
+    final Map<String, int> targetClaimCounts = {};
     for (final d in snap.docs) {
       final data = d.data();
-      if ((data['typeReclamateur'] ?? 'CLIENT') == 'CLIENT') {
-        final expertId = data['idExpert'] as String?;
-        if (expertId != null) {
-          expertClaimCounts[expertId] = (expertClaimCounts[expertId] ?? 0) + 1;
-        }
+      final isClientComplaining = (data['typeReclamateur'] ?? 'CLIENT') == 'CLIENT';
+      final targetId = isClientComplaining ? data['idExpert'] : data['idClient'];
+      if (targetId != null) {
+        targetClaimCounts[targetId as String] = (targetClaimCounts[targetId as String] ?? 0) + 1;
       }
     }
 
@@ -783,7 +782,9 @@ class AdminDashboardService {
       String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
       String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
 
-      // Fallback: Si les snapshots manquent, chercher dans l'intervention
+      String? idClient = data['idClient'];
+      String? idExpert = data['idExpert'];
+
       if (clientName == 'Client' || expertName == 'Expert') {
         final intervId = data['idIntervention'];
         if (intervId != null) {
@@ -792,9 +793,14 @@ class AdminDashboardService {
             final intervData = intervDoc.data()!;
             clientName = intervData['clientSnapshot']?['nom'] ?? clientName;
             expertName = intervData['expertSnapshot']?['nom'] ?? expertName;
+            idClient ??= intervData['idClient'];
+            idExpert ??= intervData['idExpert'];
           }
         }
       }
+
+      final isClientComplaining = (data['typeReclamateur'] ?? 'CLIENT') == 'CLIENT';
+      final targetId = isClientComplaining ? idExpert : idClient;
 
       result.add({
         'id': doc.id,
@@ -804,9 +810,9 @@ class AdminDashboardService {
         'idIntervention': data['idIntervention'],
         'clientName': clientName,
         'expertName': expertName,
-        'idClient': data['idClient'],
-        'idExpert': data['idExpert'],
-        'expertClaimCount': expertClaimCounts[data['idExpert']] ?? 0,
+        'idClient': idClient,
+        'idExpert': idExpert,
+        'targetClaimCount': targetClaimCounts[targetId] ?? 0,
         'adminResponse': data['adminResponse'],
         'date': data['createdAt'] != null 
             ? DateFormat('dd/MM/yyyy').format((data['createdAt'] as Timestamp).toDate()) 
