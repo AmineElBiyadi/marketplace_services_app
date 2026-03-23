@@ -603,7 +603,9 @@ class FirestoreService {
 
   Future<List<Expert>> getExperts() async {
     try {
-      final expertsSnapshot = await _firestore.collection('experts').get();
+      final expertsSnapshot = await _firestore.collection('experts')
+          .where('etatCompte', isEqualTo: 'ACTIVE')
+          .get();
       
       // Fetch all experts' data in parallel
       List<Expert> experts = await Future.wait(expertsSnapshot.docs.map((expertDoc) async {
@@ -1806,11 +1808,37 @@ class FirestoreService {
   }
 
   Future<void> deactivateExpertSelf(String expertId) async {
+    // 1. Check for active interventions
+    final activeInterventionQuery = await _firestore.collection('interventions')
+        .where('idExpert', isEqualTo: expertId)
+        .where('statut', whereIn: ['EN_ATTENTE', 'ACCEPTEE', 'EN_COURS'])
+        .limit(1)
+        .get();
+
+    if (activeInterventionQuery.docs.isNotEmpty) {
+      throw Exception("Vous avez des interventions en cours ou en attente. Vous ne pouvez pas désactiver votre compte pour le moment.");
+    }
+
+    final doc = await _firestore.collection('experts').doc(expertId).get();
+    if (!doc.exists) return;
+    
+    final idUtilisateur = doc.data()?['idUtilisateur'];
+
     await _firestore.collection('experts').doc(expertId).update({
       'etatCompte': 'DESACTIVE',
       'desactiveParAdmin': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    if (idUtilisateur != null) {
+      await _notificationService.sendNotification(
+        idUtilisateur: idUtilisateur,
+        titre: "Compte Désactivé",
+        corps: "Vous avez désactivé votre compte. Votre profil n'est plus visible par les clients.",
+        type: 'account',
+        relatedId: expertId,
+      );
+    }
   }
 
   Future<void> reactivateExpertSelf(String expertId) async {

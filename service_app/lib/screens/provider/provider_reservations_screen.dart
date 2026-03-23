@@ -6,6 +6,7 @@ import '../../layouts/provider_layout.dart';
 import '../../models/booking.dart';
 import '../../models/task_model.dart';
 import '../../models/chat_model.dart';
+import '../../services/notification_service.dart';
 import '../chat/chat_screen.dart';
 import '../client/complaint_screen.dart';
 
@@ -117,6 +118,49 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
         'statut': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Notify Client
+      final intervDoc = await FirebaseFirestore.instance.collection('interventions').doc(interventionId).get();
+      if (intervDoc.exists) {
+        final idClient = intervDoc.data()?['idClient'];
+        final taskName = intervDoc.data()?['tacheSnapshot']?['nom'] ?? 'intervention';
+        
+        if (idClient != null) {
+          // Resolve Client UID
+          final clientDoc = await FirebaseFirestore.instance.collection('clients').doc(idClient).get();
+          if (clientDoc.exists) {
+            final clientUid = clientDoc.data()?['idUtilisateur'];
+            if (clientUid != null) {
+              final _notificationService = NotificationService();
+              String title = "Mise à jour";
+              String body = "Le statut de votre demande pour '$taskName' est désormais : $newStatus.";
+              
+              if (newStatus == 'ACCEPTEE') {
+                title = "Demande Acceptée !";
+                body = "L'expert a accepté votre demande pour '$taskName'.";
+              } else if (newStatus == 'REFUSEE') {
+                title = "Demande Refusée";
+                body = "Désolé, l'expert ne peut pas honorer votre demande pour '$taskName'.";
+              } else if (newStatus == 'TERMINEE') {
+                title = "Intervention Terminée";
+                body = "L'expert a marqué l'intervention '$taskName' comme terminée.";
+              } else if (newStatus == 'ANNULEE') {
+                title = "Intervention Annulée";
+                body = "L'expert a annulé l'intervention '$taskName'.";
+              }
+
+              await _notificationService.sendNotification(
+                idUtilisateur: clientUid,
+                titre: title,
+                corps: body,
+                type: 'booking',
+                relatedId: interventionId,
+              );
+            }
+          }
+        }
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Status updated ($newStatus)')),
@@ -266,17 +310,16 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                           }
                           
                           try {
+                            // Use _updateStatus helper to ensure notifications are sent
+                            await _updateStatus(intervention.id!, "ANNULEE");
+                            // Also update cancellation specific fields
                             await FirebaseFirestore.instance.collection('interventions').doc(intervention.id).update({
-                              'statut': 'ANNULEE',
                               'motifeAnnulation': inputReason,
                               'annulerPar': 'expert',
-                              'updatedAt': FieldValue.serverTimestamp(),
                             });
+                            
                             if (mounted) {
                               Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("Intervention cancelled successfully.")),
-                              );
                             }
                           } catch (e) {
                             setDialogState(() => errorText = "Connection error");
@@ -359,15 +402,14 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                           
                           if (inputCode == intervention.codeValidationExpert) {
                             try {
+                              // Use _updateStatus helper
+                              await _updateStatus(intervention.id!, "TERMINEE");
+                              // Update finish time
                               await FirebaseFirestore.instance.collection('interventions').doc(intervention.id).update({
-                                'statut': 'TERMINEE',
                                 'dateFinIntervention': FieldValue.serverTimestamp(),
-                                'updatedAt': FieldValue.serverTimestamp(),
                               });
+                              
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Status updated (TERMINEE)')),
-                                );
                                 Navigator.pop(context);
                               }
                             } catch (e) {
@@ -531,12 +573,16 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                             };
                             
                             try {
-                              await FirebaseFirestore.instance.collection('interventions').doc(intervention.id).update(updateData);
+                              // Use _updateStatus helper
+                              await _updateStatus(intervention.id!, "ACCEPTEE");
+                              // Update dates and prices
+                              await FirebaseFirestore.instance.collection('interventions').doc(intervention.id).update({
+                                'dateDebutIntervention': Timestamp.fromDate(selectedDate!),
+                                'prixNegocie': prix,
+                              });
+
                               if (mounted) {
                                 Navigator.pop(context);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Intervention accepted')),
-                                );
                               }
                             } catch (e) {
                               if (mounted) {

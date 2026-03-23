@@ -703,15 +703,31 @@ class AdminDashboardService {
   }
 
   /// Helper to send notifications by adding to the 'notifications' collection.
+  /// Resolves the actual idUtilisateur (UID) if a collection ID (clients/experts) is passed.
   Future<void> _sendNotification({required String userId, required String title, required String body}) async {
+    String resolvedUid = userId;
+    
+    // 1. Try resolving as Expert ID
+    final expertDoc = await _db.collection('experts').doc(userId).get();
+    if (expertDoc.exists) {
+      resolvedUid = expertDoc.data()?['idUtilisateur'] ?? userId;
+    } else {
+      // 2. Try resolving as Client ID
+      final clientDoc = await _db.collection('clients').doc(userId).get();
+      if (clientDoc.exists) {
+        resolvedUid = clientDoc.data()?['idUtilisateur'] ?? userId;
+      }
+    }
+
     await _db.collection('notifications').add({
-      'idUtilisateur': userId,
+      'idUtilisateur': resolvedUid,
       'titre': title,
       'corps': body,
       'estLue': false,
       'createdAt': FieldValue.serverTimestamp(),
       'type': 'BOOKING_UPDATE',
     });
+    debugPrint('DEBUG: Admin in-app notification sent to $resolvedUid (orig: $userId)');
   }
 
   // ─── All Reviews & Claims (Management) ────────────────────────────────────
@@ -1063,6 +1079,30 @@ class AdminDashboardService {
     }
     
     await docRef.update(updates);
+
+    // Resolve idUtilisateur for notification
+    String? idUtilisateur;
+    if (docSnap.exists) {
+      idUtilisateur = docSnap.data()?['idUtilisateur'];
+    } else {
+      idUtilisateur = id; // id was already the UID
+    }
+
+    if (idUtilisateur != null) {
+      await _notificationService.sendNotification(
+        idUtilisateur: idUtilisateur,
+        titre: status == 'ACTIVE' 
+            ? "Compte Activé" 
+            : (status == 'SUSPENDUE' ? "Compte Suspendu" : "Compte Désactivé"),
+        corps: status == 'ACTIVE' 
+            ? "Bonne nouvelle ! Votre compte a été activé par l'administration." 
+            : (status == 'SUSPENDUE' 
+                ? "Votre compte a été suspendu temporairement pour vérification." 
+                : "Votre compte a été désactivé par un administrateur."),
+        type: 'account',
+        relatedId: idUtilisateur,
+      );
+    }
 
     debugPrint('DEBUG: updateUserStatus called for $id ($role) to $status');
     // Automatically send an email notification for important status changes

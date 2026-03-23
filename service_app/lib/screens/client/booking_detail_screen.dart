@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../theme/app_colors.dart';
 import '../../models/booking.dart';
+import '../../services/notification_service.dart';
 
 class BookingDetailScreen extends StatelessWidget {
   final String bookingId;
@@ -379,6 +380,26 @@ class BookingDetailScreen extends StatelessWidget {
                               'annulerPar': 'client',
                               'updatedAt': FieldValue.serverTimestamp(),
                             });
+
+                            // Notify the Expert
+                            try {
+                              final expertDoc = await FirebaseFirestore.instance.collection('experts').doc(intervention.idExpert).get();
+                              if (expertDoc.exists) {
+                                final expertUid = expertDoc.data()?['idUtilisateur'];
+                                if (expertUid != null) {
+                                  final notificationService = NotificationService();
+                                  await notificationService.sendNotification(
+                                    idUtilisateur: expertUid,
+                                    titre: "Réservation Annulée",
+                                    corps: "Le client a annulé sa réservation pour '${intervention.tacheSnapshot?['nom'] ?? 'service'}'.",
+                                    type: 'booking',
+                                    relatedId: intervention.id,
+                                  );
+                                }
+                              }
+                            } catch (e) {
+                              debugPrint('Error notifying expert on cancellation: $e');
+                            }
                             if (context.mounted) {
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(

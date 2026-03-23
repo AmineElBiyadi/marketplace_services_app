@@ -1,11 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import '../models/chat_model.dart';
+import '../services/notification_service.dart';
 
 /// Service that handles the full chat + intervention creation flow triggered
 /// when a client contacts an expert (from the search list or expert profile).
 class InterventionService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
 
   // ─── Step 0: Check for existing open chat ──────────────────────────────────
 
@@ -35,7 +38,6 @@ class InterventionService {
     try {
       // 1. Get all serviceExperts entries for this expert
       final seSnap = await _db
-      
           .collection('serviceExperts')
           .where('idExpert', isEqualTo: expertId)
           .get();
@@ -164,8 +166,7 @@ class InterventionService {
     required Map<String, dynamic> adresseSnapshot,
   }) async {
     // Resolve the `clients` collection doc ID from the Firebase Auth UID
-    // so that idClient in interventions/chats matches what complaints queries use.
-    String resolvedClientId = clientId; // fallback to UID if lookup fails
+    String resolvedClientId = clientId;
     try {
       final clientQuery = await _db
           .collection('clients')
@@ -175,14 +176,12 @@ class InterventionService {
       if (clientQuery.docs.isNotEmpty) {
         resolvedClientId = clientQuery.docs.first.id;
       }
-    } catch (e) {
-      // If lookup fails, keep the UID as fallback
-    }
+    } catch (_) {}
 
     // 1. Create the intervention doc
     final interventionRef = _db.collection('interventions').doc();
     await interventionRef.set({
-      'idClient': resolvedClientId,   // ← clients collection doc ID
+      'idClient': resolvedClientId,
       'idExpert': expertId,
       'idTacheExpert': idTacheExpert,
       'idAdresse': idAdresse,
@@ -201,11 +200,9 @@ class InterventionService {
     });
 
     // 2. Create the chat doc linked to this intervention
-    // NOTE: chats.idClient intentionally keeps the Firebase Auth UID (clientId)
-    // because chat_service.dart queries .where('idClient', isEqualTo: uid).
     final chatRef = _db.collection('chats').doc();
     await chatRef.set({
-      'idClient': clientId,          // ← Auth UID (chat service queries by UID)
+      'idClient': clientId,
       'idExpert': expertId,
       'idIntervention': interventionRef.id,
       'estOuvert': true,
@@ -224,6 +221,25 @@ class InterventionService {
 
     // 3. Update intervention with the chatId for cross-reference
     await interventionRef.update({'idChat': chatRef.id});
+
+    // 4. Notify the Expert
+    try {
+      final expertDoc = await _db.collection('experts').doc(expertId).get();
+      if (expertDoc.exists) {
+        final expertUid = expertDoc.data()?['idUtilisateur'];
+        if (expertUid != null) {
+          await _notificationService.sendNotification(
+            idUtilisateur: expertUid,
+            titre: "Nouvelle Demande !",
+            corps: "Vous avez reçu une nouvelle demande d'intervention pour $taskNom.",
+            type: 'booking',
+            relatedId: interventionRef.id,
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error notifying expert: $e');
+    }
 
     return {
       'chatId': chatRef.id,
@@ -258,6 +274,5 @@ class InterventionService {
     return parts.join(', ');
   }
 
-  /// Returns the current Firebase Auth UID, or empty string if not logged in.
   String get currentUserId => FirebaseAuth.instance.currentUser?.uid ?? '';
 }

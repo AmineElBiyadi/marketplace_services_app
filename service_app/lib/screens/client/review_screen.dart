@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_colors.dart';
 import '../../models/booking.dart';
+import '../../services/notification_service.dart';
 
 class ReviewScreen extends StatefulWidget {
   final String interventionId;
@@ -83,6 +84,28 @@ class _ReviewScreenState extends State<ReviewScreen> {
       };
 
       await FirebaseFirestore.instance.collection('evaluations').add(evaluationData);
+
+      // Notify the Expert
+      try {
+        if (_intervention != null) {
+          final expertDoc = await FirebaseFirestore.instance.collection('experts').doc(_intervention!.idExpert).get();
+          if (expertDoc.exists) {
+            final expertUid = expertDoc.data()?['idUtilisateur'];
+            if (expertUid != null) {
+              final notificationService = NotificationService();
+              await notificationService.sendNotification(
+                idUtilisateur: expertUid,
+                titre: "Nouvel Avis !",
+                corps: "Un client a laissé un avis de ${_rating.toInt()} étoiles sur votre prestation pour '${_intervention!.tacheSnapshot?['nom'] ?? 'service'}'.",
+                type: 'review',
+                relatedId: widget.interventionId,
+              );
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error notifying expert on review: $e');
+      }
 
       // Optionally update the intervention to mark it as reviewed if you have such a field
       // await FirebaseFirestore.instance.collection('interventions').doc(widget.interventionId).update({'isReviewed': true});
