@@ -1,6 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class AdminDashboardStats {
   final int totalUsers;
@@ -105,7 +109,7 @@ class AdminDashboardService {
         .get();
     final openClaims = claimsSnap1.docs.length + claimsSnap2.docs.length;
 
-    // Revenue total: Somme des montants d'abonnements
+    // Revenue total + statuts premium
     final abonnementsSnap = await _db.collection('abonnements').get();
     double totalRevenue = 0;
     int premiumCount = 0;
@@ -113,8 +117,9 @@ class AdminDashboardService {
 
     for (var doc in abonnementsSnap.docs) {
       final data = doc.data();
+      final statut = (data['statut'] ?? '').toString().toUpperCase();
       totalRevenue += (data['montant'] ?? 0.0);
-      if (data['statut'] == 'ACTIVE') {
+      if (statut == 'ACTIVE' || statut == 'GRACE') {
         premiumCount++;
         premiumExpertIds.add(data['idExpert']);
       }
@@ -127,13 +132,13 @@ class AdminDashboardService {
     final notifSnap = await _db.collection('notifications').where('estLue', isEqualTo: false).get();
     final unreadCount = notifSnap.docs.length;
 
-    // Calcul de la croissance (Utilisateurs)
+    // Calcul de la croissance (Clients)
     final lastMonth = DateTime(now.year, now.month - 1, now.day);
-    final usersLastMonthSnap = await _db.collection('utilisateurs').where('created_At', isLessThan: Timestamp.fromDate(lastMonth)).get();
-    final usersLastMonth = usersLastMonthSnap.docs.length;
+    final clientsLastMonthSnap = await _db.collection('clients').where('createdAt', isLessThan: Timestamp.fromDate(lastMonth)).get();
+    final clientsLastMonth = clientsLastMonthSnap.docs.length;
     String userGrowth = '';
-    if (usersLastMonth > 0) {
-      double growth = ((totalUsers - usersLastMonth) / usersLastMonth) * 100;
+    if (clientsLastMonth > 0) {
+      double growth = ((totalClients - clientsLastMonth) / clientsLastMonth) * 100;
       userGrowth = '${growth >= 0 ? '+' : ''}${growth.toInt()}%';
     }
 
@@ -153,16 +158,11 @@ class AdminDashboardService {
       revGrowth = '${growth >= 0 ? '+' : ''}${growth.toInt()}%';
     }
 
-    // Total finished / cancelled
     int finishedCount = 0;
     int cancelledCount = 0;
-    double interventionRevenue = 0;
     for (var doc in allInterv) {
       final s = doc.data()['statut'];
-      if (s == 'TERMINEE') {
-        finishedCount++;
-        interventionRevenue += (doc.data()['prixNegocie'] ?? 0.0);
-      }
+      if (s == 'TERMINEE') finishedCount++;
       if (s == 'ANNULEE' || s == 'REFUSEE') cancelledCount++;
     }
 
@@ -177,7 +177,7 @@ class AdminDashboardService {
       averageRating: avgRating,
       freeProviders: freeCount,
       premiumProviders: premiumCount,
-      totalRevenue: totalRevenue + interventionRevenue, // Subscription + Finished Bookings
+      totalRevenue: totalRevenue, // Sum of all subscription 'montant' only
       unreadNotifications: unreadCount,
       userGrowth: userGrowth,
       revenueGrowth: revGrowth,
@@ -350,22 +350,28 @@ class AdminDashboardService {
     final List<Map<String, dynamic>> result = [];
     for (final doc in snap.docs) {
       final data = doc.data();
-      String clientName = 'Inconnu';
-      final clientId = data['idClient'] as String?;
-      if (clientId != null) {
-        final clientDoc = await _db.collection('clients').doc(clientId).get();
-        if (clientDoc.exists) {
-          final idUtil = clientDoc.data()?['idUtilisateur'] as String?;
-          if (idUtil != null) {
-            final userDoc = await _db.collection('utilisateurs').doc(idUtil).get();
-            if (userDoc.exists) clientName = userDoc.data()?['nom'] ?? userDoc.data()?['email'] ?? clientId;
+      String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+      String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+
+      if (clientName == 'Client' || expertName == 'Expert') {
+        final intervId = data['idIntervention'];
+        if (intervId != null) {
+          final intervDoc = await _db.collection('interventions').doc(intervId).get();
+          if (intervDoc.exists) {
+            final intervData = intervDoc.data()!;
+            clientName = intervData['clientSnapshot']?['nom'] ?? clientName;
+            expertName = intervData['expertSnapshot']?['nom'] ?? expertName;
           }
         }
       }
 
+      final complainerStr = data['typeReclamateur'] == 'EXPERT' 
+          ? 'Plaintif: $expertName (Expert) • Contre: $clientName'
+          : 'Plaintif: $clientName (Client) • Contre: $expertName';
+
       result.add({
         'id': doc.id,
-        'from': clientName,
+        'from': complainerStr,
         'subject': data['description'] ?? 'Sans objet',
         'priority': data['typeReclamateur'] == 'CLIENT' ? 'Normal' : 'Urgent',
         'status': data['etatReclamation'] ?? 'EN_ATTENTE',
@@ -385,18 +391,21 @@ class AdminDashboardService {
 
     final List<Map<String, dynamic>> result = [];
     for (final doc in snap.docs) {
+      if (result.length >= limit) break;
+
       final data = doc.data() as Map<String, dynamic>;
       final name = data['nom'] ?? data['email'] ?? 'Utilisateur';
 
-      String type = 'Client';
       final expertCheck = await _db.collection('experts').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
       final adminCheck = await _db.collection('admins').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
-      if (adminCheck.docs.isNotEmpty) type = 'Admin';
-      else if (expertCheck.docs.isNotEmpty) type = 'Prestataire';
+      
+      if (adminCheck.docs.isNotEmpty || expertCheck.docs.isNotEmpty) {
+        continue; // Skip non-clients
+      }
 
       result.add({
         'name': name,
-        'type': type,
+        'type': 'Client',
         'date': _formatRelativeDate(data['created_At']),
         'phone': data['telephone'] ?? '',
         'imageUrl': data['image_profile'],
@@ -406,7 +415,8 @@ class AdminDashboardService {
   }
 
   Future<void> updateProviderStatus(String expertId, String status) async {
-    await _db.collection('experts').doc(expertId).update({'etatCompte': status});
+    // Re-linking to the unified method that triggers email notifications
+    await updateUserStatus(expertId, 'Prestataire', status);
   }
 
   Future<void> approveProvider(String expertId) async {
@@ -442,12 +452,14 @@ class AdminDashboardService {
       final expertCheck = await _db.collection('experts').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
       final adminCheck = await _db.collection('admins').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
       
-      String status = 'Actif';
-      if (adminCheck.docs.isNotEmpty) {
-        continue; // Skip admins
-      } else if (expertCheck.docs.isNotEmpty) {
-        type = 'Prestataire';
-        status = expertCheck.docs.first.data()['etatCompte'] == 'ACTIVE' ? 'Actif' : 'Suspendu';
+      String status = 'ACTIVE';
+      final clientCheck = await _db.collection('clients').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
+      if (clientCheck.docs.isNotEmpty) {
+        status = clientCheck.docs.first.data()['etatCompte'] ?? 'ACTIVE';
+      }
+
+      if (adminCheck.docs.isNotEmpty || expertCheck.docs.isNotEmpty) {
+        continue; // Skip admins and providers (experts)
       }
 
       result.add({
@@ -460,6 +472,7 @@ class AdminDashboardService {
         'phone': data['telephone'] ?? '',
         'imageUrl': data['image_profile'],
         'status': status,
+        'rawDate': data['created_At'] is Timestamp ? (data['created_At'] as Timestamp).toDate() : DateTime(2000),
         'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
       });
     }
@@ -548,7 +561,8 @@ class AdminDashboardService {
         'date': _formatRelativeDate(data['createdAt']),
         'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
         'imageUrl': imageUrl,
-        'zone': data['region'] ?? 'N/A',
+        'rawDate': data['createdAt'] is Timestamp ? (data['createdAt'] as Timestamp).toDate() : DateTime(2000),
+        'zone': (services.isNotEmpty ? services.first : (data['region'] ?? 'N/A')),
         // New detailed fields
         'CarteNationale': data['CarteNationale'] ?? 'Non fourni',
         'CasierJudiciaire': data['CasierJudiciaire'] ?? 'Non fourni',
@@ -616,10 +630,10 @@ class AdminDashboardService {
         'service': data['tacheSnapshot']?['serviceNom'] ?? 'Service',
         'date': data['dateDebutIntervention'] != null 
             ? DateFormat('dd/MM/yyyy').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
-            : 'N/A',
+            : '-',
         'time': data['dateDebutIntervention'] != null 
             ? DateFormat('HH:mm').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
-            : 'N/A',
+            : '-',
         'amount': data['prixNegocie'] ?? 0,
         'status': data['statut'] ?? 'EN_ATTENTE',
         'isUrgent': data['isUrgent'] ?? false,
@@ -678,9 +692,13 @@ class AdminDashboardService {
   /// Fetches the timeline logs for a specific reservation.
   Future<List<Map<String, dynamic>>> getReservationTimeline(String id) async {
     final snap = await _db.collection('interventions').doc(id).collection('logs').orderBy('timestamp', descending: false).get();
-    return snap.docs.map((doc) => {
-      'id': doc.id,
-      ...doc.data(),
+    return snap.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        ...data,
+        'toStatus': data['toStatus'] ?? data['statut'] ?? 'ACTION',
+      };
     }).toList();
   }
 
@@ -705,12 +723,28 @@ class AdminDashboardService {
     
     for (final doc in snap.docs) {
       final data = doc.data();
+      String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+      String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+      
+      // Fallback: Si les snapshots manquent, chercher dans l'intervention
+      if (clientName == 'Client' || expertName == 'Expert') {
+        final intervId = data['idIntervention'];
+        if (intervId != null) {
+          final intervDoc = await _db.collection('interventions').doc(intervId).get();
+          if (intervDoc.exists) {
+            final intervData = intervDoc.data()!;
+            clientName = intervData['clientSnapshot']?['nom'] ?? clientName;
+            expertName = intervData['expertSnapshot']?['nom'] ?? expertName;
+          }
+        }
+      }
+
       result.add({
         'id': doc.id,
         'note': (data['note'] ?? 0).toDouble(),
         'commentaire': data['commentaire'] ?? '',
-        'clientName': data['clientSnapshot']?['nom'] ?? 'Client',
-        'expertName': data['expertSnapshot']?['nom'] ?? 'Expert',
+        'clientName': clientName,
+        'expertName': expertName,
         'idIntervention': data['idIntervention'],
         'date': data['createdAt'] != null 
             ? DateFormat('dd/MM/yyyy').format((data['createdAt'] as Timestamp).toDate()) 
@@ -732,22 +766,59 @@ class AdminDashboardService {
   /// Fetches all claims/reclamations
   Future<List<Map<String, dynamic>>> getAdminClaims() async {
     final snap = await _db.collection('reclamations').orderBy('createdAt', descending: true).get();
+    
+    final Map<String, int> targetClaimCounts = {};
+    for (final d in snap.docs) {
+      final data = d.data();
+      final isClientComplaining = (data['typeReclamateur'] ?? 'CLIENT') == 'CLIENT';
+      final targetId = isClientComplaining ? data['idExpert'] : data['idClient'];
+      if (targetId != null) {
+        targetClaimCounts[targetId as String] = (targetClaimCounts[targetId as String] ?? 0) + 1;
+      }
+    }
+
     final List<Map<String, dynamic>> result = [];
     
     for (final doc in snap.docs) {
       final data = doc.data();
+      String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+      String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+
+      String? idClient = data['idClient'];
+      String? idExpert = data['idExpert'];
+
+      if (clientName == 'Client' || expertName == 'Expert') {
+        final intervId = data['idIntervention'];
+        if (intervId != null) {
+          final intervDoc = await _db.collection('interventions').doc(intervId).get();
+          if (intervDoc.exists) {
+            final intervData = intervDoc.data()!;
+            clientName = intervData['clientSnapshot']?['nom'] ?? clientName;
+            expertName = intervData['expertSnapshot']?['nom'] ?? expertName;
+            idClient ??= intervData['idClient'];
+            idExpert ??= intervData['idExpert'];
+          }
+        }
+      }
+
+      final isClientComplaining = (data['typeReclamateur'] ?? 'CLIENT') == 'CLIENT';
+      final targetId = isClientComplaining ? idExpert : idClient;
+
       result.add({
         'id': doc.id,
         'description': data['description'] ?? '',
         'typeReclamateur': data['typeReclamateur'] ?? 'CLIENT',
         'etat': data['etatReclamation'] ?? 'EN_ATTENTE',
         'idIntervention': data['idIntervention'],
-        'clientName': data['clientSnapshot']?['nom'] ?? 'Client',
-        'expertName': data['expertSnapshot']?['nom'] ?? 'Expert',
+        'clientName': clientName,
+        'expertName': expertName,
+        'idClient': idClient,
+        'idExpert': idExpert,
+        'targetClaimCount': targetClaimCounts[targetId] ?? 0,
         'adminResponse': data['adminResponse'],
         'date': data['createdAt'] != null 
             ? DateFormat('dd/MM/yyyy').format((data['createdAt'] as Timestamp).toDate()) 
-            : 'N/A',
+            : '-',
       });
     }
     return result;
@@ -784,15 +855,541 @@ class AdminDashboardService {
       final ts = data['dateDebut'] as Timestamp?;
       final dateStr = ts != null ? DateFormat('dd/MM/yyyy').format(ts.toDate()) : 'N/A';
 
+      final tsEnd = data['dateFin'] as Timestamp?;
+      final dateEndStr = tsEnd != null ? DateFormat('dd/MM/yyyy').format(tsEnd.toDate()) : 'Auto';
+
+      final rawStatus = (data['statut'] ?? 'ACTIVE') as String;
+      String statusLabel;
+      switch (rawStatus.toUpperCase()) {
+        case 'ACTIVE':
+          statusLabel = 'Actif';
+          break;
+        case 'GRACE':
+          statusLabel = 'Grâce';
+          break;
+        case 'SUSPENDU':
+        case 'SUSPENDED':
+          statusLabel = 'Suspendu';
+          break;
+        case 'EXPIREE':
+        case 'EXPIRE':
+        case 'EXPIRED':
+          statusLabel = 'Expiré';
+          break;
+        case 'ANNULE':
+        case 'CANCELLED':
+          statusLabel = 'Annulé';
+          break;
+        default:
+          statusLabel = rawStatus;
+      }
+
       result.add({
         'id': doc.id,
         'expertName': expertName,
         'pack': data['packId'] ?? 'Premium',
-        'amount': data['prix'] ?? 0,
+        'amount': data['montant'] ?? data['prix'] ?? 0,
         'date': dateStr,
-        'status': 'Payé', // Abonnements in collection are usually successful ones
+        'renewal': dateEndStr,
+        'status': statusLabel,
       });
     }
     return result;
+  }
+
+  /// Fetches a single reservation by ID
+  Future<Map<String, dynamic>?> getReservationById(String id) async {
+    final doc = await _db.collection('interventions').doc(id).get();
+    if (!doc.exists) return null;
+    
+    final data = doc.data()!;
+    String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+    String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+
+    // If names are generic, try fetching from users
+    if (clientName == 'Client' && data['idClient'] != null) {
+      final cDoc = await _db.collection('clients').doc(data['idClient']).get();
+      if (cDoc.exists) {
+        final uDoc = await _db.collection('utilisateurs').doc(cDoc.data()?['idUtilisateur']).get();
+        if (uDoc.exists) clientName = uDoc.data()?['nom'] ?? clientName;
+      }
+    }
+    if (expertName == 'Expert' && data['idExpert'] != null) {
+      final eDoc = await _db.collection('experts').doc(data['idExpert']).get();
+      if (eDoc.exists) {
+        final uDoc = await _db.collection('utilisateurs').doc(eDoc.data()?['idUtilisateur']).get();
+        if (uDoc.exists) expertName = uDoc.data()?['nom'] ?? expertName;
+      }
+    }
+
+    int cancelCount = 0;
+    String cancelRole = '';
+    if (data['statut'] == 'ANNULEE' && data['annulerPar'] != null) {
+      cancelRole = data['annulerPar'].toString().toLowerCase();
+      final targetId = cancelRole == 'expert' ? data['idExpert'] : data['idClient'];
+      
+      if (targetId != null) {
+        final now = DateTime.now();
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        
+        final snap = await _db.collection('interventions')
+            .where('statut', isEqualTo: 'ANNULEE')
+            .where(cancelRole == 'expert' ? 'idExpert' : 'idClient', isEqualTo: targetId)
+            .get();
+        
+        cancelCount = snap.docs.where((d) {
+          final docData = d.data();
+          if (docData['annulerPar']?.toString().toLowerCase() != cancelRole) return false;
+          final updatedTs = docData['updatedAt'] as Timestamp? ?? docData['createdAt'] as Timestamp?;
+          if (updatedTs == null) return false;
+          return updatedTs.toDate().isAfter(startOfMonth) || updatedTs.toDate().isAtSameMomentAs(startOfMonth);
+        }).length;
+      }
+    }
+
+    return {
+      'id': doc.id,
+      'idClient': data['idClient'],
+      'idExpert': data['idExpert'],
+      'clientName': clientName,
+      'expertName': expertName,
+      'service': data['tacheSnapshot']?['serviceNom'] ?? 
+                 data['serviceNom'] ?? 
+                 data['nomService'] ?? 'Service',
+      'date': data['dateDebutIntervention'] != null 
+          ? DateFormat('dd/MM/yyyy').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
+          : '-',
+      'time': data['dateDebutIntervention'] != null 
+          ? DateFormat('HH:mm').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
+          : '-',
+      'amount': data['prixNegocie'] ?? data['prix'] ?? 0,
+      'status': data['statut'] ?? 'EN_ATTENTE',
+      'isUrgent': data['isUrgent'] ?? false,
+      'createdAt': data['createdAt'],
+      'motifAnnulation': data['motifAnnulation'],
+      'motifRefus': data['motifRefus'],
+      'cancelCount': cancelCount,
+      'cancelRole': cancelRole,
+      'annulerPar': data['annulerPar'],
+    };
+  }
+
+  /// Fetches a combined user profile (client or expert) for the admin management modal
+  Future<Map<String, dynamic>?> getUserProfile(String id, String role) async {
+    final collection = (role == 'Expert' || role == 'Prestataire') ? 'experts' : 'clients';
+    DocumentSnapshot<Map<String, dynamic>> doc = await _db.collection(collection).doc(id).get();
+    
+    // Fallback: If not found by direct ID, search by idUtilisateur
+    if (!doc.exists) {
+      final snap = await _db.collection(collection).where('idUtilisateur', isEqualTo: id).limit(1).get();
+      if (snap.docs.isEmpty) return null;
+      doc = snap.docs.first;
+    }
+    
+    final data = doc.data()!;
+    final userId = data['idUtilisateur'];
+    final userDoc = await _db.collection('utilisateurs').doc(userId).get();
+    final userData = userDoc.data() ?? {};
+    
+    // Resolve City from addresses
+    String ville = 'N/A';
+    try {
+      final addrSnap = await _db.collection('adresses')
+          .where('idUtilisateur', isEqualTo: userId)
+          .limit(1)
+          .get();
+      if (addrSnap.docs.isNotEmpty) {
+        final a = addrSnap.docs.first.data();
+        ville = '${a['Ville'] ?? a['ville'] ?? ''}${a['Quartier'] != null ? ', ${a['Quartier']}' : ''}';
+        if (ville.isEmpty) ville = 'N/A';
+      }
+    } catch (_) {}
+
+    return {
+      'id': id,
+      'userId': userId,
+      'name': userData['nom'] ?? userData['name'] ?? userData['email'] ?? role,
+      'email': userData['email'] ?? '',
+      'phone': userData['telephone'] ?? userData['phone'] ?? '',
+      'status': data['etatCompte'] ?? 'ACTIVE',
+      'role': role,
+      'imageUrl': userData['image_profile'] ?? userData['photoUrl'],
+      'region': ville,
+      // Professional Docs and Stats (for Experts)
+      'CarteNationale': data['CarteNationale'] ?? 'N/A',
+      'CasierJudiciaire': data['CasierJudiciaire'] ?? 'N/A',
+      'Experience': data['Experience'] ?? 'N/A',
+      'rating': (data['rating'] ?? 0.0) as double,
+      'interventionsCount': data['interventionsCount'] ?? 0,
+      'rayonTravaille': data['rayonTravaille'],
+      'services': data['services'] ?? [],
+      'tasks': data['tasks'] ?? [],
+    };
+  }
+
+  /// Updates the account status in the role collection (experts or clients)
+  Future<void> updateUserStatus(String id, String role, String status) async {
+    final collection = (role == 'Expert' || role == 'Prestataire') ? 'experts' : 'clients';
+    DocumentReference docRef = _db.collection(collection).doc(id);
+    
+    // Fallback: If not found by direct ID, search by idUtilisateur
+    final docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      final snap = await _db.collection(collection).where('idUtilisateur', isEqualTo: id).limit(1).get();
+      if (snap.docs.isNotEmpty) {
+        docRef = snap.docs.first.reference;
+      } else {
+        // Create the document if it doesn't exist so we can set the status
+        await docRef.set({
+          'idUtilisateur': id,
+          'etatCompte': status,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    Map<String, dynamic> updates = {
+      'etatCompte': status,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    
+    if (collection == 'experts') {
+      if (status == 'DESACTIVE' || status == 'SUSPENDUE') {
+        updates['desactiveParAdmin'] = true;
+      } else if (status == 'ACTIVE') {
+        updates['desactiveParAdmin'] = false;
+      }
+    }
+    
+    await docRef.update(updates);
+
+    debugPrint('DEBUG: updateUserStatus called for $id ($role) to $status');
+    // Automatically send an email notification for important status changes
+    if (status == 'SUSPENDUE' || status == 'ACTIVE' || status == 'DESACTIVE') {
+      final profile = await getUserProfile(id, role);
+      debugPrint('DEBUG: profile resolved: ${profile?['name']} - ${profile?['email']}');
+      
+      if (profile != null && profile['email'] != null && profile['email'].isNotEmpty) {
+        String subject = "";
+        String title = "";
+        String desc = "";
+        String color = "#4F46E5"; // Default primary
+        
+        if (status == 'ACTIVE') {
+          subject = "🎉 Votre compte a été activé !";
+          title = "Bienvenue sur Marketplace";
+          desc = "Félicitations <b>${profile['name']}</b>,<br><br>Votre compte est désormais entièrement vérifié et actif sur notre plateforme. Vous pouvez dès à présent profiter de toutes les fonctionnalités et commencer à interagir avec notre communauté.";
+          color = "#10B981"; // success green
+        } else if (status == 'SUSPENDUE') {
+          subject = "⚠️ Votre compte a été temporairement suspendu";
+          title = "Action requise sur votre compte";
+          desc = "Bonjour <b>${profile['name']}</b>,<br><br>Nous vous informons que votre compte a été temporairement suspendu par notre équipe d'administration dans le cadre d'une vérification de routine.<br><br>Pour nous aider à rétablir votre accès rapidement, veuillez répondre à cet email ou contacter le support client.";
+          color = "#F59E0B"; // warning orange
+        } else if (status == 'DESACTIVE') {
+          subject = "❌ Désactivation de votre compte";
+          title = "Compte désactivé";
+          desc = "Bonjour <b>${profile['name']}</b>,<br><br>Nous vous informons que votre compte a été désactivé suite à une décision administrative.<br><br>Si vous pensez qu'il s'agit d'une erreur, merci de contacter immédiatement notre support par email.";
+          color = "#EF4444"; // danger red
+        }
+
+        final htmlBody = '''
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 40px 20px; border-radius: 8px;">
+          <div style="background-color: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 6px solid $color;">
+            <h2 style="color: #111827; font-size: 24px; margin-top: 0; margin-bottom: 24px;">\$title</h2>
+            <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 32px;">
+              \$desc
+            </p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
+            <p style="color: #6b7280; font-size: 14px; margin: 0;">
+              Cordialement,<br>
+              <strong>L'équipe d'administration Marketplace</strong>
+            </p>
+          </div>
+        </div>
+        ''';
+
+        await sendAutomaticEmail(
+          to: profile['email'],
+          subject: subject,
+          html: htmlBody.replaceAll('\$', ''), // Remove literal escape
+        );
+      } else {
+        debugPrint('DEBUG: No email found for user $id');
+      }
+    }
+  }
+
+  /// Sends an automated email using a zero-cost Google Apps Script Bridge
+  Future<void> sendAutomaticEmail({
+    required String to,
+    required String subject,
+    String? text,
+    String? html,
+  }) async {
+    final scriptUrl = dotenv.get('GOOGLE_APPS_SCRIPT_URL', fallback: '');
+    debugPrint('DEBUG: sendAutomaticEmail hit for $to. URL: $scriptUrl');
+
+    if (scriptUrl.isEmpty || scriptUrl.contains('VOTRE_ID')) {
+      debugPrint("Email Error: GOOGLE_APPS_SCRIPT_URL is not configured in .env");
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse(scriptUrl),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {
+          'to': to,
+          'subject': subject,
+          'text': text ?? '',
+          'html': html ?? '',
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 302) {
+        debugPrint('Google Bridge: Email sent successfully');
+      } else {
+        debugPrint('Google Bridge Error: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint("Error calling Google Email Bridge: $e");
+    }
+  }
+
+  // ─── Grace Subscriptions (Paiements Échoués) ────────────────────────────────
+  /// Returns all subscriptions currently in GRACE period (failed payment, retrying).
+  Future<List<Map<String, dynamic>>> getGraceSubscriptions() async {
+    final snap = await _db
+        .collection('abonnements')
+        .where('statut', whereIn: ['GRACE', 'SUSPENDU', 'SUSPENDED'])
+        .get();
+    final List<Map<String, dynamic>> result = [];
+
+    for (final doc in snap.docs) {
+      final data = doc.data() as Map<String, dynamic>;
+      final expertDoc = await _db.collection('experts').doc(data['idExpert']).get();
+      String expertName = 'Expert';
+      if (expertDoc.exists) {
+        final exUserDoc = await _db
+            .collection('utilisateurs')
+            .doc(expertDoc.data()?['idUtilisateur'])
+            .get();
+        expertName = exUserDoc.data()?['nom'] ?? exUserDoc.data()?['email'] ?? 'Expert';
+      }
+
+      final graceTs = (data['graceStartedAt'] ?? data['updatedAt']) as Timestamp?;
+      final dateStr = graceTs != null
+          ? DateFormat('dd/MM/yyyy').format(graceTs.toDate())
+          : 'N/A';
+
+      result.add({
+        'id': doc.id,
+        'idExpert': data['idExpert'],
+        'provider': expertName,
+        'amount': '${data['montant'] ?? 99} DH',
+        'date': dateStr,
+        'attempts': (data['retryCount'] ?? 1) as int,
+      });
+    }
+    return result;
+  }
+
+  /// Admin: manually suspends a subscription.
+  Future<void> suspendSubscription(String subscriptionId) async {
+    await _db.collection('abonnements').doc(subscriptionId).update({
+      'statut': 'SUSPENDU',
+      'suspendedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Admin: reactivates a suspended/grace subscription.
+  Future<void> reactivateSubscription(String subscriptionId) async {
+    await _db.collection('abonnements').doc(subscriptionId).update({
+      'statut': 'ACTIVE',
+      'suspendedAt': null,
+      'graceStartedAt': null,
+      'retryCount': 0,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Admin: met à jour le montant de tous les abonnements actuels
+  Future<void> updateAllSubscriptionsPrice(double newPrice) async {
+    final snap = await _db.collection('abonnements').get();
+    
+    // Firestore batch writes have a limit of 500 operations per batch
+    List<WriteBatch> batches = [];
+    WriteBatch currentBatch = _db.batch();
+    int opCount = 0;
+
+    for (var doc in snap.docs) {
+      if (opCount == 490) {
+        batches.add(currentBatch);
+        currentBatch = _db.batch();
+        opCount = 0;
+      }
+      currentBatch.update(doc.reference, {
+        'montant': newPrice,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      opCount++;
+    }
+    
+    if (opCount > 0) {
+      batches.add(currentBatch);
+    }
+
+    for (var batch in batches) {
+      await batch.commit();
+    }
+  }
+
+  // ─── CGU Management ────────────────────────────────────────────────────────
+  Future<Map<String, dynamic>?> getActiveCgu(String type) async {
+    final snap = await _db
+        .collection('cgu')
+        .where('type', isEqualTo: type)
+        .where('is_active', isEqualTo: true)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) return null;
+    return {'id': snap.docs.first.id, ...snap.docs.first.data()};
+  }
+
+  Future<void> createNewCguVersion(String type, String content, String version) async {
+    final batch = _db.batch();
+
+    // 1. Deactivate old versions
+    final oldActiveSnap = await _db
+        .collection('cgu')
+        .where('type', isEqualTo: type)
+        .where('is_active', isEqualTo: true)
+        .get();
+
+    for (var doc in oldActiveSnap.docs) {
+      batch.update(doc.reference, {'is_active': false});
+    }
+
+    // 2. Create new version
+    final newDocRef = _db.collection('cgu').doc();
+    batch.set(newDocRef, {
+      'type': type,
+      'content': content,
+      'version': version,
+      'is_active': true,
+      'created_at': FieldValue.serverTimestamp(),
+    });
+
+    await batch.commit();
+  }
+
+  Future<List<Map<String, dynamic>>> getCguHistory(String type) async {
+    final snap = await _db
+        .collection('cgu')
+        .where('type', isEqualTo: type)
+        .get();
+
+    final docs = snap.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        ...data,
+      };
+    }).toList();
+
+    // Sort in memory by created_at descending
+    docs.sort((a, b) {
+      final ta = a['created_at'] as Timestamp?;
+      final tb = b['created_at'] as Timestamp?;
+      if (ta == null) return 1;
+      if (tb == null) return -1;
+      return tb.compareTo(ta);
+    });
+
+    return docs;
+  }
+
+  Future<Map<String, dynamic>?> getMaintenanceSettings() async {
+    final doc = await _db.collection('settings').doc('global_config').get();
+    return doc.data();
+  }
+
+  Future<void> updateMaintenanceSettings(bool isMaintenance, String message) async {
+    await _db.collection('settings').doc('global_config').set({
+      'is_maintenance': isMaintenance,
+      'maintenance_message': message,
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  // ─── Services & Tasks Management ──────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getServices() async {
+    final snap = await _db.collection('services').orderBy('nom').get();
+    return snap.docs.map((doc) => {
+      'id': doc.id,
+      ...doc.data(),
+    }).toList();
+  }
+
+  Future<void> addService(Map<String, dynamic> data) async {
+    await _db.collection('services').add({
+      ...data,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateService(String id, Map<String, dynamic> data) async {
+    await _db.collection('services').doc(id).update(data);
+  }
+
+  Future<void> deleteService(String id) async {
+    // Delete service
+    await _db.collection('services').doc(id).delete();
+
+    // Delete tasks associated with this service
+    final tasksSnap = await _db.collection('taches').where('idService', isEqualTo: id).get();
+    final batch = _db.batch();
+    for (var doc in tasksSnap.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  Future<List<Map<String, dynamic>>> getTasksByService(String serviceId) async {
+    final snap = await _db.collection('taches')
+        .where('idService', isEqualTo: serviceId)
+        .get();
+
+    final docs = snap.docs
+        .map((doc) => {'id': doc.id, ...doc.data()})
+        .where((task) => task['idExpert'] == null || task['idExpert'] == "" || task['idExpert'] == "null")
+        .toList();
+
+    docs.sort((a, b) => (a['nom'] ?? '').toString().compareTo((b['nom'] ?? '').toString()));
+
+    return docs;
+  }
+
+  Future<void> addTask(Map<String, dynamic> data) async {
+    await _db.collection('taches').add({
+      ...data,
+      'idExpert': null,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> updateTask(String id, Map<String, dynamic> data) async {
+    await _db.collection('taches').doc(id).update({
+      ...data,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> deleteTask(String id) async {
+    await _db.collection('taches').doc(id).delete();
   }
 }

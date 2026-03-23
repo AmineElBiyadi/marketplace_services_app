@@ -126,23 +126,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          const Expanded(
-            child: Row(
-              children: [
-                Icon(LucideIcons.search, size: 16, color: _textSecondary),
-                SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher...',
-                      hintStyle: TextStyle(color: _textSecondary, fontSize: 14),
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const Spacer(),
           const SizedBox(width: 16),
           // Notifications
           Stack(
@@ -230,7 +214,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       spacing: 16,
       runSpacing: 16,
       children: [
-        _kpiItem('Total Utilisateurs', s.totalUsers.toString(), LucideIcons.users, _primary.withOpacity(0.1), _primary, s.userGrowth),
+        _kpiItem('Total Clients', s.totalClients.toString(), LucideIcons.users, _primary.withOpacity(0.1), _primary, s.userGrowth),
         _kpiItem('Réservations du mois', s.reservationsThisMonth.toString(), LucideIcons.calendarDays, Colors.blue.withOpacity(0.1), Colors.blue, ''),
         _kpiItem('Revenus totaux', '${NumberFormat("#,##0", "fr_FR").format(s.totalRevenue)} DH', LucideIcons.dollarSign, Colors.green.withOpacity(0.1), Colors.green, s.revenueGrowth),
         _kpiItem('En attente', s.pendingProviders.toString(), LucideIcons.clock, Colors.amber.withOpacity(0.1), Colors.amber, ''),
@@ -501,19 +485,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _panelWrapper('Prestataires à valider', _buildPendingList(), '/admin/providers')),
-              const SizedBox(width: 24),
               Expanded(child: _panelWrapper('Réclamations urgentes', _buildClaimsList(), '/admin/reviews')),
               const SizedBox(width: 24),
-              Expanded(child: _panelWrapper('Dernières inscriptions', _buildUsersList(), '/admin/users')),
+              Expanded(child: _panelWrapper('Derniers Clients', _buildUsersList(), '/admin/users')),
             ],
           )
         else ...[
-          _panelWrapper('Prestataires à valider', _buildPendingList(), '/admin/providers'),
-          const SizedBox(height: 24),
           _panelWrapper('Réclamations urgentes', _buildClaimsList(), '/admin/reviews'),
           const SizedBox(height: 24),
-          _panelWrapper('Dernières inscriptions', _buildUsersList(), '/admin/users'),
+          _panelWrapper('Derniers Clients', _buildUsersList(), '/admin/users'),
         ],
       ],
     );
@@ -621,7 +601,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(c['subject'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    Text('De: ${c['from']}', style: const TextStyle(fontSize: 10, color: _textSecondary)),
+                    Text(c['from'], style: const TextStyle(fontSize: 10, color: _textSecondary)),
                   ],
                 ),
               ),

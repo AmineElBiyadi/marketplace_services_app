@@ -9,6 +9,7 @@ import '../../services/location_service.dart';
 import '../../services/chat_service.dart';
 import '../../widgets/smart_image.dart';
 import '../../widgets/start_chat_sheet.dart';
+import 'expert_map_screen.dart';
 import 'expert_details_screen.dart';
 import '../chat/chat_screen.dart';
 
@@ -319,7 +320,17 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                   const Spacer(),
                   // Icône carte
-                  Icon(Icons.map_outlined, color: Colors.grey.shade500, size: 22),
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ExpertMapScreen()),
+                      );
+                    },
+                    icon: Icon(Icons.map_outlined, color: Colors.grey.shade500, size: 22),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
                 ],
               ),
             ),
@@ -481,7 +492,7 @@ class _ExpertTile extends StatelessWidget {
     final distText = distance != null
         ? '${distance!.toStringAsFixed(1)} km'
         : '';
-    final isAvailable = true; // TODO: relier à un champ Firestore "estDisponible"
+    final isAvailable = expert.estDisponible;
 
     return GestureDetector(
       onTap: onTap,

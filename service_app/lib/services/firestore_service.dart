@@ -9,6 +9,7 @@ import '../models/service.dart';
 import '../models/task_model.dart';
 import '../models/task_expert_model.dart';
 import '../models/expert_service_model.dart';
+import 'location_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -17,6 +18,41 @@ class FirestoreService {
   FirebaseFirestore getFirestoreInstance() => _firestore;
 
   // ─── Expert Profile ────────────────────────────────────────
+
+  Future<void> recordProfileView(String expertId) async {
+    final now = DateTime.now();
+    final monthKey = "${now.year}-${now.month.toString().padLeft(2, '0')}";
+    final dayKey = now.day.toString();
+    final docId = "${expertId}_$monthKey";
+
+    try {
+      final docRef = _firestore.collection('profileViews').doc(docId);
+      final docSnap = await docRef.get();
+
+      if (!docSnap.exists) {
+        await docRef.set({
+          'idExpert': expertId,
+          'month': monthKey,
+          'count': 1,
+          'dailyCounts': {dayKey: 1},
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        await docRef.update({
+          'count': FieldValue.increment(1),
+          'dailyCounts.$dayKey': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Update total views on expert document
+      await _firestore.collection('experts').doc(expertId).update({
+        'profileViews': FieldValue.increment(1),
+      });
+    } catch (e) {
+      debugPrint("Error recording profile view: $e");
+    }
+  }
 
   Future<ExpertModel?> getExpertProfile(String expertId) async {
     try {
@@ -93,6 +129,11 @@ class FirestoreService {
           .where('idExpert', isEqualTo: expertId)
           .get();
 
+      final evaluations = await _firestore
+          .collection('evaluations')
+          .where('idExpert', isEqualTo: expertId)
+          .get();
+
       final today = DateTime.now();
       int reservationsToday = 0;
       double totalRating = 0;
@@ -101,19 +142,28 @@ class FirestoreService {
 
       for (var doc in interventions.docs) {
         final data = doc.data();
-        final date = (data['dateDebutIntervention'] as dynamic)?.toDate();
-        if (date != null &&
-            date.year == today.year &&
-            date.month == today.month &&
-            date.day == today.day) {
+        final dateDebut = (data['dateDebutIntervention'] as dynamic)?.toDate();
+        final dateFin = (data['dateFinIntervention'] as dynamic)?.toDate();
+        
+        if (dateDebut != null && dateDebut.year == today.year && dateDebut.month == today.month && dateDebut.day == today.day) {
           reservationsToday++;
         }
+        
+        if (dateFin != null && dateFin.year == today.year && dateFin.month == today.month) {
+          if (data['statut'] == 'TERMINEE') {
+            final price = data['prixNegocie'] ?? data['prix'];
+            if (price != null) {
+              revenue += (price as num).toDouble();
+            }
+          }
+        }
+      }
+
+      for (var doc in evaluations.docs) {
+        final data = doc.data();
         if (data['note'] != null) {
           totalRating += (data['note'] as num).toDouble();
           ratedCount++;
-        }
-        if (data['statut'] == 'TERMINEE' && data['prix'] != null) {
-          revenue += (data['prix'] as num).toDouble();
         }
       }
 
@@ -180,21 +230,22 @@ class FirestoreService {
     }
   }
 
+  /// Returns true if expert has ACTIVE or GRACE subscription (both grant access).
   Stream<bool> isExpertPremium(String expertId) {
     return _firestore
         .collection('abonnements')
         .where('idExpert', isEqualTo: expertId)
-        .where('statut', isEqualTo: 'ACTIVE')
+        .where('statut', whereIn: ['ACTIVE', 'GRACE'])
         .snapshots()
         .map((snapshot) => snapshot.docs.isNotEmpty);
   }
 
-  /// Returns the full active subscription document, or null if not premium.
+  /// Returns the full active/grace subscription document, or null if not premium.
   Stream<Map<String, dynamic>?> getActiveSubscription(String expertId) {
     return _firestore
         .collection('abonnements')
         .where('idExpert', isEqualTo: expertId)
-        .where('statut', isEqualTo: 'ACTIVE')
+        .where('statut', whereIn: ['ACTIVE', 'GRACE'])
         .limit(1)
         .snapshots()
         .map((snapshot) {
@@ -204,10 +255,36 @@ class FirestoreService {
         });
   }
 
+  /// Checks whether this expert already has a stored card in cartesBancaires.
+  Future<bool> hasStoredCard(String expertId) async {
+    try {
+      final snap = await _firestore
+          .collection('cartesBancaires')
+          .where('idExpert', isEqualTo: expertId)
+          .limit(1)
+          .get();
+      return snap.docs.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Reactivates a SUSPENDU subscription by setting its statut back to ACTIVE.
+  Future<void> reactivateSubscription(String subscriptionId) async {
+    await _firestore.collection('abonnements').doc(subscriptionId).update({
+      'statut': 'ACTIVE',
+      'suspendedAt': null,
+      'graceStartedAt': null,
+      'retryCount': 0,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Cancels (expert-initiated) → sets statut to SUSPENDU. Data is preserved.
   Future<void> cancelSubscription(String subscriptionId) async {
     await _firestore.collection('abonnements').doc(subscriptionId).update({
-      'statut': 'DESACTIVE',
-      'dateFin': FieldValue.serverTimestamp(),
+      'statut': 'SUSPENDU',
+      'suspendedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
   }
@@ -320,18 +397,49 @@ class FirestoreService {
     required String expiryDate,
     required String cvv,
   }) async {
+    // 1. Delete old cards
+    final oldCards = await _firestore
+        .collection('cartesBancaires')
+        .where('idExpert', isEqualTo: expertId)
+        .get();
+        
+    final batch = _firestore.batch();
+    for (var doc in oldCards.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // 2. Format new card
     final last4 = cardNumber.replaceAll(' ', '').length >= 4
         ? cardNumber.replaceAll(' ', '').substring(cardNumber.replaceAll(' ', '').length - 4)
         : '????';
     final maskedNumber = '**** **** **** $last4';
 
-    await _firestore.collection('cartesBancaires').add({
+    // 3. Add new card
+    final newDoc = _firestore.collection('cartesBancaires').doc();
+    batch.set(newDoc, {
       'idExpert': expertId,
       'CardNumber': maskedNumber,
       'CVV': '***',
       'ExpirationDate': expiryDate,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    
+    await batch.commit();
+  }
+
+  /// Retrieves the masked card information for the expert (if any).
+  Future<Map<String, dynamic>?> getStoredCard(String expertId) async {
+    try {
+      final snap = await _firestore
+          .collection('cartesBancaires')
+          .where('idExpert', isEqualTo: expertId)
+          .limit(1)
+          .get();
+      if (snap.docs.isEmpty) return null;
+      return snap.docs.first.data();
+    } catch (e) {
+      return null;
+    }
   }
 
   /// Returns list of subscription payment records derived from the active subscription.
@@ -465,6 +573,34 @@ class FirestoreService {
 
   // ─── Search Experts ────────────────────────────────────────
 
+    Future<List<ServiceModel>> getServices() async {
+    try {
+      final snapshot = await _firestore.collection('services').orderBy('nom').get();
+      return snapshot.docs.map((doc) => ServiceModel.fromFirestore(doc)).toList();
+    } catch (e) {
+      debugPrint("Error fetching services: $e");
+      return [];
+    }
+  }
+
+  Future<Map<String, dynamic>?> getLatestExpertCGU() async {
+    try {
+      final snap = await _firestore.collection('cgu')
+          .where('type', isEqualTo: 'EXPERT')
+          .where('is_active', isEqualTo: true)
+          .limit(1)
+          .get();
+      if (snap.docs.isNotEmpty) {
+        return snap.docs.first.data();
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching CGU: $e');
+      return null;
+    }
+  }
+
+
   Future<List<Expert>> getExperts() async {
     try {
       final expertsSnapshot = await _firestore.collection('experts').get();
@@ -544,6 +680,7 @@ class FirestoreService {
           isPremium: isPremium,
           services: services,
           ville: ville,
+          estDisponible: expertData['estDisponible'] ?? expertData['estdisponible'] ?? true,
           location: (userData['location'] ?? expertData['location']) as GeoPoint?,
         );
       }));
@@ -560,6 +697,26 @@ class FirestoreService {
       debugPrint("Error fetching experts: $e");
       return [];
     }
+  }
+
+  /// Returns only experts that have a non-null GeoPoint location stored (or falls back to city geocoding).
+  Future<List<Expert>> getExpertsWithLocation() async {
+    final all = await getExperts();
+    final locationService = LocationService();
+    
+    List<Expert> result = [];
+    for (var e in all) {
+      if (e.location != null) {
+        result.add(e);
+      } else if (e.ville.isNotEmpty) {
+        // Fallback to geocoding the expert's city
+        final geopoint = await locationService.getCoordinatesFromCity(e.ville);
+        if (geopoint != null) {
+          result.add(e.copyWith(location: geopoint));
+        }
+      }
+    }
+    return result;
   }
 
   Future<Expert?> getExpertDetailed(String expertId) async {
@@ -638,6 +795,7 @@ class FirestoreService {
         isPremium: isPremium,
         services: services,
         ville: ville,
+        estDisponible: expertData['estDisponible'] ?? expertData['estdisponible'] ?? true,
         location: (userData['location'] ?? expertData['location']) as GeoPoint?,
       );
     } catch (e) {
@@ -720,7 +878,119 @@ class FirestoreService {
     }
   }
 
-  // ─── Portfolio images depuis imagesExemplaires ─────────────
+  /// Fetches all reviews (evaluations) left BY a client with expert names resolved.
+  Future<List<Map<String, dynamic>>> getClientReviews(String clientId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('evaluations')
+          .where('idClient', isEqualTo: clientId)
+          .get();
+
+      final results = await Future.wait(snapshot.docs.map((doc) async {
+        final data = doc.data();
+        String expertNom = 'Expert';
+        String expertPhoto = '';
+        String tacheNom = '';
+        final idExpert = data['idExpert'] as String?;
+
+        if (idExpert != null && idExpert.isNotEmpty) {
+          try {
+            final expertDoc = await _firestore.collection('experts').doc(idExpert).get();
+            final idUtilisateur = expertDoc.data()?['idUtilisateur'];
+            if (idUtilisateur != null) {
+              final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
+              expertNom = userDoc.data()?['nom'] ?? 'Expert';
+              expertPhoto = userDoc.data()?['image_profile'] ?? '';
+            }
+          } catch (e) {
+            debugPrint('Error resolving expert name for client review: \$e');
+          }
+        }
+
+        final idIntervention = data['idIntervention'] as String?;
+        if (idIntervention != null && idIntervention.isNotEmpty) {
+          try {
+            final intDoc = await _firestore.collection('interventions').doc(idIntervention).get();
+            tacheNom = intDoc.data()?['tacheSnapshot']?['nom'] ?? '';
+          } catch (_) {}
+        }
+
+        return {
+          'id': doc.id,
+          'expertNom': expertNom,
+          'expertPhoto': expertPhoto,
+          'tacheNom': tacheNom,
+          'note': (data['note'] ?? 0.0).toDouble(),
+          'commentaire': data['commentaire'] ?? data['comment'] ?? '',
+          'date': data['createdAt'],
+          'idIntervention': idIntervention ?? '',
+        };
+      }).toList());
+
+      results.sort((a, b) {
+        final aDate = a['date'];
+        final bDate = b['date'];
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return bDate.compareTo(aDate);
+      });
+      return results;
+    } catch (e) {
+      debugPrint('Error fetching client reviews: \$e');
+      return [];
+    }
+  }
+
+  /// Fetches all complaints (reclamations) made BY a client, with expert names resolved.
+  Future<List<Map<String, dynamic>>> getClientComplaints(String clientId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('reclamations')
+          .where('idClient', isEqualTo: clientId)
+          .get();
+
+      final results = await Future.wait(snapshot.docs.map((doc) async {
+        final data = doc.data();
+        String expertNom = 'Expert';
+        final idExpert = data['idExpert'] as String?;
+
+        if (idExpert != null && idExpert.isNotEmpty) {
+          try {
+            final expertDoc = await _firestore.collection('experts').doc(idExpert).get();
+            final idUtilisateur = expertDoc.data()?['idUtilisateur'];
+            if (idUtilisateur != null) {
+              final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
+              expertNom = userDoc.data()?['nom'] ?? 'Expert';
+            }
+          } catch (_) {}
+        }
+
+        return {
+          'id': doc.id,
+          'expertNom': expertNom,
+          'description': data['description'] ?? '',
+          'etat': data['etatReclamation'] ?? 'EN_ATTENTE',
+          'date': data['createdAt'],
+          'idIntervention': data['idIntervention'] ?? '',
+        };
+      }).toList());
+
+      results.sort((a, b) {
+        final aDate = a['date'];
+        final bDate = b['date'];
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return bDate.compareTo(aDate);
+      });
+      return results;
+    } catch (e) {
+      debugPrint('Error fetching client complaints: \$e');
+      return [];
+    }
+  }
+
 
   /// Récupère toutes les images de portfolio d'un expert.
   Future<List<String>> getExpertPortfolioImages(String expertId) async {
@@ -823,6 +1093,14 @@ class FirestoreService {
     required String phone,
     required String email,
     required String acceptedCguVersion,
+    // Optional address fields
+    String? rue,
+    String? numBatiment,
+    String? quartier,
+    String? ville,
+    String? codePostal,
+    String? pays,
+    GeoPoint? location,
   }) async {
     final uid = _auth.currentUser!.uid;
 
@@ -831,7 +1109,7 @@ class FirestoreService {
       'updated_At': FieldValue.serverTimestamp(),
       'email': email,
       'image_profile': null,
-      'location': null,
+      'location': location,   // GeoPoint or null
       'nom': name,
       'telephone': phone,
       'token': '',
@@ -842,6 +1120,21 @@ class FirestoreService {
       'etatCompte': 'ACTIVE',
       'idUtilisateur': uid,
     });
+
+    // Save address document if address data was provided
+    if (ville != null && ville.isNotEmpty) {
+      await _firestore.collection('adresses').add({
+        'idUtilisateur': uid,
+        'Rue': rue ?? '',
+        'NumBatiment': numBatiment ?? '',
+        'Quartier': quartier ?? '',
+        'Ville': ville,
+        'CodePostal': codePostal ?? '',
+        'Pays': pays ?? 'Maroc',
+        if (location != null) 'location': location,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
 
     return clientDoc.id;
   }
@@ -863,6 +1156,24 @@ class FirestoreService {
     data['id'] = uid; // This remains the 'utilisateurs' UID for backwards compatibility
     data['clientId'] = clientQuery.docs.first.id; // Correct clients collection document ID
     return data;
+  }
+
+  /// Updates the client's profile in Firestore using the current Firebase Auth UID.
+  Future<void> updateClientProfile({
+    required String uid,
+    required String name,
+    required String phone,
+    String? imageBase64,
+  }) async {
+    final updateData = <String, dynamic>{
+      'nom': name,
+      'telephone': phone,
+      'updated_At': FieldValue.serverTimestamp(),
+    };
+    if (imageBase64 != null) {
+      updateData['image_profile'] = imageBase64;
+    }
+    await _firestore.collection('utilisateurs').doc(uid).update(updateData);
   }
 
   // ─── Provider Services & Tasks ─────────────────────────────
@@ -921,6 +1232,7 @@ class FirestoreService {
         final serviceDoc = await _firestore.collection('services').doc(serviceId).get();
         final serviceData = serviceDoc.data();
         final serviceName = serviceData != null ? (serviceData['nom'] ?? 'Unknown Service') : 'Unknown Service';
+        final serviceImage = serviceData != null ? serviceData['image'] : null;
 
         // Get images for the service expert
         final imgSnapshot = await _firestore
@@ -969,6 +1281,7 @@ class FirestoreService {
           'id': seDoc.id,
           'idService': serviceId,
           'serviceName': serviceName,
+          'serviceImage': serviceImage,
           'description': seData['description'] ?? '',
           'estActive': seData['estActive'] ?? true,
           'anneeExperience': seData['anneeExperience'] ?? 0,
@@ -1331,16 +1644,6 @@ class FirestoreService {
 
   // ─── Providers / Experts ───────────────────────────────────
 
-  /// Returns a list of all services from the `services` collection.
-  Future<List<Map<String, dynamic>>> getServices() async {
-    final query = await _firestore.collection('services').get();
-    return query.docs.map((doc) => {
-      'id': doc.id,
-      'nom': doc.data()['nom'] ?? '',
-      'description': doc.data()['description'] ?? '',
-    }).toList();
-  }
-
   /// Registers a new provider in Firestore using the current Firebase Auth UID.
   Future<void> registerProvider({
     required String name,
@@ -1353,6 +1656,15 @@ class FirestoreService {
     required String? cinBackUrl,
     required String? certificateUrl,
     required String acceptedCguVersion,
+
+    // Optional address fields
+    String? ville,
+    String? pays,
+    String? numBatiment,
+    String? rue,
+    String? quartier,
+    String? codePostal,
+    GeoPoint? location,
   }) async {
     final uid = _auth.currentUser!.uid;
 
@@ -1361,7 +1673,7 @@ class FirestoreService {
       'updated_At': FieldValue.serverTimestamp(),
       'email': email,
       'image_profile': null,
-      'location': null,
+      'location': location,
       'nom': name,
       'telephone': phone,
       'token': '',
@@ -1393,6 +1705,21 @@ class FirestoreService {
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
+
+    // Save address document if address data was provided
+    if (ville != null && ville.isNotEmpty) {
+      await _firestore.collection('adresses').add({
+        'idUtilisateur': uid,
+        'Rue': rue ?? '',
+        'NumBatiment': numBatiment ?? '',
+        'Quartier': quartier ?? '',
+        'Ville': ville,
+        'CodePostal': codePostal ?? '',
+        'Pays': pays ?? 'Maroc',
+        if (location != null) 'location': location,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
   }
 
   /// Fetches provider data by Firebase Auth UID.
@@ -1412,6 +1739,7 @@ class FirestoreService {
     final data = userDoc.data()!;
     data['id'] = uid;
     data['etatCompte'] = expertQuery.docs.first.data()['etatCompte'] ?? 'PENDING';
+    data['desactiveParAdmin'] = expertQuery.docs.first.data()['desactiveParAdmin'] ?? false;
     data['expertId'] = expertQuery.docs.first.id;
     return data;
   }
@@ -1469,5 +1797,31 @@ class FirestoreService {
     } catch (e) {
       if (kDebugMode) print('Error updating CGU version: $e');
     }
+  Future<void> updateExpertRadius(String expertId, int radius) async {
+    await _firestore.collection('experts').doc(expertId).update({
+      'rayonTravaille': radius,
+    });
+  }
+
+  Future<void> deactivateExpertSelf(String expertId) async {
+    await _firestore.collection('experts').doc(expertId).update({
+      'etatCompte': 'DESACTIVE',
+      'desactiveParAdmin': false,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> reactivateExpertSelf(String expertId) async {
+    // Only reactivate if not disabled by admin
+    final doc = await _firestore.collection('experts').doc(expertId).get();
+    if (doc.exists && (doc.data()?['desactiveParAdmin'] ?? false) == true) {
+      throw Exception("Compte désactivé par l'administrateur. Veuillez contacter le support.");
+    }
+
+    await _firestore.collection('experts').doc(expertId).update({
+      'etatCompte': 'ACTIVE',
+      'desactiveParAdmin': false,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 }

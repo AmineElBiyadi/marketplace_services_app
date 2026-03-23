@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../theme/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
@@ -97,11 +99,26 @@ class _OTPScreenState extends State<OTPScreen> {
     final role = widget.extraData!['role'];
     try {
       if (role == 'client') {
+        // Reconstruct GeoPoint from extraData if available
+        GeoPoint? geoPoint;
+        final lat = widget.extraData!['lat'];
+        final lng = widget.extraData!['lng'];
+        if (lat != null && lng != null) {
+          geoPoint = GeoPoint((lat as num).toDouble(), (lng as num).toDouble());
+        }
+
         final uid = await _firestoreService.registerClient(
           name: widget.extraData!['name'],
           phone: widget.extraData!['phone'],
           email: widget.extraData!['email'],
           acceptedCguVersion: widget.extraData!['acceptedCguVersion'] ?? '1.0',
+          rue: widget.extraData!['address']?['rue'],
+          numBatiment: widget.extraData!['address']?['numBatiment'],
+          quartier: widget.extraData!['address']?['quartier'],
+          ville: widget.extraData!['address']?['ville'],
+          codePostal: widget.extraData!['address']?['codePostal'],
+          pays: widget.extraData!['address']?['pays'],
+          location: geoPoint,
         );
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('logged_client_id', uid);
@@ -135,22 +152,38 @@ class _OTPScreenState extends State<OTPScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12),
-              IconButton(
-                onPressed: () =>
-                    context.canPop() ? context.pop() : context.go('/login'),
-                icon: const Icon(Icons.arrow_back,
-                    color: Color(0xFF1A237E), size: 24),
-                padding: EdgeInsets.zero,
-              ),
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        try {
+          await FirebaseAuth.instance.currentUser?.delete();
+        } catch (_) {}
+        if (context.mounted) {
+          context.canPop() ? context.pop() : context.go('/login');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 12),
+                IconButton(
+                  onPressed: () async {
+                    try {
+                      await FirebaseAuth.instance.currentUser?.delete();
+                    } catch (_) {}
+                    if (context.mounted) {
+                      context.canPop() ? context.pop() : context.go('/login');
+                    }
+                  },
+                  icon: const Icon(Icons.arrow_back, color: Color(0xFF1A237E), size: 24),
+                  padding: EdgeInsets.zero,
+                ),
               const SizedBox(height: 20),
               // ── Title ──
               Text(
@@ -334,6 +367,7 @@ class _OTPScreenState extends State<OTPScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

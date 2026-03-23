@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
+import '../../widgets/admin/booking_detail_dialog.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class AdminReviewsScreen extends StatefulWidget {
@@ -15,7 +16,6 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   final AdminDashboardService _service = AdminDashboardService();
 
   static const Color _primary = Color(0xFF3D5A99);
-  static const Color _card = Colors.white;
   static const Color _border = Color(0xFFE2E8F0);
   static const Color _textPrimary = Color(0xFF0F172A);
   static const Color _textSecondary = Color(0xFF64748B);
@@ -34,48 +34,22 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
 
   Future<void> _loadData() async {
     setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 1000));
-    
-    final mockStats = AdminDashboardStats(
-      totalUsers: 156,
-      totalClients: 120,
-      totalProviders: 36,
-      pendingProviders: 5,
-      totalReservations: 450,
-      reservationsThisMonth: 42,
-      openClaims: 4,
-      averageRating: 4.5,
-      freeProviders: 20,
-      premiumProviders: 16,
-      totalRevenue: 25000,
-      unreadNotifications: 12,
-      userGrowth: '+12%',
-      revenueGrowth: '+8%',
-      cancelledReservations: 15,
-      totalFinishedReservations: 380,
-    );
-
-    final mockReviews = [
-      {'id': '1', 'note': 5.0, 'commentaire': 'Excellent service, très professionnel !', 'clientName': 'Hicham Amrani', 'expertName': 'Youssef El Fassi', 'date': '20/03/2024', 'isHidden': false},
-      {'id': '2', 'note': 4.0, 'commentaire': 'Bonne prestation mais un peu de retard.', 'clientName': 'Selma Benani', 'expertName': 'Mina Chafik', 'date': '19/03/2024', 'isHidden': false},
-      {'id': '3', 'note': 2.0, 'commentaire': 'Le travail n\'est pas fini correctement.', 'clientName': 'Karim Tadlaoui', 'expertName': 'Ahmed Said', 'date': '18/03/2024', 'isHidden': true},
-      {'id': '4', 'note': 5.0, 'commentaire': 'Ponctuelle et efficace. Je recommande.', 'clientName': 'Ines Mansouri', 'expertName': 'Mina Chafik', 'date': '17/03/2024', 'isHidden': false},
-      {'id': '5', 'note': 3.0, 'commentaire': 'Moyen, peut mieux faire.', 'clientName': 'Ali Fassi', 'expertName': 'Youssef El Fassi', 'date': '16/03/2024', 'isHidden': false},
-    ];
-
-    final mockClaims = [
-      {'id': 'c1', 'description': 'Retard de plus de 2 heures sans prévenir.', 'typeReclamateur': 'CLIENT', 'etat': 'EN_ATTENTE', 'idIntervention': 'INT-9921', 'clientName': 'Omar Tazi', 'expertName': 'Said Bakkali', 'adminResponse': null, 'date': '20/03/2024'},
-      {'id': 'c2', 'description': 'Dommage causé sur le matériel pendant l\'intervention.', 'typeReclamateur': 'CLIENT', 'etat': 'TRAITEE', 'idIntervention': 'INT-8834', 'clientName': 'Lina Filali', 'expertName': 'Driss Houari', 'adminResponse': 'Une compensation a été accordée.', 'date': '15/03/2024'},
-      {'id': 'c3', 'description': 'Client agressif et refuse de payer le surplus.', 'typeReclamateur': 'EXPERT', 'etat': 'EN_ATTENTE', 'idIntervention': 'INT-7721', 'clientName': 'Majid Kadiri', 'expertName': 'Ahmed Slimani', 'adminResponse': null, 'date': '21/03/2024'},
-    ];
-    
-    if (mounted) {
-      setState(() {
-        _stats = mockStats;
-        _allReviews = mockReviews;
-        _allClaims = mockClaims;
-        _loading = false;
-      });
+    try {
+      final stats = await _service.getDashboardStats();
+      final reviews = await _service.getAdminEvaluations();
+      final claims = await _service.getAdminClaims();
+      
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _allReviews = reviews;
+          _allClaims = claims;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading dashboard data: $e');
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -104,10 +78,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   Widget _buildPremiumHeader(bool isMobile) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(bottom: BorderSide(color: _border.withOpacity(0.5))),
-      ),
+      decoration: BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: _border.withOpacity(0.5)))),
       child: Row(
         children: [
           if (isMobile)
@@ -153,8 +124,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
 
   Widget _buildStatCard(String title, String val, IconData icon, Color color, double width) {
     return Container(
-      width: width,
-      padding: const EdgeInsets.all(20),
+      width: width, padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: _border)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,6 +178,8 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   }
 
   Widget _buildRadialGauge() {
+    double score = _stats?.averageRating ?? 0.0;
+    double progress = score / 5.0;
     return Center(
       child: Column(
         children: [
@@ -218,12 +190,12 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
               children: [
                 SizedBox(
                   width: 140, height: 140,
-                  child: CircularProgressIndicator(value: 0.9, strokeWidth: 12, backgroundColor: _primary.withOpacity(0.05), color: _primary, strokeCap: StrokeCap.round),
+                  child: CircularProgressIndicator(value: progress, strokeWidth: 12, backgroundColor: _primary.withOpacity(0.05), color: _primary, strokeCap: StrokeCap.round),
                 ),
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('4.5', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: _primary)),
+                    Text(score.toStringAsFixed(1), style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: _primary)),
                     Text('/ 5.0', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary.withOpacity(0.5))),
                   ],
                 ),
@@ -241,10 +213,10 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
       return Column(
         children: [
           _sectionSubHeader('Avis Récents', LucideIcons.star, Colors.amber, () => _showAllReviewsModal()),
-          ..._allReviews.take(3).map((r) => _buildReviewCard(r)),
+          ..._allReviews.take(2).map((r) => _buildReviewCard(r)),
           const SizedBox(height: 32),
           _sectionSubHeader('Réclamations Prioritaires', LucideIcons.alertTriangle, Colors.redAccent, () => _showAllClaimsModal()),
-          ..._allClaims.take(3).map((c) => _buildClaimCard(c)),
+          ..._allClaims.take(2).map((c) => _buildClaimCard(c)),
         ],
       );
     }
@@ -257,7 +229,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             children: [
               _sectionSubHeader('Dernières Évaluations', LucideIcons.star, Colors.amber, () => _showAllReviewsModal()),
               const SizedBox(height: 16),
-              ..._allReviews.take(3).map((r) => _buildReviewCard(r)),
+              ..._allReviews.take(2).map((r) => _buildReviewCard(r)),
             ],
           ),
         ),
@@ -268,7 +240,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             children: [
               _sectionSubHeader('Réclamations en Cours', LucideIcons.alertTriangle, Colors.redAccent, () => _showAllClaimsModal()),
               const SizedBox(height: 16),
-              ..._allClaims.take(3).map((c) => _buildClaimCard(c)),
+              ..._allClaims.take(2).map((c) => _buildClaimCard(c)),
             ],
           ),
         ),
@@ -347,6 +319,33 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             ],
           ),
           const SizedBox(height: 12),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              const Text('Plaintif:', style: TextStyle(fontSize: 11, color: _textSecondary)),
+              _clickableName(
+                claim['typeReclamateur'] == 'EXPERT' ? claim['expertName'] : claim['clientName'], 
+                claim['typeReclamateur'] == 'EXPERT' ? claim['idExpert'] : claim['idClient'], 
+                claim['typeReclamateur'] == 'EXPERT' ? 'Prestataire' : 'Client'
+              ),
+              const SizedBox(width: 6),
+              const Text('Contre:', style: TextStyle(fontSize: 11, color: _textSecondary)),
+              _clickableName(
+                claim['typeReclamateur'] == 'EXPERT' ? claim['clientName'] : claim['expertName'], 
+                claim['typeReclamateur'] == 'EXPERT' ? claim['idClient'] : claim['idExpert'], 
+                claim['typeReclamateur'] == 'EXPERT' ? 'Client' : 'Prestataire'
+              ),
+              if ((claim['targetClaimCount'] ?? 0) > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                  child: Text('⚠ ${claim['targetClaimCount']} plaintes au total', style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
           Text(claim['description'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
           const SizedBox(height: 8),
           Text('ID: ${claim['idIntervention']}', style: const TextStyle(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.bold)),
@@ -362,6 +361,25 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _clickableName(String name, String? id, String role) {
+    return InkWell(
+      onTap: id == null ? null : () {
+        showDialog(
+          context: context,
+          builder: (ctx) => UserProfileDetailDialog(id: id, role: role),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
+        child: Text(
+          '$name ($role)',
+          style: const TextStyle(fontSize: 12, color: _primary, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -400,8 +418,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
 
   Widget _miniIconAction(IconData icon, Color color, VoidCallback onTap) {
     return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      onTap: onTap, borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(8)),
@@ -415,57 +432,88 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   }
 
   Widget _buildRatingDistributionChart(bool isMobile) {
-    final data = [{'stars': '5★', 'count': 320}, {'stars': '4★', 'count': 180}, {'stars': '3★', 'count': 45}, {'stars': '2★', 'count': 15}, {'stars': '1★', 'count': 8}];
+    final Map<int, int> distribution = {5: 0, 4: 0, 3: 0, 2: 0, 1: 0};
+    for (var r in _allReviews) {
+      int score = (r['note'] ?? 0).toInt();
+      if (distribution.containsKey(score)) distribution[score] = distribution[score]! + 1;
+    }
+    final dataList = [
+      {'stars': '5★', 'count': distribution[5]},
+      {'stars': '4★', 'count': distribution[4]},
+      {'stars': '3★', 'count': distribution[3]},
+      {'stars': '2★', 'count': distribution[2]},
+      {'stars': '1★', 'count': distribution[1]},
+    ];
+    double maxCount = dataList.map((e) => (e['count'] as int).toDouble()).reduce((a, b) => a > b ? a : b);
+    if (maxCount < 10) maxCount = 10;
+
     return SizedBox(
       height: 220,
       child: BarChart(
         BarChartData(
-          alignment: BarChartAlignment.spaceAround, maxY: 320,
+          alignment: BarChartAlignment.spaceAround, maxY: maxCount * 1.2,
           titlesData: FlTitlesData(
             show: true,
-            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (v, m) => Padding(padding: const EdgeInsets.only(top: 8), child: Text(data[v.toInt()]['stars'] as String, style: const TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))))),
-            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: 80, reservedSize: 30, getTitlesWidget: (v, m) => Text(v.toInt().toString(), style: const TextStyle(color: _textSecondary, fontSize: 10)))),
+            bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, getTitlesWidget: (v, m) => Padding(padding: const EdgeInsets.only(top: 8), child: Text(dataList[v.toInt()]['stars'] as String, style: const TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.bold))))),
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, interval: (maxCount / 4).clamp(1, 100).toDouble(), reservedSize: 30, getTitlesWidget: (v, m) => Text(v.toInt().toString(), style: const TextStyle(color: _textSecondary, fontSize: 10)))),
             topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-          gridData: FlGridData(show: true, drawVerticalLine: true, horizontalInterval: 80, getDrawingHorizontalLine: (v) => FlLine(color: _border, strokeWidth: 1, dashArray: [5, 5]), getDrawingVerticalLine: (v) => FlLine(color: _border, strokeWidth: 1, dashArray: [5, 5])),
+          gridData: FlGridData(show: true, drawVerticalLine: true, horizontalInterval: (maxCount / 4).clamp(1, 100).toDouble(), getDrawingHorizontalLine: (v) => FlLine(color: _border, strokeWidth: 1, dashArray: [5, 5]), getDrawingVerticalLine: (v) => FlLine(color: _border, strokeWidth: 1, dashArray: [5, 5])),
           borderData: FlBorderData(show: true, border: Border(bottom: BorderSide(color: _primary.withOpacity(0.5)), left: BorderSide(color: _primary.withOpacity(0.5)))),
-          barGroups: data.asMap().entries.map((e) => BarChartGroupData(x: e.key, barRods: [BarChartRodData(toY: (e.value['count'] as num).toDouble(), color: Colors.amber[300]!, width: isMobile ? 30 : 60, borderRadius: const BorderRadius.vertical(top: Radius.circular(6)))])).toList(),
+          barGroups: dataList.asMap().entries.map((e) => BarChartGroupData(x: e.key, barRods: [BarChartRodData(toY: (e.value['count'] as num).toDouble(), color: Colors.amber[300]!, width: isMobile ? 30 : 60, borderRadius: const BorderRadius.vertical(top: Radius.circular(6)))])).toList(),
         ),
       ),
     );
   }
 
-  void _showAllReviewsModal() {
-    showDialog(
-      context: context,
-      builder: (context) => _BaseFullListModal(
-        title: 'Toutes les Évaluations',
-        icon: LucideIcons.star,
-        color: Colors.amber,
-        items: _allReviews,
-        itemBuilder: (context, item) => _buildReviewCard(item),
-      ),
-    );
+  void _showAllReviewsModal() => showDialog(context: context, builder: (context) => _BaseFullListModal(
+    title: 'Toutes les Évaluations', 
+    icon: LucideIcons.star, 
+    color: Colors.amber, 
+    items: _allReviews, 
+    itemBuilder: (context, item) => _buildReviewCard(item),
+    filterType: 'REVIEW',
+  ));
+
+  void _showAllClaimsModal() => showDialog(context: context, builder: (context) => _BaseFullListModal(
+    title: 'Toutes les Réclamations', 
+    icon: LucideIcons.alertTriangle, 
+    color: Colors.redAccent, 
+    items: _allClaims, 
+    itemBuilder: (context, item) => _buildClaimCard(item),
+    filterType: 'CLAIM',
+  ));
+
+  Future<void> _toggleVisibility(Map<String, dynamic> r) async {
+    final bool newStatus = !(r['isHidden'] ?? false);
+    await _service.updateEvaluationVisibility(r['id'], newStatus);
+    _loadData();
   }
 
-  void _showAllClaimsModal() {
-    showDialog(
-      context: context,
-      builder: (context) => _BaseFullListModal(
-        title: 'Toutes les Réclamations',
-        icon: LucideIcons.alertTriangle,
-        color: Colors.redAccent,
-        items: _allClaims,
-        itemBuilder: (context, item) => _buildClaimCard(item),
-      ),
-    );
+  Future<void> _deleteReview(Map<String, dynamic> r) async {
+    final confirm = await _showConfirm('Supprimer cet avis ?');
+    if (confirm == true) {
+      await _service.deleteEvaluation(r['id']);
+      _loadData();
+    }
   }
 
-  void _toggleVisibility(Map<String, dynamic> r) => setState(() { final idx = _allReviews.indexOf(r); if (idx != -1) _allReviews[idx]['isHidden'] = !(_allReviews[idx]['isHidden'] ?? false); });
-  void _deleteReview(Map<String, dynamic> r) => setState(() => _allReviews.remove(r));
-  void _markAsTreated(Map<String, dynamic> c) => setState(() { final idx = _allClaims.indexOf(c); if (idx != -1) _allClaims[idx]['etat'] = 'TRAITEE'; });
-  void _deleteClaim(Map<String, dynamic> c) => setState(() => _allClaims.remove(c));
+  Future<void> _markAsTreated(Map<String, dynamic> c) async {
+    await _service.updateClaim(c['id'], status: 'TRAITEE');
+    _loadData();
+  }
+
+  Future<void> _deleteClaim(Map<String, dynamic> c) async {
+    final confirm = await _showConfirm('Supprimer cette réclamation ?');
+    if (confirm == true) {
+      await _service.deleteClaim(c['id']);
+      _loadData();
+    }
+  }
+
+  Future<bool?> _showConfirm(String msg) => showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: Text(msg), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmer'))]));
+
   void _viewClaimDetail(Map<String, dynamic> claim) => showDialog(context: context, builder: (context) => _ClaimDetailModal(claim: claim, onUpdate: _loadData));
 }
 
@@ -475,8 +523,16 @@ class _BaseFullListModal extends StatefulWidget {
   final Color color;
   final List<Map<String, dynamic>> items;
   final Widget Function(BuildContext, Map<String, dynamic>) itemBuilder;
+  final String filterType; // 'REVIEW' or 'CLAIM'
 
-  const _BaseFullListModal({required this.title, required this.icon, required this.color, required this.items, required this.itemBuilder});
+  const _BaseFullListModal({
+    required this.title, 
+    required this.icon, 
+    required this.color, 
+    required this.items, 
+    required this.itemBuilder,
+    required this.filterType,
+  });
 
   @override
   State<_BaseFullListModal> createState() => _BaseFullListModalState();
@@ -484,6 +540,7 @@ class _BaseFullListModal extends StatefulWidget {
 
 class _BaseFullListModalState extends State<_BaseFullListModal> {
   String _search = '';
+  String _selectedFilter = 'TOUT'; // 'TOUT', or 1-5 for reviews, or 'EN_ATTENTE'/'TRAITEE' for claims
   late List<Map<String, dynamic>> _filtered;
 
   @override
@@ -495,9 +552,24 @@ class _BaseFullListModalState extends State<_BaseFullListModal> {
   void _applyFilter() {
     setState(() {
       _filtered = widget.items.where((item) {
+        // Search filter
         final content = (item['commentaire'] ?? item['description'] ?? '').toString().toLowerCase();
-        final name = (item['clientName'] ?? '').toString().toLowerCase();
-        return content.contains(_search.toLowerCase()) || name.contains(_search.toLowerCase());
+        final client = (item['clientName'] ?? '').toString().toLowerCase();
+        final expert = (item['expertName'] ?? '').toString().toLowerCase();
+        final matchesSearch = content.contains(_search.toLowerCase()) || 
+                             client.contains(_search.toLowerCase()) || 
+                             expert.contains(_search.toLowerCase());
+
+        if (!matchesSearch) return false;
+
+        // Custom filter
+        if (_selectedFilter == 'TOUT') return true;
+
+        if (widget.filterType == 'REVIEW') {
+          return item['note'].toString() == _selectedFilter;
+        } else {
+          return item['etat'] == _selectedFilter;
+        }
       }).toList();
     });
   }
@@ -507,10 +579,12 @@ class _BaseFullListModalState extends State<_BaseFullListModal> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
-        width: 800, height: 750,
+        width: 800,
+        height: 750,
         padding: const EdgeInsets.all(32),
         child: Column(
           children: [
+            // Header
             Row(
               children: [
                 Icon(widget.icon, color: widget.color),
@@ -521,16 +595,34 @@ class _BaseFullListModalState extends State<_BaseFullListModal> {
               ],
             ),
             const SizedBox(height: 24),
-            TextField(
-              onChanged: (v) { _search = v; _applyFilter(); },
-              decoration: InputDecoration(
-                hintText: 'Rechercher...',
-                prefixIcon: const Icon(LucideIcons.search, size: 18),
-                filled: true, fillColor: const Color(0xFFF8FAFC),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
+            
+            // Search & Filters Row
+            Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: TextField(
+                    onChanged: (v) { _search = v; _applyFilter(); },
+                    decoration: InputDecoration(
+                      hintText: 'Rechercher un mot-clé, client...',
+                      prefixIcon: const Icon(LucideIcons.search, size: 18),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: _buildFilterDropdown(),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
+            
+            // List
             Expanded(
               child: _filtered.isEmpty
                   ? const Center(child: Text('Aucun résultat trouvé'))
@@ -544,27 +636,61 @@ class _BaseFullListModalState extends State<_BaseFullListModal> {
       ),
     );
   }
+
+  Widget _buildFilterDropdown() {
+    List<DropdownMenuItem<String>> menuItems = [
+      const DropdownMenuItem(value: 'TOUT', child: Text('Tous les éléments')),
+    ];
+
+    if (widget.filterType == 'REVIEW') {
+      menuItems.addAll([
+        const DropdownMenuItem(value: '5', child: Text('⭐⭐⭐⭐⭐ (5)')),
+        const DropdownMenuItem(value: '4', child: Text('⭐⭐⭐⭐ (4)')),
+        const DropdownMenuItem(value: '3', child: Text('⭐⭐⭐ (3)')),
+        const DropdownMenuItem(value: '2', child: Text('⭐⭐ (2)')),
+        const DropdownMenuItem(value: '1', child: Text('⭐ (1)')),
+      ]);
+    } else {
+      menuItems.addAll([
+        const DropdownMenuItem(value: 'EN_ATTENTE', child: Text('En attente')),
+        const DropdownMenuItem(value: 'TRAITEE', child: Text('Traitées')),
+      ]);
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12)),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedFilter,
+          isExpanded: true,
+          items: menuItems,
+          onChanged: (v) {
+            if (v != null) {
+              setState(() => _selectedFilter = v);
+              _applyFilter();
+            }
+          },
+        ),
+      ),
+    );
+  }
 }
 
 class _ClaimDetailModal extends StatefulWidget {
   final Map<String, dynamic> claim;
   final VoidCallback onUpdate;
   const _ClaimDetailModal({required this.claim, required this.onUpdate});
-
   @override
   State<_ClaimDetailModal> createState() => _ClaimDetailModalState();
 }
 
 class _ClaimDetailModalState extends State<_ClaimDetailModal> {
   final TextEditingController _responseController = TextEditingController();
-  bool _loading = false;
-
+  final AdminDashboardService _service = AdminDashboardService();
+  bool _submitting = false;
   @override
-  void initState() {
-    super.initState();
-    _responseController.text = widget.claim['adminResponse'] ?? '';
-  }
-
+  void initState() { super.initState(); _responseController.text = widget.claim['adminResponse'] ?? ''; }
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -582,12 +708,20 @@ class _ClaimDetailModalState extends State<_ClaimDetailModal> {
             const SizedBox(height: 8),
             TextField(controller: _responseController, maxLines: 3, decoration: InputDecoration(hintText: 'Votre message...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: const Color(0xFFF8FAFC))),
             const SizedBox(height: 24),
-            SizedBox(width: double.infinity, height: 48, child: ElevatedButton(onPressed: _loading ? null : () => _submit(), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3D5A99), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Enregistrer la réponse'))),
+            SizedBox(width: double.infinity, height: 48, child: ElevatedButton(onPressed: _submitting ? null : () => _submit(), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3D5A99), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Enregistrer la réponse'))),
           ],
         ),
       ),
     );
   }
-
-  Future<void> _submit() async { setState(() => _loading = true); await Future.delayed(const Duration(milliseconds: 500)); widget.onUpdate(); if (mounted) Navigator.pop(context); }
+  Future<void> _submit() async {
+    setState(() => _submitting = true);
+    try {
+      await _service.updateClaim(widget.claim['id'], response: _responseController.text);
+      widget.onUpdate();
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
 }

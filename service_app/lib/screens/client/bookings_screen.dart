@@ -20,7 +20,8 @@ const _tabStatusMap = {
 
 class BookingsScreen extends StatefulWidget {
   final String clientId;
-  const BookingsScreen({Key? key, required this.clientId}) : super(key: key);
+  final bool showBackButton;
+  const BookingsScreen({Key? key, required this.clientId, this.showBackButton = false}) : super(key: key);
 
   @override
   State<BookingsScreen> createState() => _BookingsScreenState();
@@ -655,6 +656,14 @@ class _BookingsScreenState extends State<BookingsScreen> {
             ),
             child: Row(
               children: [
+                if (widget.showBackButton) ...
+                  [
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

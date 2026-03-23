@@ -73,6 +73,8 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
           final etatCompte = user['etatCompte'] ?? 'PENDING';
           if (etatCompte == 'ACTIVE') {
             context.go('/provider/$expertId/dashboard');
+          } else if (etatCompte == 'DESACTIVE' || etatCompte == 'SUSPENDUE') {
+            context.go('/provider/deactivated');
           } else {
             context.go('/provider/pending');
           }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../theme/app_colors.dart';
+import '../../widgets/admin/booking_detail_dialog.dart';
 import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
 
@@ -26,6 +28,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedRole = 'Tous';
   String _selectedStatus = 'Tous';
+  String _selectedSort = 'Plus récents';
 
   @override
   void initState() {
@@ -49,6 +52,24 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
   }
 
+  Future<void> _updateStatus(String id, String newStatus) async {
+    try {
+      await _service.updateUserStatus(id, 'Client', newStatus);
+      _loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Statut mis à jour : $newStatus'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erreur lors de la mise à jour'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   void _applyFilters() {
     final query = _searchController.text.toLowerCase();
     setState(() {
@@ -58,6 +79,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         final statusMatches = _selectedStatus == 'Tous' || (user['status'] == _selectedStatus);
         return nameMatches && roleMatches && statusMatches;
       }).toList();
+      
+      if (_selectedSort == 'Plus récents') {
+        _filteredUsers.sort((a, b) => (b['rawDate'] as DateTime).compareTo(a['rawDate'] as DateTime));
+      } else if (_selectedSort == 'Plus anciens') {
+        _filteredUsers.sort((a, b) => (a['rawDate'] as DateTime).compareTo(b['rawDate'] as DateTime));
+      }
     });
   }
 
@@ -94,7 +121,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          const Text('Gestion des Utilisateurs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
+          const Text('Gestion des Clients', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
           const Spacer(),
           IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
         ],
@@ -127,36 +154,28 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildDropdownFilter(
-                            value: _selectedRole,
-                            items: ['Tous', 'Client', 'Prestataire'],
-                            label: 'Rôle',
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() => _selectedRole = val);
-                                _applyFilters();
-                              }
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildDropdownFilter(
-                            value: _selectedStatus,
-                            items: ['Tous', 'Actif', 'Suspendu'],
-                            label: 'Statut',
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() => _selectedStatus = val);
-                                _applyFilters();
-                              }
-                            },
-                          ),
-                        ),
-                      ],
+                    _buildDropdownFilter(
+                      value: _selectedStatus,
+                      items: ['Tous', 'ACTIVE', 'DESACTIVE', 'SUSPENDUE'],
+                      label: 'Statut',
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _selectedStatus = val);
+                          _applyFilters();
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _buildDropdownFilter(
+                      value: _selectedSort,
+                      items: ['Plus récents', 'Plus anciens'],
+                      label: 'Tri',
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _selectedSort = val);
+                          _applyFilters();
+                        }
+                      },
                     ),
                   ],
                 )
@@ -195,11 +214,25 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     Expanded(
                       child: _buildDropdownFilter(
                         value: _selectedStatus,
-                        items: ['Tous', 'Actif', 'Suspendu'],
+                        items: ['Tous', 'ACTIVE', 'DESACTIVE', 'SUSPENDUE'],
                         label: 'Statut',
                         onChanged: (val) {
                           if (val != null) {
                             setState(() => _selectedStatus = val);
+                            _applyFilters();
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildDropdownFilter(
+                        value: _selectedSort,
+                        items: ['Plus récents', 'Plus anciens'],
+                        label: 'Tri',
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _selectedSort = val);
                             _applyFilters();
                           }
                         },
@@ -231,6 +264,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 340),
                       child: DataTable(
                         columnSpacing: 24,
+                        showCheckboxColumn: false,
                         headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: _textSecondary),
                         columns: const [
                           DataColumn(label: Text('Utilisateur')),
@@ -238,9 +272,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           DataColumn(label: Text('Statut')),
                           DataColumn(label: Text('Créé le')),
                           DataColumn(label: Text('Mis à jour le')),
+                          DataColumn(label: Text('Actions')),
                         ],
                         rows: _filteredUsers.map((user) {
                           return DataRow(
+                            onSelectChanged: (_) {
+                              showDialog(
+                                context: context,
+                                builder: (context) => UserProfileDetailDialog(id: user['id'], role: user['type'] ?? 'Client'),
+                              );
+                            },
                             cells: [
                               DataCell(
                                 Row(
@@ -259,9 +300,43 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                 ),
                               ),
                               DataCell(_badge(user['type'] ?? 'Client', user['type'] == 'Prestataire' ? Colors.purple : _primary)),
-                              DataCell(_badge(user['status'] ?? 'Actif', user['status'] == 'Actif' ? Colors.green : Colors.red)),
+                              DataCell(_statusBadge(user['status'] ?? 'ACTIVE')),
                               DataCell(Text(user['createdAt'] ?? 'N/A', style: const TextStyle(color: _textSecondary))),
                               DataCell(Text(user['updatedAt'] ?? 'N/A', style: const TextStyle(color: _textSecondary))),
+                              DataCell(
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(LucideIcons.eye, size: 18, color: _primary),
+                                      tooltip: 'Détails',
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (context) => UserProfileDetailDialog(id: user['id'], role: user['type'] ?? 'Client'),
+                                        );
+                                      },
+                                    ),
+                                    if ((user['status'] ?? 'DESACTIVE') != 'ACTIVE')
+                                      IconButton(
+                                        icon: const Icon(LucideIcons.checkCircle, size: 18, color: Colors.green),
+                                        tooltip: 'Activer',
+                                        onPressed: () => _updateStatus(user['id'], 'ACTIVE'),
+                                      ),
+                                    if ((user['status'] ?? 'ACTIVE') == 'ACTIVE')
+                                      IconButton(
+                                        icon: const Icon(LucideIcons.xCircle, size: 18, color: Colors.orange),
+                                        tooltip: 'Désactiver',
+                                        onPressed: () => _updateStatus(user['id'], 'DESACTIVE'),
+                                      ),
+                                    if ((user['status'] ?? 'ACTIVE') != 'SUSPENDUE')
+                                      IconButton(
+                                        icon: const Icon(LucideIcons.alertTriangle, size: 18, color: Colors.red),
+                                        tooltip: 'Suspendre',
+                                        onPressed: () => _updateStatus(user['id'], 'SUSPENDUE'),
+                                      ),
+                                  ],
+                                ),
+                              ),
                             ],
                           );
                         }).toList(),
@@ -295,15 +370,39 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: _textSecondary),
           style: const TextStyle(fontSize: 13, color: _textPrimary, fontWeight: FontWeight.w500),
           items: items.map((item) {
+            String display = item;
+            if (item == 'Tous') display = '$label: Tous';
+            else if (item == 'ACTIVE') display = 'Actif';
+            else if (item == 'DESACTIVE') display = 'Désactivé';
+            else if (item == 'SUSPENDUE') display = 'Suspendu';
             return DropdownMenuItem(
               value: item,
-              child: Text(item == 'Tous' ? '$label: $item' : item),
+              child: Text(display),
             );
           }).toList(),
           onChanged: onChanged,
         ),
       ),
     );
+  }
+
+  Widget _statusBadge(String status) {
+    Color color;
+    String label;
+    switch (status) {
+      case 'ACTIVE':
+        color = Colors.green;
+        label = 'Actif';
+        break;
+      case 'SUSPENDUE':
+        color = Colors.red;
+        label = 'Suspendu';
+        break;
+      default:
+        color = Colors.orange;
+        label = 'Désactivé';
+    }
+    return _badge(label, color);
   }
 
   Widget _badge(String text, Color color) {
@@ -321,65 +420,113 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   Widget _buildUserCard(Map<String, dynamic> user) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: _primary.withOpacity(0.1),
-                backgroundImage: user['imageUrl'] != null ? NetworkImage(user['imageUrl']) : null,
-                child: user['imageUrl'] == null
-                    ? Text(user['avatar'] ?? '??', style: const TextStyle(fontSize: 14, color: _primary, fontWeight: FontWeight.bold))
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
+    return InkWell(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) => UserProfileDetailDialog(id: user['id'], role: user['type'] ?? 'Client'),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _border),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _primary.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: ClipOval(
+                    child: user['imageUrl'] != null 
+                      ? Image.network(
+                          user['imageUrl'],
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Center(child: Text(user['avatar'] ?? '??', style: const TextStyle(fontSize: 14, color: _primary, fontWeight: FontWeight.bold))),
+                        )
+                      : Center(child: Text(user['avatar'] ?? '??', style: const TextStyle(fontSize: 14, color: _primary, fontWeight: FontWeight.bold))),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(user['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          _badge(user['type']?.toString() ?? 'Client', user['type'] == 'Prestataire' ? Colors.purple : _primary),
+                          const SizedBox(width: 8),
+                          _statusBadge(user['status']?.toString() ?? 'ACTIVE'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(user['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        _badge(user['type'] ?? 'Client', user['type'] == 'Prestataire' ? Colors.purple : _primary),
-                        const SizedBox(width: 8),
-                        _badge(user['status'] ?? 'Actif', user['status'] == 'Actif' ? Colors.green : Colors.red),
-                      ],
-                    ),
+                    const Text('Créé le', style: TextStyle(fontSize: 10, color: _textSecondary)),
+                    Text(user['createdAt'] ?? 'N/A', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const Divider(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Créé le', style: TextStyle(fontSize: 10, color: _textSecondary)),
-                  Text(user['createdAt'] ?? 'N/A', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Text('Téléphone', style: TextStyle(fontSize: 10, color: _textSecondary)),
-                  Text(user['phone'] ?? 'N/A', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                ],
-              ),
-            ],
-          ),
-        ],
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text('Téléphone', style: TextStyle(fontSize: 10, color: _textSecondary)),
+                    Text(user['phone'] ?? 'N/A', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(LucideIcons.eye, size: 20, color: _primary),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => UserProfileDetailDialog(id: user['id'], role: user['type'] ?? 'Client'),
+                    );
+                  },
+                ),
+                const Spacer(),
+                if ((user['status'] ?? 'DESACTIVE') != 'ACTIVE')
+                  IconButton(
+                    icon: const Icon(LucideIcons.checkCircle, size: 20, color: Colors.green),
+                    onPressed: () => _updateStatus(user['id'], 'ACTIVE'),
+                  ),
+                if ((user['status'] ?? 'ACTIVE') == 'ACTIVE')
+                  IconButton(
+                    icon: const Icon(LucideIcons.xCircle, size: 20, color: Colors.orange),
+                    onPressed: () => _updateStatus(user['id'], 'DESACTIVE'),
+                  ),
+                if ((user['status'] ?? 'ACTIVE') != 'SUSPENDUE')
+                  IconButton(
+                    icon: const Icon(LucideIcons.alertTriangle, size: 20, color: Colors.red),
+                    onPressed: () => _updateStatus(user['id'], 'SUSPENDUE'),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

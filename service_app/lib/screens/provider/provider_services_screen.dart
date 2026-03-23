@@ -583,11 +583,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.work_outline,
-                  color: isSelected ? AppColors.primary : const Color(0xFF64748B),
-                  size: 32,
-                ),
+                _buildGridImage(cat, isSelected),
                 const SizedBox(height: 8),
                 Text(
                   cat.nom,
@@ -604,6 +600,42 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
         );
       },
     );
+  }
+
+  Widget _buildGridImage(ServiceModel cat, bool isSelected) {
+    if (cat.image == null || cat.image!.isEmpty) {
+      return Icon(
+        Icons.work_outline,
+        color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+        size: 32,
+      );
+    }
+    
+    final imagePath = cat.image!;
+    Widget imageWidget;
+    
+    if (imagePath.startsWith('assets/')) {
+      imageWidget = Image.asset(imagePath, width: 44, height: 44, fit: BoxFit.contain,
+        errorBuilder: (context, _, __) => Icon(Icons.work_outline, color: isSelected ? AppColors.primary : const Color(0xFF64748B), size: 32));
+    } else if (imagePath.startsWith('http')) {
+      imageWidget = Image.network(imagePath, width: 44, height: 44, fit: BoxFit.contain,
+        errorBuilder: (context, _, __) => Icon(Icons.work_outline, color: isSelected ? AppColors.primary : const Color(0xFF64748B), size: 32));
+    } else {
+      try {
+        String cleanBase64 = imagePath;
+        if (imagePath.contains(',')) cleanBase64 = imagePath.split(',').last;
+        imageWidget = Image.memory(base64Decode(cleanBase64), width: 44, height: 44, fit: BoxFit.contain,
+          errorBuilder: (context, _, __) => Icon(Icons.work_outline, color: isSelected ? AppColors.primary : const Color(0xFF64748B), size: 32));
+      } catch (e) {
+        return Icon(
+          Icons.work_outline,
+          color: isSelected ? AppColors.primary : const Color(0xFF64748B),
+          size: 32,
+        );
+      }
+    }
+    
+    return imageWidget;
   }
 
   Widget _buildStep2(StateSetter setSheetState, {required bool isEditing, Map<String, dynamic>? serviceData}) {
@@ -1029,10 +1061,27 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   Widget _buildServiceCard(Map<String, dynamic> service) {
     bool isActive = service["estActive"] ?? true;
     final List tasks = service["tasks"] ?? [];
-    // Thumbnail from first task image or placeholder
-    String? thumbnail;
-    if (tasks.isNotEmpty && tasks[0]['images'] != null && tasks[0]['images'].isNotEmpty) {
+    // Prefer service image from collection, fallback to first task image
+    String? thumbnail = service['serviceImage'];
+    if ((thumbnail == null || thumbnail.isEmpty) && tasks.isNotEmpty && tasks[0]['images'] != null && tasks[0]['images'].isNotEmpty) {
       thumbnail = tasks[0]['images'][0];
+    }
+
+    ImageProvider? imageProvider;
+    if (thumbnail != null && thumbnail.isNotEmpty) {
+      if (thumbnail.startsWith('assets/')) {
+        imageProvider = AssetImage(thumbnail);
+      } else if (thumbnail.startsWith('http')) {
+        imageProvider = NetworkImage(thumbnail);
+      } else {
+        try {
+          String cleanBase64 = thumbnail;
+          if (thumbnail.contains(',')) cleanBase64 = thumbnail.split(',').last;
+          imageProvider = MemoryImage(base64Decode(cleanBase64));
+        } catch (e) {
+          debugPrint('Error decoding base64 thumbnail: $e');
+        }
+      }
     }
     
     return Padding(
@@ -1064,14 +1113,14 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                   decoration: BoxDecoration(
                     color: const Color(0xFFEFF6FF), // Very light blue
                     borderRadius: BorderRadius.circular(20),
-                    image: thumbnail != null 
+                    image: imageProvider != null 
                       ? DecorationImage(
-                          image: MemoryImage(base64Decode(thumbnail)),
+                          image: imageProvider,
                           fit: BoxFit.cover,
                         )
                       : null,
                   ),
-                  child: thumbnail == null 
+                  child: imageProvider == null 
                     ? const Icon(
                         Icons.image_outlined,
                         color: Color(0xFF3B82F6), // Blue 500

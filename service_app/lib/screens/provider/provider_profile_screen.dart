@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/app_colors.dart';
 import '../../layouts/provider_layout.dart';
 import '../../services/firestore_service.dart';
@@ -21,6 +22,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   Expert? _expertData;
   ExpertModel? _expertModel;
   int _reviewsCount = 0;
+  double _rayonValue = 20.0;
+  bool _isSavingRayon = false;
 
   @override
   void initState() {
@@ -39,6 +42,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           _expertModel = expertModel;
           _expertData = expertDetailed;
           _reviewsCount = reviews.length;
+          _rayonValue = (_expertModel?.rayonTravaille ?? 20).toDouble();
           _isLoading = false;
         });
       }
@@ -62,9 +66,9 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     final String fullName = _expertData?.nom ?? _expertModel?.user?.nom ?? 'Expert';
     final String serviceCategory = (_expertData?.services.isNotEmpty == true) 
         ? _expertData!.services.first 
-        : "Expert professionnel";
+        : "Professional Expert";
     final double rating = _expertData?.noteMoyenne ?? 0.0;
-    final String city = _expertData?.ville.split(',').first ?? 'Ville non définie';
+    final String city = _expertData?.ville.split(',').first ?? 'City not defined';
     final int rayon = _expertModel?.rayonTravaille ?? 20;
     final String photoUrl = _expertData?.photo ?? '';
     final bool isPremium = _expertData?.isPremium ?? false;
@@ -86,7 +90,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   rating: rating,
                   reviewsCount: _reviewsCount,
                   city: city,
-                  rayon: rayon,
                   photoUrl: photoUrl,
                   isPremium: isPremium,
                 ),
@@ -107,7 +110,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     required double rating,
     required int reviewsCount,
     required String city,
-    required int rayon,
     required String photoUrl,
     required bool isPremium,
   }) {
@@ -196,7 +198,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    isPremium ? "Premium" : "Gratuit",
+                    isPremium ? "Premium" : "Free",
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -223,7 +225,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  "($reviewsCount avis)",
+                  "($reviewsCount reviews)",
                   style: const TextStyle(
                     fontSize: 14,
                     color: Color(0xFF64748B),
@@ -233,67 +235,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
-
-        // Location & Response Time
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(LucideIcons.mapPin, size: 14, color: Color(0xFF64748B)),
-            const SizedBox(width: 4),
-            Text(
-              city,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF64748B),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(width: 4, height: 4, decoration: const BoxDecoration(color: Color(0xFFCBD5E1), shape: BoxShape.circle)),
-            const SizedBox(width: 8),
-            const Icon(LucideIcons.clock, size: 14, color: Color(0xFF64748B)),
-            const SizedBox(width: 4),
-            const Text(
-              "Répond en ~15 min",
-              style: TextStyle(
-                fontSize: 13,
-                color: Color(0xFF64748B),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Dynamic distance info
-        GestureDetector(
-          onTap: () {
-            // Can open personal info or edit distance modal
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(LucideIcons.search, size: 14, color: AppColors.primary), // Close approx to icon in map
-                const SizedBox(width: 6),
-                Text(
-                  "Rayon d'intervention : $rayon km",
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(LucideIcons.chevronRight, size: 14, color: AppColors.primary),
-              ],
-            ),
-          ),
-        ),
+        const SizedBox(height: 24),
+        _buildRayonSlider(),
         const SizedBox(height: 24),
 
         // Preview Profile Button
@@ -304,7 +247,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             height: 50,
             child: OutlinedButton(
               onPressed: () {
-                // Future task: preview public profile
+                if (_expertData != null) {
+                  context.push('/experts/${widget.expertId}', extra: _expertData);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Chargement des données du profil...")),
+                  );
+                }
               },
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -313,7 +262,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 ),
               ),
               child: const Text(
-                "Prévisualiser mon profil public",
+                "Preview my public profile",
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -327,12 +276,108 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
+  Widget _buildRayonSlider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.compass, size: 16, color: Color(0xFF64748B)),
+              const SizedBox(width: 8),
+              const Text(
+                "Working radius",
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              if (_isSavingRayon)
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("Maximum distance", style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                    Text(
+                      "${_rayonValue.toInt()} km",
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: AppColors.primary,
+                    inactiveTrackColor: const Color(0xFFE2E8F0),
+                    thumbColor: Colors.white,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10, elevation: 3),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+                    trackHeight: 4,
+                  ),
+                  child: Slider(
+                    value: _rayonValue,
+                    min: 5,
+                    max: 100,
+                    divisions: 19,
+                    onChanged: (val) {
+                      setState(() {
+                        _rayonValue = val;
+                      });
+                    },
+                    onChangeEnd: (val) async {
+                      setState(() => _isSavingRayon = true);
+                      try {
+                        await _firestoreService.updateExpertRadius(widget.expertId, val.toInt());
+                      } finally {
+                        setState(() => _isSavingRayon = false);
+                      }
+                    },
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: const [
+                    Text("5 km", style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                    Text("100 km", style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMenuSection(BuildContext context) {
     return Column(
       children: [
         _buildMenuItem(
           icon: LucideIcons.user,
-          title: "Informations personnelles",
+          title: "Personal Information",
           onTap: () async {
             await context.push('/provider/${widget.expertId}/profile/personal-info');
             _loadProfileData();
@@ -347,54 +392,95 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         ),
         _buildMenuItem(
           icon: LucideIcons.barChart2,
-          title: "Statistiques",
+          title: "Statistics",
           onTap: () {
             context.push('/provider/${widget.expertId}/profile/statistics');
           },
         ),
         _buildMenuItem(
           icon: LucideIcons.creditCard,
-          title: "Mon abonnement",
+          title: "My Subscription",
           onTap: () {
             context.push('/provider/${widget.expertId}/subscription');
           },
         ),
         _buildMenuItem(
           icon: LucideIcons.fileText,
-          title: "Documents justificatifs",
+          title: "Terms of Service / Privacy Policy",
           onTap: () {
-            // context.push('/provider/${widget.expertId}/documents');
+            context.push('/provider/${widget.expertId}/profile/cgu');
           },
         ),
-        _buildMenuItem(
-          icon: LucideIcons.fileCode, // Approximating CGU icon
-          title: "CGU / Politique de confidentialité",
-          onTap: () {
-            // context.push('/provider/${widget.expertId}/cgu');
-          },
-        ),
-        const SizedBox(height: 16),
         _buildMenuItem(
           icon: LucideIcons.alertTriangle,
           title: "Désactiver mon compte",
-          textColor: const Color(0xFFD97706), // Orange
-          iconColor: const Color(0xFFD97706),
-          onTap: () {
-            // Disable account logic
-          },
+          onTap: () => _showDeactivateDialog(context),
+          textColor: Colors.orange,
+          iconColor: Colors.orange,
         ),
         _buildMenuItem(
           icon: LucideIcons.logOut,
           title: "Se déconnecter",
-          textColor: const Color(0xFFEF4444), // Red
-          iconColor: const Color(0xFFEF4444),
-          hideArrow: true,
-          onTap: () {
-            // context.go('/welcome');
+          onTap: () async {
+            bool confirm = await showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text("Déconnexion"),
+                content: const Text("Voulez-vous vraiment vous déconnecter?"),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Annuler")),
+                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Déconnexion", style: TextStyle(color: Colors.red))),
+                ],
+              ),
+            ) ?? false;
+            if (confirm) {
+              await FirebaseAuth.instance.signOut();
+              if (mounted) context.go('/welcome');
+            }
           },
+          textColor: Colors.red,
+          iconColor: Colors.red,
+          hideArrow: true,
         ),
       ],
     );
+  }
+
+  void _showDeactivateDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Désactiver mon compte"),
+        content: const Text(
+          "Êtes-vous sûr de vouloir désactiver votre compte ? Votre profil ne sera plus visible par les clients. Vous pourrez le réactiver à tout moment.",
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Annuler")),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              _handleDeactivate();
+            },
+            child: const Text("Désactiver", style: TextStyle(color: Colors.orange)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleDeactivate() async {
+    try {
+      await _firestoreService.deactivateExpertSelf(widget.expertId);
+      if (mounted) {
+        context.go('/provider/deactivated');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erreur: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Widget _buildMenuItem({

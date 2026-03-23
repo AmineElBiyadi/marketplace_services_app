@@ -1,7 +1,45 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LocationService {
+  /// Cache en mémoire pour les coordonnées des villes
+  final Map<String, GeoPoint> _cityCache = {};
+
+  /// Récupère les coordonnées d'une ville via Nominatim (OpenStreetMap)
+  Future<GeoPoint?> getCoordinatesFromCity(String city) async {
+    if (city.isEmpty) return null;
+    
+    // Pour Nominatim, on ne garde que la ville principale, pas le quartier.
+    final cityName = city.split(',').first.trim();
+    if (cityName.isEmpty) return null;
+    
+    final cacheKey = cityName.toLowerCase();
+    if (_cityCache.containsKey(cacheKey)) {
+      return _cityCache[cacheKey];
+    }
+
+    try {
+      final encoded = Uri.encodeComponent('$cityName, Maroc');
+      final url = Uri.parse('https://nominatim.openstreetmap.org/search?format=json&q=$encoded&limit=1');
+      
+      final response = await http.get(url, headers: {'User-Agent': 'service_app_amine/1.0'});
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final data = jsonDecode(response.body);
+        if (data is List && data.isNotEmpty) {
+          final lat = double.tryParse(data[0]['lat'].toString());
+          final lon = double.tryParse(data[0]['lon'].toString());
+          if (lat != null && lon != null) {
+            final geoPoint = GeoPoint(lat, lon);
+            _cityCache[cacheKey] = geoPoint;
+            return geoPoint;
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
   /// Demande la permission et retourne la position actuelle.
   /// Retourne null si la permission est refusée ou en cas d'erreur.
   Future<Position?> getCurrentPosition() async {
