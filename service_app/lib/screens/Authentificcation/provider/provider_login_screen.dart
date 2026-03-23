@@ -58,9 +58,18 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
 
       if (user != null) {
         final expertId = user['expertId'] ?? '';
+        final activeCgu = await _firestoreService.fetchActiveCGU('EXPERT');
+        final acceptedVersion = user['acceptedCguVersion'] ?? 'none';
+        final activeVersion = activeCgu?['version'] ?? '1.0';
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('logged_expert_id', expertId);
         if (mounted) {
+          if (acceptedVersion != activeVersion) {
+            context.go('/cgu_update', extra: {'role': 'EXPERT', 'uid': uid, 'cgu': activeCgu});
+            return;
+          }
+
           final etatCompte = user['etatCompte'] ?? 'PENDING';
           if (etatCompte == 'ACTIVE') {
             context.go('/provider/$expertId/dashboard');
