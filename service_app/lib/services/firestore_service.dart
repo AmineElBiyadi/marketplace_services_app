@@ -79,6 +79,20 @@ class FirestoreService {
     }
   }
 
+  Future<Map<String, dynamic>?> getAddressForUser(String userId) async {
+    try {
+      final snap = await _firestore.collection('adresses')
+          .where('idUtilisateur', isEqualTo: userId)
+          .limit(1).get();
+      if (snap.docs.isNotEmpty) {
+        return snap.docs.first.data();
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // ─── Interventions / Bookings ──────────────────────────────
 
   Stream<List<InterventionModel>> getPendingInterventions(String expertId) {
@@ -691,7 +705,12 @@ class FirestoreService {
     required String telephone,
     required String email,
     required String ville,
-    required String adresse,
+    required String pays,
+    required String numBatiment,
+    required String rue,
+    required String quartier,
+    required String codePostal,
+    GeoPoint? location,
     required double rayonTravaille,
     required String experience,
   }) async {
@@ -700,29 +719,41 @@ class FirestoreService {
     // 1. Update user
     final fullName = '$prenom $nom'.trim();
     final userRef = _firestore.collection('utilisateurs').doc(userId);
-    batch.update(userRef, {
+    
+    final Map<String, dynamic> userUpdates = {
       'nom': fullName,
       'telephone': telephone,
       'email': email,
       'updated_At': FieldValue.serverTimestamp(),
-    });
+    };
+    if (location != null) {
+      userUpdates['location'] = location;
+    }
+    batch.update(userRef, userUpdates);
 
     // 2. Update address
     final adressesSnap = await _firestore.collection('adresses').where('idUtilisateur', isEqualTo: userId).limit(1).get();
+    
+    final Map<String, dynamic> addrData = {
+      'Ville': ville,
+      'Pays': pays,
+      'NumBatiment': numBatiment,
+      'Rue': rue,
+      'Quartier': quartier,
+      'CodePostal': codePostal,
+    };
+    if (location != null) {
+      addrData['location'] = location;
+    }
+
     if (adressesSnap.docs.isNotEmpty) {
       final addrRef = _firestore.collection('adresses').doc(adressesSnap.docs.first.id);
-      batch.update(addrRef, {
-        'Ville': ville,
-        'Rue': adresse,
-      });
+      batch.update(addrRef, addrData);
     } else {
       final addrRef = _firestore.collection('adresses').doc();
-      batch.set(addrRef, {
-        'idUtilisateur': userId,
-        'Ville': ville,
-        'Rue': adresse,
-        'Pays': 'Maroc',
-      });
+      addrData['idUtilisateur'] = userId;
+      addrData['createdAt'] = FieldValue.serverTimestamp();
+      batch.set(addrRef, addrData);
     }
 
     // 3. Update expert
