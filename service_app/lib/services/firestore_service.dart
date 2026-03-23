@@ -767,11 +767,9 @@ class FirestoreService {
 
   Future<List<Expert>> getExperts({bool onlyAvailable = false}) async {
     try {
-      Query query = _firestore.collection('experts');
-      if (onlyAvailable) {
-        query = query.where('estDisponible', isEqualTo: true);
-      }
-      final expertsSnapshot = await query.get();
+      final expertsSnapshot = await _firestore.collection('experts')
+          .where('etatCompte', isEqualTo: 'ACTIVE')
+          .get();
       
       // Fetch all experts' data in parallel
       List<Expert> experts = await Future.wait(expertsSnapshot.docs.map((expertDoc) async {
@@ -2108,25 +2106,45 @@ class FirestoreService {
   }
 
   Future<void> deactivateExpertSelf(String expertId) async {
+    // 1. Check for active interventions
+    final activeInterventionQuery = await _firestore.collection('interventions')
+        .where('idExpert', isEqualTo: expertId)
+        .where('statut', whereIn: ['EN_ATTENTE', 'ACCEPTEE', 'EN_COURS'])
+        .limit(1)
+        .get();
+
+    if (activeInterventionQuery.docs.isNotEmpty) {
+      throw Exception("Vous avez des interventions en cours ou en attente. Vous ne pouvez pas désactiver votre compte pour le moment.");
+    }
+
+    final doc = await _firestore.collection('experts').doc(expertId).get();
+    if (!doc.exists) return;
+    
+    final data = doc.data() as Map<String, dynamic>?;
+    final idUtilisateur = data?['idUtilisateur'];
+
     await _firestore.collection('experts').doc(expertId).update({
       'etatCompte': 'DESACTIVE',
       'desactiveParAdmin': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    await _notificationService.sendNotification(
-      idUtilisateur: expertId,
-      titre: "Compte Désactivé",
-      corps: "Vous avez désactivé votre compte. Votre profil n'est plus visible.",
-      type: 'account',
-      relatedId: expertId,
-    );
+    if (idUtilisateur != null) {
+      await _notificationService.sendNotification(
+        idUtilisateur: idUtilisateur,
+        titre: "Compte Désactivé",
+        corps: "Vous avez désactivé votre compte. Votre profil n'est plus visible par les clients.",
+        type: 'account',
+        relatedId: expertId,
+      );
+    }
   }
 
   Future<void> reactivateExpertSelf(String expertId) async {
     // Only reactivate if not disabled by admin
     final doc = await _firestore.collection('experts').doc(expertId).get();
-    if (doc.exists && (doc.data()?['desactiveParAdmin'] ?? false) == true) {
+    final data = doc.data() as Map<String, dynamic>?;
+    if (doc.exists && (data?['desactiveParAdmin'] ?? false) == true) {
       throw Exception("Compte désactivé par l'administrateur. Veuillez contacter le support.");
     }
 
@@ -2136,12 +2154,14 @@ class FirestoreService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    await _notificationService.sendNotification(
-      idUtilisateur: expertId,
-      titre: "Compte Réactivé",
-      corps: "Bon retour ! Votre compte est à nouveau actif et visible.",
-      type: 'account',
-      relatedId: expertId,
-    );
+    if (data?['idUtilisateur'] != null) {
+      await _notificationService.sendNotification(
+        idUtilisateur: data!['idUtilisateur'],
+        titre: "Compte Réactivé",
+        corps: "Bon retour ! Votre compte est à nouveau actif et visible.",
+        type: 'account',
+        relatedId: expertId,
+      );
+    }
   }
 }
