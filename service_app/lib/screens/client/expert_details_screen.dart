@@ -663,10 +663,12 @@ class _PortfolioTab extends StatelessWidget {
       return const Center(child: CircularProgressIndicator(color: Color(0xFF3D5A99)));
     }
 
+    // Only show images the plan allows
+    var filtered = images.where((img) => img['isVisibleByPlan'] == true).toList();
+
     // Apply service filter if passed
-    var filtered = images;
     if (filterService != null && filterService!.isNotEmpty) {
-      filtered = images.where((img) =>
+      filtered = filtered.where((img) =>
         (img['serviceName'] as String? ?? '').toLowerCase() ==
             filterService!.toLowerCase()
       ).toList();
