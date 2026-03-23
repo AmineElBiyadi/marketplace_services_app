@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/firestore_service.dart';
 import '../../models/expert.dart';
 import '../../theme/app_colors.dart';
@@ -145,39 +146,79 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
           ),
           const Divider(height: 1),
           if (imageUrl != null && imageUrl.isNotEmpty)
-            GestureDetector(
-              onTap: () => _showImageDialog(context, title, imageUrl),
-              child: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
-                ),
-                child: CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => const SizedBox(
-                    height: 200,
-                    child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+            if (imageUrl.toLowerCase().contains('.pdf'))
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 30),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
                   ),
-                  errorWidget: (context, url, error) => Container(
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(LucideIcons.fileText, size: 48, color: AppColors.primary),
+                    const SizedBox(height: 12),
+                    const Text("Fichier PDF", style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        final uri = Uri.parse(imageUrl);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        } else {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Impossible d'ouvrir le fichier PDF")));
+                          }
+                        }
+                      },
+                      icon: const Icon(LucideIcons.externalLink, size: 16, color: Colors.white),
+                      label: const Text("Ouvrir le PDF", style: TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              GestureDetector(
+                onTap: () => _showImageDialog(context, title, imageUrl),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
                     height: 200,
-                    color: const Color(0xFFF1F5F9),
-                    child: const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(LucideIcons.imageOff, size: 40, color: Color(0xFF94A3B8)),
-                          SizedBox(height: 8),
-                          Text("Image non disponible", style: TextStyle(color: Color(0xFF94A3B8))),
-                        ],
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => const SizedBox(
+                      height: 200,
+                      child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      height: 200,
+                      color: const Color(0xFFF1F5F9),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(LucideIcons.imageOff, size: 40, color: Color(0xFF94A3B8)),
+                            SizedBox(height: 8),
+                            Text("Image non disponible", style: TextStyle(color: Color(0xFF94A3B8))),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            )
+              )
           else
             Container(
               height: 100,
