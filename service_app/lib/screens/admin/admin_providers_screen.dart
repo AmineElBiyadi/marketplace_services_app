@@ -27,6 +27,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
   
   String _selectedStatus = 'Tous';
   String _selectedSub = 'Tous';
+  String _selectedSort = 'Plus récents';
 
   @override
   void initState() {
@@ -61,6 +62,12 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
             (_selectedSub == 'Gratuit' && p['hasSubscription'] == false);
         return nameMatches && statusMatches && subMatches;
       }).toList();
+      
+      if (_selectedSort == 'Plus récents') {
+        _filteredProviders.sort((a, b) => (b['rawDate'] as DateTime).compareTo(a['rawDate'] as DateTime));
+      } else if (_selectedSort == 'Plus anciens') {
+        _filteredProviders.sort((a, b) => (a['rawDate'] as DateTime).compareTo(b['rawDate'] as DateTime));
+      }
     });
   }
 
@@ -180,6 +187,18 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    _buildDropdownFilter(
+                      value: _selectedSort,
+                      items: ['Plus récents', 'Plus anciens'],
+                      label: 'Tri',
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _selectedSort = val);
+                          _applyFilters();
+                        }
+                      },
+                    ),
                   ],
                 )
               : Row(
@@ -222,6 +241,20 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                         onChanged: (val) {
                           if (val != null) {
                             setState(() => _selectedSub = val);
+                            _applyFilters();
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildDropdownFilter(
+                        value: _selectedSort,
+                        items: ['Plus récents', 'Plus anciens'],
+                        label: 'Tri',
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _selectedSort = val);
                             _applyFilters();
                           }
                         },
@@ -318,7 +351,6 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(p['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(p['zone'] ?? '', style: const TextStyle(fontSize: 11, color: _textSecondary)),
               ],
             ),
           ],
@@ -523,7 +555,6 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(p['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                      Text(p['zone'] ?? '', style: const TextStyle(fontSize: 11, color: _textSecondary)),
                     ],
                   ),
                 ),

@@ -44,6 +44,8 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
     _tabController = TabController(length: 4, vsync: this);
     _scrollController = ScrollController();
     _loadExtraData();
+    // Record profile view
+    _firestoreService.recordProfileView(_expert.id);
   }
 
   @override

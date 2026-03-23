@@ -492,7 +492,7 @@ class _ExpertTile extends StatelessWidget {
     final distText = distance != null
         ? '${distance!.toStringAsFixed(1)} km'
         : '';
-    final isAvailable = true; // TODO: relier à un champ Firestore "estDisponible"
+    final isAvailable = expert.estDisponible;
 
     return GestureDetector(
       onTap: onTap,

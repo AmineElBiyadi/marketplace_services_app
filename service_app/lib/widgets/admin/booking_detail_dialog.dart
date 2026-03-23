@@ -19,8 +19,6 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
   final AdminDashboardService _service = AdminDashboardService();
   bool _loading = true;
   Map<String, dynamic>? _booking;
-  List<Map<String, dynamic>> _timeline = [];
-
   @override
   void initState() {
     super.initState();
@@ -31,59 +29,9 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
     setState(() => _loading = true);
     try {
       final result = await _service.getReservationById(widget.bookingId);
-      if (result != null) {
-        _booking = result;
-        _timeline = await _service.getReservationTimeline(widget.bookingId);
-      }
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() { _booking = result; _loading = false; });
     } catch (e) {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _updateStatus(String status) async {
-    final TextEditingController reasonController = TextEditingController();
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Changer le statut en $status'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Indiquez une raison pour ce changement :'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Ex: Demande du client...',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: const Text('Confirmer'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true && reasonController.text.isNotEmpty) {
-      setState(() => _loading = true);
-      try {
-        await _service.updateReservationStatus(widget.bookingId, status, reason: reasonController.text);
-        await _loadData();
-      } catch (e) {
-        if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur : $e'), backgroundColor: Colors.red));
-           setState(() => _loading = false);
-        }
-      }
     }
   }
 
@@ -94,19 +42,18 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
     
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      insetPadding: isMobile ? const EdgeInsets.all(12) : const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
-      clipBehavior: Clip.antiAlias,
       child: Container(
-        width: isMobile ? screenWidth : screenWidth * 0.75,
-        height: MediaQuery.of(context).size.height * 0.9,
-        color: const Color(0xFFF8FAFC),
+        width: isMobile ? screenWidth * 0.9 : 800,
+        height: isMobile ? MediaQuery.of(context).size.height * 0.8 : 600,
+        decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(24)),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
             _buildHeader(isMobile),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                  : (_booking == null ? const Center(child: Text('Non trouvé')) : _buildContent(isMobile)),
+                  : (_booking == null ? const Center(child: Text('Réservation introuvable')) : _buildContent(isMobile)),
             ),
           ],
         ),
@@ -116,60 +63,125 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
 
   Widget _buildHeader(bool isMobile) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: 20),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 20 : 32, vertical: 24),
       decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0)))),
       child: Row(
         children: [
-          const Icon(LucideIcons.calendarDays, color: AppColors.primary, size: 20),
-          const SizedBox(width: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+            child: const Icon(LucideIcons.calendarDays, color: AppColors.primary, size: 22),
+          ),
+          const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              'Réservation #${widget.bookingId.substring(0, 8)}', 
-              style: TextStyle(fontSize: isMobile ? 15 : 18, fontWeight: FontWeight.bold),
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Détails de Réservation', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                Text(
+                  '#${widget.bookingId.substring(0, 8).toUpperCase()}', 
+                  style: TextStyle(fontSize: isMobile ? 18 : 22, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          if (_booking != null) _buildStatusBadge(_booking!['status']),
-          const SizedBox(width: 8),
-          IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(LucideIcons.x, size: 20)),
+          const SizedBox(width: 16),
+          if (_booking != null) _buildStatusBadge(_booking!['status'] ?? 'N/A'),
+          const SizedBox(width: 16),
+          InkWell(
+            onTap: () => Navigator.pop(context),
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(color: Color(0xFFF1F5F9), shape: BoxShape.circle),
+              child: const Icon(LucideIcons.x, size: 18, color: Color(0xFF64748B)),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildContent(bool isMobile) {
+    if (isMobile) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            _buildCancelBanner(),
+            _buildInfoCard(),
+            const SizedBox(height: 20),
+            _buildProfilesCard(),
+          ],
+        ),
+      );
+    }
+    
     return SingleChildScrollView(
-      padding: EdgeInsets.all(isMobile ? 16 : 24),
+      padding: const EdgeInsets.all(32),
       child: Column(
         children: [
-          if (isMobile) ...[
-            _buildInfoCard(),
-            const SizedBox(height: 16),
-            _buildProfilesCard(),
-            const SizedBox(height: 16),
-            _buildActionsCard(),
-            const SizedBox(height: 16),
-            _buildTimelineCard(),
-          ] else ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 2, child: _buildInfoCard()),
-                const SizedBox(width: 24),
-                Expanded(flex: 1, child: _buildProfilesCard()),
-              ],
+          _buildCancelBanner(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 3, child: _buildInfoCard()),
+              const SizedBox(width: 24),
+              Expanded(flex: 2, child: _buildProfilesCard()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCancelBanner() {
+    if (_booking!['status'] != 'ANNULEE' || (_booking!['cancelCount'] ?? 0) <= 0) return const SizedBox.shrink();
+    
+    final role = _booking!['cancelRole'] == 'expert' ? 'prestataire' : 'client';
+    final count = _booking!['cancelCount'];
+    
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(LucideIcons.alertTriangle, color: Colors.red, size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              'Attention : Ce $role a annulé $count réservation${count > 1 ? 's' : ''} ce mois-ci.',
+              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
             ),
-            const SizedBox(height: 24),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 2, child: _buildTimelineCard()),
-                const SizedBox(width: 24),
-                Expanded(flex: 1, child: _buildActionsCard()),
-              ],
-            ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cardWrapper({required String title, required IconData icon, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE2E8F0))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(8)), child: Icon(icon, size: 18, color: AppColors.primary)),
+              const SizedBox(width: 12),
+              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
+            ],
+          ),
+          const SizedBox(height: 24),
+          child,
         ],
       ),
     );
@@ -177,19 +189,20 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
 
   Widget _buildInfoCard() {
     return _cardWrapper(
-      title: 'Informations',
+      title: 'Informations Générales',
       icon: LucideIcons.info,
       child: Column(
         children: [
-          _infoRow('Service', _booking!['service']),
-          _infoRow('Date & Heure', '${_booking!['date']} à ${_booking!['time']}'),
-          _infoRow('Prix', '${_booking!['amount']} DH', isBold: true, valueColor: Colors.green),
-          _infoRow('Urgence', _booking!['isUrgent'] ? 'URGENT' : 'NORMAL', valueColor: _booking!['isUrgent'] ? Colors.red : null),
+          _modernInfoRow('Service', _booking!['service'] ?? 'N/A', LucideIcons.briefcase),
+          _modernInfoRow('Date & Heure', '${_booking!['date'] ?? 'N/A'} à ${_booking!['time'] ?? '--:--'}', LucideIcons.clock),
+          _modernInfoRow('Prix de la prestation', '${_booking!['amount'] ?? 0} DH', LucideIcons.creditCard, isBold: true, valueColor: Colors.green, isLarge: true),
+          _modernInfoRow('Urgence', (_booking!['isUrgent'] ?? false) ? 'URGENTE' : 'NORMALE', LucideIcons.alertCircle, valueColor: (_booking!['isUrgent'] ?? false) ? Colors.red : Colors.grey),
           if ((_booking!['status'] == 'ANNULEE' || _booking!['status'] == 'REFUSEE') && 
               (_booking!['motifAnnulation'] != null || _booking!['motifRefus'] != null))
-            _infoRow(
+            _modernInfoRow(
               'Motif', 
               _booking!['motifAnnulation'] ?? _booking!['motifRefus'] ?? 'N/A', 
+              LucideIcons.fileWarning,
               valueColor: Colors.red,
             ),
         ],
@@ -197,83 +210,23 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
     );
   }
 
-  Widget _buildTimelineCard() {
-    return _cardWrapper(
-      title: 'Suivi de l\'intervention',
-      icon: LucideIcons.activity,
-      child: _timeline.isEmpty
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text('Aucune action enregistrée pour le moment', style: TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic)),
-              ),
-            )
-          : Column(
-              children: List.generate(_timeline.length, (index) {
-                return _buildTimelineItem(_timeline[index], index == _timeline.length - 1);
-              }),
-            ),
-    );
-  }
-
-  Widget _buildTimelineItem(Map<String, dynamic> log, bool isLast) {
-    final timestamp = log['timestamp'] as Timestamp?;
-    final dateStr = timestamp != null ? DateFormat('dd/MM HH:mm').format(timestamp.toDate()) : '--:--';
-    final status = log['toStatus'] ?? 'ACTION';
-    
-    Color statusColor = AppColors.primary;
-    if (status == 'ACCEPTEE') statusColor = Colors.green;
-    else if (status == 'ANNULEE' || status == 'REFUSEE') statusColor = Colors.red;
-    else if (status == 'TERMINEE') statusColor = Colors.blue;
-
-    return IntrinsicHeight(
+  Widget _modernInfoRow(String label, String value, IconData icon, {bool isBold = false, Color? valueColor, bool isLarge = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Column(
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.2),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: statusColor, width: 2),
-                ),
-              ),
-              if (!isLast)
-                Expanded(
-                  child: Container(width: 2, color: const Color(0xFFE2E8F0)),
-                ),
-            ],
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        status.replaceAll('_', ' '), 
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: statusColor),
-                      ),
-                      Text(dateStr, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                    ],
-                  ),
-                  if (log['note'] != null && log['note'].isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      log['note'], 
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF475569), height: 1.4),
-                    ),
-                  ],
-                ],
-              ),
+          Icon(icon, size: 16, color: const Color(0xFF64748B)),
+          const SizedBox(width: 12),
+          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+          const Spacer(),
+          Text(
+            value, 
+            style: TextStyle(
+              fontWeight: isBold ? FontWeight.bold : FontWeight.w500, 
+              color: valueColor ?? const Color(0xFF0F172A), 
+              fontSize: isLarge ? 16 : 14,
             ),
+            textAlign: TextAlign.right,
           ),
         ],
       ),
@@ -282,38 +235,47 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
 
   Widget _buildProfilesCard() {
     return _cardWrapper(
-      title: 'Contacts',
+      title: 'Intervenants',
       icon: LucideIcons.users,
       child: Column(
         children: [
-          _profileItem('Client', _booking!['clientName'], _booking!['idClient']),
-          const Divider(height: 24),
-          _profileItem('Expert', _booking!['expertName'], _booking!['idExpert']),
+          _modernProfileItem('Client', _booking!['clientName'] ?? 'N/A', _booking!['idClient'], LucideIcons.user),
+          const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1, color: Color(0xFFE2E8F0))),
+          _modernProfileItem('Prestataire', _booking!['expertName'] ?? 'N/A', _booking!['idExpert'], LucideIcons.briefcase),
         ],
       ),
     );
   }
 
-  Widget _profileItem(String role, String name, String? id) {
+  Widget _modernProfileItem(String role, String name, String? id, IconData icon) {
     return InkWell(
-      onTap: id != null ? () => _showUserProfileModal(id, role) : null,
+      onTap: id != null ? () => _showUserProfileModal(id, role == 'Client' ? 'Client' : 'Prestataire') : null,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         child: Row(
           children: [
-            const CircleAvatar(radius: 16, child: Icon(LucideIcons.user, size: 16)),
-            const SizedBox(width: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(color: Color(0xFFF1F5F9), shape: BoxShape.circle),
+              child: Icon(icon, size: 18, color: AppColors.primary),
+            ),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(role, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis),
+                  Text(role, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                  const SizedBox(height: 2),
+                  Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)), overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
-            const Icon(LucideIcons.chevronRight, size: 14, color: Colors.grey),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xFFE2E8F0)), shape: BoxShape.circle),
+              child: const Icon(LucideIcons.chevronRight, size: 14, color: Color(0xFF64748B)),
+            ),
           ],
         ),
       ),
@@ -327,68 +289,16 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
     );
   }
 
-  Widget _buildActionsCard() {
-    return _cardWrapper(
-      title: 'Actions',
-      icon: LucideIcons.shieldCheck,
-      child: Column(
-        children: [
-          _bookingActionBtn('Accepter', Colors.green, () => _updateStatus('ACCEPTEE')),
-          const SizedBox(height: 8),
-          _bookingActionBtn('Annuler', Colors.red, () => _updateStatus('ANNULEE')),
-        ],
-      ),
-    );
-  }
-
-  Widget _bookingActionBtn(String label, Color color, VoidCallback onTap) {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(side: BorderSide(color: color), foregroundColor: color),
-        child: Text(label),
-      ),
-    );
-  }
-
-  Widget _cardWrapper({required String title, required IconData icon, required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE2E8F0))),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [Icon(icon, size: 16, color: AppColors.primary), const SizedBox(width: 8), Text(title, style: const TextStyle(fontWeight: FontWeight.bold))]),
-          const SizedBox(height: 16),
-          child,
-        ],
-      ),
-    );
-  }
-
-  Widget _infoRow(String label, String value, {bool isBold = false, Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-          Text(value, style: TextStyle(fontWeight: isBold ? FontWeight.bold : FontWeight.normal, color: valueColor, fontSize: 13)),
-        ],
-      ),
-    );
-  }
-
   Widget _buildStatusBadge(String status) {
     Color color = Colors.grey;
     if (status == 'ACCEPTEE') color = Colors.green;
     else if (status == 'TERMINEE') color = Colors.blue;
     else if (status == 'EN_ATTENTE') color = Colors.orange;
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-      child: Text(status, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+      child: Text(status.replaceAll('_', ' '), style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
     );
   }
 }
@@ -441,10 +351,14 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
-        width: 400,
+        width: 450,
         padding: const EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
         child: _loading 
           ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
           : _user == null 
@@ -452,62 +366,89 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
             : SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildResilientAvatar(
-                      _user!['imageUrl']?.toString(),
-                      _user!['name']?.toString() ?? 'U',
-                    ),
-                    const SizedBox(height: 16),
-                    Text(_user!['name'], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    Text('${widget.role} • ${_user!['status']}', style: TextStyle(color: _getStatusColor(_user!['status']))),
-                    const Divider(height: 32),
-                    _infoTile(LucideIcons.mail, _user!['email']),
-                    _infoTile(LucideIcons.phone, _user!['phone']),
-                    if (_user!['region'] != null) _infoTile(LucideIcons.mapPin, _user!['region']),
-                    const SizedBox(height: 32),
-                    const Text('CONTACTER L\'UTILISATEUR', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
-                    const SizedBox(height: 16),
-                    Center(
-                      child: _contactBtn('E-mail', const Color(0xFFEA4335), LucideIcons.mail, () => _launchChannel('email'), enabled: _user!['email'].isNotEmpty),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: _user!['email'].isNotEmpty ? _showEmailComposer : null,
-                      icon: const Icon(LucideIcons.penTool, size: 14),
-                      label: const Text('Composer un E-mail personnalisé', style: TextStyle(fontSize: 12)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _primary,
-                        side: BorderSide(color: _primary),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    if (widget.role == 'Expert' || widget.role == 'Prestataire') ...[
-                      const Divider(height: 48),
-                      const Text('DOCUMENTS PROFESSIONNELS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
-                      const SizedBox(height: 16),
-                      _docTile(LucideIcons.contact, 'Carte Nationale', _user!['CarteNationale']?.toString() ?? 'Non fourni'),
-                      _docTile(LucideIcons.fileText, 'Casier Judiciaire', _user!['CasierJudiciaire']?.toString() ?? 'Non fourni'),
-                      _infoTile(LucideIcons.briefcase, 'Expérience: ${_user!['Experience']?.toString() ?? 'N/A'}'),
-                      if (_user!['services'] != null && (_user!['services'] as List).isNotEmpty)
-                        _infoTile(LucideIcons.settings, 'Services: ${(_user!['services'] as List).join(", ")}'),
-                    ],
-                    const SizedBox(height: 32),
-                    const Text('ACTIONS ET NOTIFICATIONS AUTO', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.2)),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Text('Le changement de statut enverra un email automatique à l\'utilisateur.', style: TextStyle(fontSize: 9, fontStyle: FontStyle.italic, color: Colors.grey)),
-                    ),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Expanded(child: _userActionBtn('Activer', Colors.green, () => _updateStatus('ACTIVE'), isActive: _user!['status'] == 'ACTIVE')),
-                        const SizedBox(width: 8),
-                        Expanded(child: _userActionBtn('Suspendre', Colors.orange, () => _updateStatus('SUSPENDUE'), isActive: _user!['status'] == 'SUSPENDUE')),
-                        const SizedBox(width: 8),
-                        Expanded(child: _userActionBtn('Désactiver', Colors.red, () => _updateStatus('DESACTIVE'), isActive: _user!['status'] == 'DESACTIVE')),
+                        _buildResilientAvatar(
+                          _user!['imageUrl']?.toString(),
+                          _user!['name']?.toString() ?? 'U',
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(_user!['name'], style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _primary)),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Text(widget.role, style: const TextStyle(color: _textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
+                                  const SizedBox(width: 8),
+                                  _statusBadge(_user!['status'] ?? ''),
+                                ],
+                              )
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(LucideIcons.x, color: Colors.grey),
+                          onPressed: () => Navigator.pop(context),
+                        )
                       ],
                     ),
                     const SizedBox(height: 24),
-                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    const SizedBox(height: 24),
+                    
+                    const Text('Informations Générales', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary, letterSpacing: 0.5)),
+                    const SizedBox(height: 16),
+                    _modernInfoTile(LucideIcons.mail, 'E-mail', _user!['email']),
+                    _modernInfoTile(LucideIcons.phone, 'Téléphone', _user!['phone']),
+                    if (_user!['region'] != null) _modernInfoTile(LucideIcons.mapPin, 'Région', _user!['region']),
+                    
+                    if (widget.role == 'Expert' || widget.role == 'Prestataire') ...[
+                      const SizedBox(height: 24),
+                      const Text('Profil Professionnel', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary, letterSpacing: 0.5)),
+                      const SizedBox(height: 16),
+                      _docTile(LucideIcons.contact, 'Carte Nationale', _user!['CarteNationale']?.toString() ?? 'Non fourni'),
+                      _docTile(LucideIcons.fileText, 'Casier Judiciaire', _user!['CasierJudiciaire']?.toString() ?? 'Non fourni'),
+                      _modernInfoTile(LucideIcons.briefcase, 'Expérience', _user!['Experience']?.toString() ?? 'Non précisée'),
+                      if (_user!['services'] != null && (_user!['services'] as List).isNotEmpty)
+                        _modernInfoTile(LucideIcons.settings, 'Services', (_user!['services'] as List).join(", ")),
+                    ],
+                    
+                    const SizedBox(height: 24),
+                    const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                    const SizedBox(height: 24),
+
+                    const Text('Actions Administratives', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary, letterSpacing: 0.5)),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _user!['email'].isNotEmpty ? _showEmailComposer : null,
+                        icon: const Icon(LucideIcons.mail, size: 16),
+                        label: const Text('Composer un e-mail personnalisé'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _primary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: _modernActionBtn('Activer', Colors.green, LucideIcons.checkCircle, () => _updateStatus('ACTIVE'), isActive: _user!['status'] == 'ACTIVE')),
+                        const SizedBox(width: 8),
+                        Expanded(child: _modernActionBtn('Suspendre', Colors.orange, LucideIcons.alertTriangle, () => _updateStatus('SUSPENDUE'), isActive: _user!['status'] == 'SUSPENDUE')),
+                        const SizedBox(width: 8),
+                        Expanded(child: _modernActionBtn('Désactiver', Colors.red, LucideIcons.xCircle, () => _updateStatus('DESACTIVE'), isActive: _user!['status'] == 'DESACTIVE')),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -523,101 +464,104 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setLocalState) => AlertDialog(
-          title: const Text('Nouvel E-mail'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: subjectController,
-                decoration: const InputDecoration(labelText: 'Sujet', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: bodyController,
-                maxLines: 5,
-                decoration: const InputDecoration(labelText: 'Message', border: OutlineInputBorder(), alignLabelWithHint: true),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: sending ? null : () async {
-                if (bodyController.text.isEmpty) return;
-                setLocalState(() => sending = true);
-                await _service.sendAutomaticEmail(
-                  to: _user!['email'],
-                  subject: subjectController.text,
-                  html: "<p>${bodyController.text.replaceAll('\n', '<br>')}</p><p>Cordialement,<br>L'administration.</p>",
-                );
-                if (context.mounted) Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('E-mail envoyé avec succès'), backgroundColor: Colors.green));
-              },
-              child: sending ? const SizedBox(height: 15, width: 15, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Envoyer'),
+        builder: (context, setLocalState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            width: 500,
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Nouvel E-mail', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                const SizedBox(height: 24),
+                TextField(
+                  controller: subjectController,
+                  decoration: InputDecoration(
+                    labelText: 'Sujet',
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: bodyController,
+                  maxLines: 6,
+                  decoration: InputDecoration(
+                    labelText: 'Message',
+                    alignLabelWithHint: true,
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
+                      child: const Text('Annuler', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: sending ? null : () async {
+                        if (bodyController.text.isEmpty) return;
+                        setLocalState(() => sending = true);
+                        await _service.sendAutomaticEmail(
+                          to: _user!['email'],
+                          subject: subjectController.text,
+                          html: "<div style='font-family: sans-serif; color: #333;'><p>${bodyController.text.replaceAll('\n', '<br>')}</p><br><p>Cordialement,<br><strong>L'équipe Marketplace</strong></p></div>",
+                        );
+                        if (context.mounted) Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('E-mail envoyé avec succès !'), backgroundColor: Colors.green));
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: sending 
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                        : const Text('Envoyer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Future<void> _launchChannel(String type) async {
-    Uri uri;
-    switch (type) {
-      case 'whatsapp':
-        String phone = _user!['phone'].replaceAll(RegExp(r'[^0-9+]'), '');
-        if (!phone.startsWith('+')) {
-          if (phone.startsWith('0')) phone = '+212${phone.substring(1)}';
-          else phone = '+212$phone';
-        }
-        final message = Uri.encodeComponent("Bonjour ${_user!['name']}, je suis l'administrateur de l'application Marketplace...");
-        uri = Uri.parse("https://wa.me/$phone?text=$message");
-        break;
-      case 'email':
-        uri = Uri(scheme: 'mailto', path: _user!['email'], queryParameters: {'subject': 'Concernant votre compte Marketplace'});
-        break;
-      case 'phone':
-        uri = Uri(scheme: 'tel', path: _user!['phone']);
-        break;
-      default: return;
-    }
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  Widget _contactBtn(String label, Color color, IconData icon, VoidCallback onTap, {bool enabled = true}) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 100,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: enabled ? color.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: enabled ? color.withOpacity(0.3) : Colors.grey.withOpacity(0.3)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: enabled ? color : Colors.grey, size: 20),
-            const SizedBox(height: 4),
-            Text(label, style: TextStyle(color: enabled ? color : Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _infoTile(IconData icon, String value) {
+  Widget _modernInfoTile(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: Colors.grey),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, size: 16, color: _textSecondary),
+          ),
           const SizedBox(width: 12),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14))),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 11, color: _textSecondary, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 2),
+                Text(value, style: const TextStyle(fontSize: 14, color: _primary, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -627,27 +571,35 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     final strValue = value.toString();
     final isLong = strValue.length > 50;
     final isUrl = strValue.startsWith('http');
-    final displayValue = isLong ? "Document fourni (cliquer pour voir)" : strValue;
+    final displayValue = (isLong || isUrl) ? "Document fourni" : strValue;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, size: 16, color: Colors.grey),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, size: 16, color: _textSecondary),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
-                Text(displayValue, style: const TextStyle(fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
+                Text(label, style: const TextStyle(fontSize: 11, color: _textSecondary, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 2),
+                Text(displayValue, style: const TextStyle(fontSize: 14, color: _primary, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
           if (isLong || isUrl)
-            TextButton(
+            TextButton.icon(
               onPressed: () => _showFullDocument(label, strValue),
-              child: const Text('Visualiser', style: TextStyle(fontSize: 12)),
+              icon: const Icon(LucideIcons.externalLink, size: 14),
+              label: const Text('Ouvrir', style: TextStyle(fontSize: 12)),
+              style: TextButton.styleFrom(foregroundColor: Colors.blue),
             ),
         ],
       ),
@@ -747,23 +699,43 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     );
   }
 
-  Widget _userActionBtn(String label, Color color, VoidCallback onTap, {bool isActive = false}) {
-    return ElevatedButton(
+  Widget _modernActionBtn(String label, Color color, IconData icon, VoidCallback onTap, {bool isActive = false}) {
+    return ElevatedButton.icon(
       onPressed: isActive ? null : onTap,
+      icon: Icon(icon, size: 14),
+      label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
       style: ElevatedButton.styleFrom(
-        backgroundColor: color,
-        foregroundColor: Colors.white,
-        padding: EdgeInsets.zero,
+        backgroundColor: Colors.white,
+        foregroundColor: _textSecondary,
+        disabledBackgroundColor: color.withOpacity(0.1),
+        disabledForegroundColor: color,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: isActive ? color : const Color(0xFFE2E8F0)),
+        ),
       ),
-      child: Text(label, style: const TextStyle(fontSize: 11)),
     );
   }
 
-  Color _getStatusColor(String status) {
-    if (status == 'ACTIVE') return Colors.green;
-    if (status == 'SUSPENDUE') return Colors.orange;
-    return Colors.red;
+  Widget _statusBadge(String status) {
+    Color color;
+    String label;
+    switch (status) {
+      case 'ACTIVE':
+        color = Colors.green; label = 'Actif'; break;
+      case 'SUSPENDUE':
+        color = Colors.orange; label = 'Suspendu'; break;
+      case 'DESACTIVE':
+        color = Colors.red; label = 'Désactivé'; break;
+      default:
+        color = Colors.grey; label = status;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+      child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+    );
   }
 }
