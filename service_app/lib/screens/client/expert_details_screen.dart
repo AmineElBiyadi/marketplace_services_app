@@ -28,7 +28,7 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
 
   List<Map<String, dynamic>> _services = [];
   List<Map<String, dynamic>> _reviews = [];
-  List<String> _portfolioImages = []; // base64 strings
+  List<Map<String, dynamic>> _portfolioImages = [];
   bool _isLoadingExtra = true;
   late Expert _expert;
 
@@ -62,8 +62,14 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
           await _firestoreService.getExpertServicesDetailed(widget.expert.id);
 
       if (servicesDetailed.isNotEmpty) {
+        // Filter out hidden or inactive services from the client view
+        final visibleServices = servicesDetailed.where((s) => 
+            (s['estActive'] ?? true) == true && 
+            (s['isVisibleByPlan'] ?? true) == true
+        ).toList();
+
         List<Map<String, dynamic>> groupedList = [];
-        for (var s in servicesDetailed) {
+        for (var s in visibleServices) {
           final tasks = s['tasks'] as List<dynamic>? ?? [];
           groupedList.add({
             'title': s['serviceName'] ?? '',
@@ -105,9 +111,9 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
       final reviews =
           await _firestoreService.getExpertReviews(widget.expert.id);
 
-      // 3. Images portfolio depuis imagesExemplaires
+      // 3. Images portfolio avec détails service/tache
       final portfolioImages =
-          await _firestoreService.getExpertPortfolioImages(widget.expert.id);
+          await _firestoreService.getExpertPortfolioImagesWithDetails(widget.expert.id);
 
       // 4. Refresh basic expert info (rating, etc.)
       final refreshed = await _firestoreService.getExpertDetailed(widget.expert.id);
@@ -220,7 +226,7 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  expert.services.isNotEmpty ? expert.services.first : '',
+                                  expert.services.join('  •  '),
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: _kTextBlue.withValues(alpha: 0.7),
@@ -321,6 +327,7 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
                     _PortfolioTab(
                       images: _portfolioImages,
                       isLoading: _isLoadingExtra,
+                      filterService: widget.preSelectedService,
                     ),
                     _ReviewsTab(
                       reviews: _reviews,
@@ -638,51 +645,157 @@ class _ServicesTab extends StatelessWidget {
 
 // ─────────────────────────────────────────────
 class _PortfolioTab extends StatelessWidget {
-  /// Liste d'images en base64 récupérées depuis [imagesExemplaires]
-  final List<String> images;
+  final List<Map<String, dynamic>> images;
   final bool isLoading;
+  final String? filterService;
 
-  const _PortfolioTab({required this.images, required this.isLoading});
+  const _PortfolioTab({
+    required this.images,
+    required this.isLoading,
+    this.filterService,
+  });
+
+  static const Color _kPrimary = Color(0xFF3D5A99);
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Center(
-          child: CircularProgressIndicator(color: Color(0xFF3D5A99)));
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF3D5A99)));
     }
-    if (images.isEmpty) {
+
+    // Only show images the plan allows
+    var filtered = images.where((img) => img['isVisibleByPlan'] == true).toList();
+
+    // Apply service filter if passed
+    if (filterService != null && filterService!.isNotEmpty) {
+      filtered = filtered.where((img) =>
+        (img['serviceName'] as String? ?? '').toLowerCase() ==
+            filterService!.toLowerCase()
+      ).toList();
+    }
+
+    if (filtered.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.photo_library_outlined,
-                size: 48, color: Colors.grey.shade300),
+            Icon(Icons.photo_library_outlined, size: 48, color: Colors.grey.shade300),
             const SizedBox(height: 12),
-            Text('No portfolio photos yet',
-                style: TextStyle(color: Colors.grey.shade500)),
+            Text(
+              filterService != null
+                  ? 'Aucune photo pour ce service'
+                  : 'Aucune photo de portfolio',
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
           ],
         ),
       );
     }
 
-    return GridView.builder(
+    // Group by service name
+    final Map<String, Map<String, List<Map<String, dynamic>>>> grouped = {};
+    for (final img in filtered) {
+      final service = (img['serviceName'] as String?) ?? 'Autre';
+      final task = (img['taskName'] as String?) ?? '';
+      grouped.putIfAbsent(service, () => {});
+      grouped[service]!.putIfAbsent(task, () => []);
+      grouped[service]![task]!.add(img);
+    }
+
+    return ListView(
       padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-      ),
-      itemCount: images.length,
-      itemBuilder: (context, index) {
-        final raw = images[index];
-        return GestureDetector(
-          onTap: () => _showFullImage(context, raw),
-          child: SmartImage(
-            source: raw,
-            borderRadius: BorderRadius.circular(12),
-          ),
+      children: grouped.entries.map((serviceEntry) {
+        final serviceName = serviceEntry.key;
+        final taskGroups = serviceEntry.value;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Service header ──────────────────────────────────
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: _kPrimary,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.handyman_outlined, color: Colors.white, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    serviceName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Tasks within this service ─────────────────────
+            ...taskGroups.entries.map((taskEntry) {
+              final taskName = taskEntry.key;
+              final taskImages = taskEntry.value;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (taskName.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4, bottom: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 4, height: 16,
+                            decoration: BoxDecoration(
+                              color: _kPrimary.withValues(alpha: 0.4),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            taskName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: _kPrimary.withValues(alpha: 0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: taskImages.length,
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                    ),
+                    itemBuilder: (context, index) {
+                      final raw = taskImages[index]['image'] as String? ?? '';
+                      return GestureDetector(
+                        onTap: () => _showFullImage(context, raw),
+                        child: SmartImage(
+                          source: raw,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              );
+            }),
+
+            const SizedBox(height: 8),
+          ],
         );
-      },
+      }).toList(),
     );
   }
 

@@ -11,20 +11,7 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
 
   // ─── Google Sign-In ────────────────────────────────────────
-  // Future<UserCredential?> signInWithGoogle() async {
-  //   final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-  //   if (googleUser == null) return null;
-
-  //   final GoogleSignInAuthentication googleAuth =
-  //       await googleUser.authentication;
-
-  //   final credential = GoogleAuthProvider.credential(
-  //     accessToken: googleAuth.accessToken,
-  //     idToken: googleAuth.idToken,
-  //   );
-
-  //   return await _auth.signInWithCredential(credential);
-  // }
+  // Future<UserCredential?> signInWithGoogle() async { ... }
 
   // ─── Phone Number ──────────────────────────────────────────
   Future<void> verifyPhoneNumber({
@@ -67,8 +54,6 @@ class AuthService {
 
   // ─── Email / Password ──────────────────────────────────────
 
-  /// Creates a new Firebase Auth account with email + password and sends
-  /// a verification email. Used during client/provider email-based signup.
   Future<User?> signUpWithEmail({
     required String email,
     required String password,
@@ -81,9 +66,6 @@ class AuthService {
     return cred.user;
   }
 
-  /// Creates a proxy Firebase Auth account for phone-only users.
-  /// The proxy email is derived from the phone number and is never shown to the user.
-  /// This allows phone users to also set a password (needed for login + password reset).
   Future<User?> signUpWithPhoneProxy({
     required String phone,
     required String password,
@@ -97,7 +79,6 @@ class AuthService {
     return cred.user;
   }
 
-  /// Signs in with email + password (for email-based users).
   Future<UserCredential> signInWithEmail({
     required String email,
     required String password,
@@ -108,7 +89,6 @@ class AuthService {
     );
   }
 
-  /// Signs in using the proxy email derived from the phone number.
   Future<UserCredential> signInWithPhoneProxy({
     required String phone,
     required String password,
@@ -130,8 +110,12 @@ class AuthService {
     return false;
   }
 
-  /// Sends a real Firebase password-reset email.
-  /// For phone-only users (proxy email), this is a no-op and returns false.
+  bool isPhoneBasedUser() {
+    final email = _auth.currentUser?.email;
+    if (email == null) return false;
+    return email.endsWith('@proxy.marketplace.app');
+  }
+
   Future<bool> sendPasswordResetEmail(String email) async {
     if (email.contains('@proxy.marketplace.app')) return false;
     await _auth.sendPasswordResetEmail(email: email);

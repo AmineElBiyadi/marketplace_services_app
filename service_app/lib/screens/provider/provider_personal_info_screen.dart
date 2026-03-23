@@ -5,6 +5,13 @@ import '../../theme/app_colors.dart';
 import '../../layouts/provider_layout.dart';
 import '../../services/firestore_service.dart';
 import '../../models/expert.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:geocoding/geocoding.dart' hide Location;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/location_service.dart';
+import '../shared/map_confirm_screen.dart';
 
 class ProviderPersonalInfoScreen extends StatefulWidget {
   final String expertId;
@@ -26,10 +33,20 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
   final TextEditingController _nomCtrl = TextEditingController();
   final TextEditingController _phoneCtrl = TextEditingController();
   final TextEditingController _emailCtrl = TextEditingController();
+  
+  // Address fields
   final TextEditingController _villeCtrl = TextEditingController();
-  final TextEditingController _adresseCtrl = TextEditingController();
-  final TextEditingController _categoryCtrl = TextEditingController();
+  final TextEditingController _paysCtrl = TextEditingController(text: 'Maroc');
+  final TextEditingController _numBatCtrl = TextEditingController();
+  final TextEditingController _rueCtrl = TextEditingController();
+  final TextEditingController _quartierCtrl = TextEditingController();
+  final TextEditingController _codePostalCtrl = TextEditingController();
+
   final TextEditingController _bioCtrl = TextEditingController();
+  
+  final LocationService _locationService = LocationService();
+  GeoPoint? _confirmedGeoPoint;
+  bool _detectingLoc = false;
   
   double _rayon = 20.0;
 
@@ -43,6 +60,11 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
     try {
       final expertModel = await _firestoreService.getExpertProfile(widget.expertId);
       final expertDetailed = await _firestoreService.getExpertDetailed(widget.expertId);
+      
+      Map<String, dynamic>? addressData;
+      if (expertModel != null) {
+        addressData = await _firestoreService.getAddressForUser(expertModel.idUtilisateur);
+      }
 
       if (mounted) {
         setState(() {
@@ -57,12 +79,21 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
           _phoneCtrl.text = _expertData?.telephone ?? '';
           _emailCtrl.text = _expertModel?.user?.email ?? '';
           
-          _villeCtrl.text = _expertData?.ville.split(',').first ?? 'Casablanca';
-          _adresseCtrl.text = _expertData?.ville ?? '';
-          
-          _categoryCtrl.text = (_expertData?.services.isNotEmpty == true) 
-              ? _expertData!.services.first 
-              : "Plumbing";
+          if (addressData != null) {
+            _villeCtrl.text = addressData['Ville'] ?? _expertData?.ville.split(',').first ?? 'Casablanca';
+            _paysCtrl.text = addressData['Pays'] ?? 'Maroc';
+            _numBatCtrl.text = addressData['NumBatiment'] ?? '';
+            _rueCtrl.text = addressData['Rue'] ?? '';
+            _quartierCtrl.text = addressData['Quartier'] ?? '';
+            _codePostalCtrl.text = addressData['CodePostal'] ?? '';
+            if (addressData['location'] is GeoPoint) {
+              _confirmedGeoPoint = addressData['location'];
+            }
+          } else {
+            _villeCtrl.text = _expertData?.ville.split(',').first ?? 'Casablanca';
+            _paysCtrl.text = 'Maroc';
+            _rueCtrl.text = _expertData?.ville ?? '';
+          }
           
           _rayon = (_expertModel?.rayonTravaille ?? 20).toDouble();
           _bioCtrl.text = _expertModel?.experience ?? "Professional expert with years of experience.";
@@ -90,7 +121,12 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
         telephone: _phoneCtrl.text,
         email: _emailCtrl.text,
         ville: _villeCtrl.text,
-        adresse: _adresseCtrl.text,
+        pays: _paysCtrl.text,
+        numBatiment: _numBatCtrl.text,
+        rue: _rueCtrl.text,
+        quartier: _quartierCtrl.text,
+        codePostal: _codePostalCtrl.text,
+        location: _confirmedGeoPoint,
         rayonTravaille: _rayon,
         experience: _bioCtrl.text,
       );
@@ -153,13 +189,64 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
                     _buildTextField("Phone", LucideIcons.phone, _phoneCtrl),
                     const SizedBox(height: 20),
                     _buildTextField("Email", LucideIcons.mail, _emailCtrl),
+                    const SizedBox(height: 32),
+                    
+                    const Text("Address & Location", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(child: _buildTextField("Country", LucideIcons.globe, _paysCtrl)),
+                        const SizedBox(width: 16),
+                        Expanded(child: _buildTextField("City", LucideIcons.building, _villeCtrl)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(child: _buildTextField("Building N°", LucideIcons.home, _numBatCtrl)),
+                        const SizedBox(width: 16),
+                        Expanded(child: _buildTextField("Postal Code", null, _codePostalCtrl, isLabeled: true)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField("Neighborhood", LucideIcons.mapPin, _quartierCtrl),
+                    const SizedBox(height: 16),
+                    _buildTextField("Street / Avenue", LucideIcons.map, _rueCtrl),
                     const SizedBox(height: 20),
-                    _buildDropdownField("City", LucideIcons.mapPin, _villeCtrl),
-                    const SizedBox(height: 20),
-                    _buildTextField("Address", LucideIcons.mapPin, _adresseCtrl),
-                    const SizedBox(height: 20),
-                    _buildDropdownField("Service Category", LucideIcons.briefcase, _categoryCtrl),
-                    const SizedBox(height: 24),
+                    
+                    // Map detector
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _detectingLoc ? null : _detectLocation,
+                        icon: _detectingLoc
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(LucideIcons.mapPin, size: 18),
+                        label: Text(_detectingLoc ? 'Detecting...' : '📍 Detect on Map Automatically'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+                    if (_confirmedGeoPoint != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'Exact location confirmed on map',
+                              style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    
+                    const SizedBox(height: 32),
                     _buildRayonSlider(),
                     const SizedBox(height: 24),
                     _buildTextField("Bio / Description", LucideIcons.fileText, _bioCtrl, maxLines: 3),
@@ -350,5 +437,124 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
         ),
       ],
     );
+  }
+
+  // ── Nominatim reverse geocode ─────────────────────────────────
+  Future<Map<String, String>?> _fallbackReverseGeocode(double lat, double lon) async {
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lon&zoom=10&addressdetails=1');
+      final headers = kIsWeb ? <String, String>{} : {'User-Agent': 'service_app_amine/1.0'};
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data?['address'] != null) {
+          final addr = data['address'];
+          return {
+            'locality': addr['city'] ?? addr['town'] ?? addr['village'] ?? addr['state'] ?? '',
+            'country': addr['country'] ?? 'Maroc',
+          };
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // ── Nominatim forward geocode ─────────────────────────────────
+  Future<Map<String, double>?> _forwardGeocode(String query) async {
+    try {
+      final encoded = Uri.encodeComponent(query);
+      final url = Uri.parse(
+          'https://nominatim.openstreetmap.org/search?format=json&q=$encoded&limit=1');
+      final headers = kIsWeb ? <String, String>{} : {'User-Agent': 'service_app_amine/1.0'};
+      final response = await http.get(url, headers: headers);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List;
+        if (data.isNotEmpty) {
+          return {
+            'lat': double.parse(data[0]['lat'].toString()),
+            'lng': double.parse(data[0]['lon'].toString()),
+          };
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // ── GPS Detection + Map Confirmation ─────────────────────────
+  Future<void> _detectLocation() async {
+    setState(() => _detectingLoc = true);
+    try {
+      final pos = await _locationService.getCurrentPosition();
+      GeoPoint? geoPoint;
+      String city = _villeCtrl.text.trim();
+      String country = _paysCtrl.text.trim().isEmpty ? 'Maroc' : _paysCtrl.text.trim();
+      double lat = 31.7917;
+      double lng = -7.0926;
+
+      if (pos != null) {
+        lat = pos.latitude;
+        lng = pos.longitude;
+        // Reverse geocode
+        try {
+          final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+          if (placemarks.isNotEmpty) {
+            final p = placemarks.first;
+            city = p.administrativeArea ?? p.locality ?? '';
+            country = p.country ?? 'Maroc';
+          }
+        } catch (_) {}
+
+        if (city.isEmpty) {
+          final fb = await _fallbackReverseGeocode(pos.latitude, pos.longitude);
+          if (fb != null) {
+            city = fb['locality'] ?? '';
+            country = fb['country'] ?? 'Maroc';
+          }
+        }
+      } else if (city.isNotEmpty) {
+        // Fallback forward geocode if location denied but city entered
+        final coords = await _forwardGeocode('$city, $country');
+        if (coords != null) { lat = coords['lat']!; lng = coords['lng']!; }
+      }
+
+      if (mounted) setState(() {
+        if (city.isNotEmpty) _villeCtrl.text = city;
+        _paysCtrl.text = country;
+      });
+
+      if (!mounted) return;
+      final result = await Navigator.push<MapConfirmResult>(
+        context,
+        MaterialPageRoute(
+          builder: (_) => MapConfirmScreen(
+            initialLat: lat,
+            initialLng: lng,
+            initialCity: city,
+            initialCountry: country,
+          ),
+        ),
+      );
+      if (result != null && mounted) {
+        setState(() {
+          _confirmedGeoPoint = result.geoPoint;
+          if (result.city.isNotEmpty) _villeCtrl.text = result.city;
+          if (result.country.isNotEmpty) _paysCtrl.text = result.country;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Location confirmed!'),
+          backgroundColor: Colors.green,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: AppColors.destructive,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _detectingLoc = false);
+    }
   }
 }

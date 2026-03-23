@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -25,18 +26,40 @@ class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isSending = false;
+  bool _isChatOpen = true;
+  StreamSubscription<DocumentSnapshot>? _chatSubscription;
 
   static const _primaryBlue = Color(0xFF3D5A99);
 
   @override
   void initState() {
     super.initState();
+    _isChatOpen = widget.chat.estOuvert;
     // Mark messages as read when opening the chat
     _chatService.markMessagesAsRead(widget.chat.chatId);
+    
+    _chatSubscription = FirebaseFirestore.instance
+        .collection('chats')
+        .doc(widget.chat.chatId)
+        .snapshots()
+        .listen((snapshot) {
+      if (snapshot.exists) {
+        final data = snapshot.data() as Map<String, dynamic>?;
+        if (data != null && data.containsKey('estOuvert')) {
+          final isOpen = data['estOuvert'] == true;
+          if (isOpen != _isChatOpen && mounted) {
+            setState(() {
+              _isChatOpen = isOpen;
+            });
+          }
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
+    _chatSubscription?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -56,7 +79,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty || _isSending || !widget.chat.estOuvert) return;
+    if (text.isEmpty || _isSending || !_isChatOpen) return;
 
     setState(() => _isSending = true);
     _messageController.clear();
@@ -135,7 +158,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
-                  if (!widget.chat.estOuvert)
+                  if (!_isChatOpen)
                     const Text(
                       'Conversation fermée',
                       style: TextStyle(fontSize: 11, color: Colors.white70),
@@ -152,7 +175,7 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         actions: [
           // Only expert (service provider) can close the chat
-          if (widget.currentUserRole == 'expert' && widget.chat.estOuvert)
+          if (widget.currentUserRole == 'expert' && _isChatOpen)
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, color: Colors.white),
               onSelected: (value) async {
@@ -204,7 +227,7 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           // ── Closed chat banner ─────────────────────────────────
-          if (!widget.chat.estOuvert)
+          if (!_isChatOpen)
             Container(
               width: double.infinity,
               padding:
@@ -317,7 +340,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
 
           // ── Input bar ──────────────────────────────────────────
-          if (widget.chat.estOuvert)
+          if (_isChatOpen)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(

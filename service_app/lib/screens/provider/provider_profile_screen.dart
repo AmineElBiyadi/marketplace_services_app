@@ -65,7 +65,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
 
     final String fullName = _expertData?.nom ?? _expertModel?.user?.nom ?? 'Expert';
     final String serviceCategory = (_expertData?.services.isNotEmpty == true) 
-        ? _expertData!.services.first 
+        ? _expertData!.services.join('  •  ') 
         : "Professional Expert";
     final double rating = _expertData?.noteMoyenne ?? 0.0;
     final String city = _expertData?.ville.split(',').first ?? 'City not defined';
@@ -171,6 +171,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         // Category
         Text(
           serviceCategory,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 16,
             color: Color(0xFF64748B),

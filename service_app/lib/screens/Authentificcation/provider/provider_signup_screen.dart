@@ -824,7 +824,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         ),
         const SizedBox(height: 16),
         _uploadCard(
-          label: 'Certificat de bonne conduite',
+          label: 'Casier Judiciaire',
           fileName: _certificateName,
           icon: Icons.upload_outlined,
           onTap: () => _pickDocument((name, bytes) {
