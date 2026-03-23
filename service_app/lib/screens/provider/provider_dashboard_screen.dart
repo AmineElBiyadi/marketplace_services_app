@@ -10,6 +10,7 @@ import '../../layouts/provider_layout.dart';
 import '../../services/firestore_service.dart';
 import '../../models/booking.dart';
 import '../../models/expert.dart';
+import '../../widgets/notification_bell.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
   final String expertId;
@@ -101,7 +102,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     if (expert != null) {
       if (mounted) {
         setState(() {
-          _isOnline = expert.etatCompte == 'ACTIVE';
+          _isOnline = expert.estDisponible;
           _expertName = expert.user?.nom ?? expert.user?.email.split('@')[0] ?? "Expert";
         });
       }
@@ -280,7 +281,11 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   ],
                 ),
               ),
-              _buildNotificationIcon(),
+              NotificationBell(
+                idUtilisateur: FirebaseAuth.instance.currentUser?.uid ?? '',
+                role: 'Expert',
+                color: Colors.white,
+              ),
             ],
           ),
           const SizedBox(height: 24),

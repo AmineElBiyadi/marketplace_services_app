@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:geocoding/geocoding.dart';
 import '../../services/location_service.dart';
 import '../shared/map_confirm_screen.dart';
+import '../../theme/app_colors.dart';
 
 class MyAddressesScreen extends StatefulWidget {
   const MyAddressesScreen({super.key});
@@ -83,67 +84,134 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
     );
   }
 
-  @override
   Widget build(BuildContext context) {
+    const bgColor = Color(0xFFFBFBFB);
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Mes Adresses',
-            style: TextStyle(
-                color: Color(0xFF1A237E),
-                fontWeight: FontWeight.bold,
-                fontSize: 18)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Color(0xFF1A237E)),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _addresses.isEmpty
-              ? const Center(
-                  child: Text('Aucune adresse trouvée.',
-                      style: TextStyle(color: Colors.grey)))
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _addresses.length,
-                  itemBuilder: (context, index) {
-                    final addr = _addresses[index];
-                    final subtitle = [
-                      if ((addr['Quartier'] ?? '').isNotEmpty) addr['Quartier'],
-                      if ((addr['Ville'] ?? '').isNotEmpty) addr['Ville'],
-                      if ((addr['Pays'] ?? '').isNotEmpty) addr['Pays'],
-                    ].join(', ');
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      elevation: 2,
-                      color: Colors.white,
-                      child: ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: Color(0xFFE8EAF6),
-                          child: Icon(Icons.location_on,
-                              color: Color(0xFF3F64B5)),
-                        ),
-                        title: Text(
-                          addr['Rue'] ?? addr['Ville'] ?? 'Adresse',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1A237E)),
-                        ),
-                        subtitle: Text(subtitle),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline,
-                              color: Colors.red),
-                          onPressed: () => _deleteAddress(addr['id']),
-                        ),
-                      ),
-                    );
-                  },
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Custom Gradient Header
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primary, Color(0xFF818CF8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(24),
+                  bottomRight: Radius.circular(24),
+                ),
+              ),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Image.asset(
+                              'assets/logo.png',
+                              height: 30,
+                              errorBuilder: (context, error, stackTrace) => const SizedBox(height: 30),
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Presto — snap your fingers, we handle the rest.',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Mes Adresses',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Manage your saved locations',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _addresses.isEmpty
+                      ? const Center(
+                          child: Text('Aucune adresse trouvée.',
+                              style: TextStyle(color: Colors.grey)))
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(20),
+                          itemCount: _addresses.length,
+                          itemBuilder: (context, index) {
+                            final addr = _addresses[index];
+                            final subtitle = [
+                              if ((addr['Quartier'] ?? '').isNotEmpty) addr['Quartier'],
+                              if ((addr['Ville'] ?? '').isNotEmpty) addr['Ville'],
+                              if ((addr['Pays'] ?? '').isNotEmpty) addr['Pays'],
+                            ].join(', ');
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16)),
+                              elevation: 2,
+                              color: Colors.white,
+                              child: ListTile(
+                                leading: const CircleAvatar(
+                                  backgroundColor: Color(0xFFE8EAF6),
+                                  child: Icon(Icons.location_on,
+                                      color: Color(0xFF3F64B5)),
+                                ),
+                                title: Text(
+                                  addr['Rue'] ?? addr['Ville'] ?? 'Adresse',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E293B)),
+                                ),
+                                subtitle: Text(subtitle, style: const TextStyle(color: Color(0xFF64748B))),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Colors.red),
+                                  onPressed: () => _deleteAddress(addr['id']),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddAddressSheet,
-        backgroundColor: const Color(0xFF3F64B5),
+        backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Ajouter',
             style:

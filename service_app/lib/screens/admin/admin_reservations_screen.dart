@@ -5,6 +5,7 @@ import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/admin/booking_detail_dialog.dart';
+import '../../utils/admin_export_util.dart';
 
 class AdminReservationsScreen extends StatefulWidget {
   const AdminReservationsScreen({super.key});
@@ -152,6 +153,19 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary),
           ),
           const Spacer(),
+          ElevatedButton.icon(
+            onPressed: _exportReservations,
+            icon: const Icon(LucideIcons.download, size: 14),
+            label: const Text('Export Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _textPrimary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
+          ),
+          const SizedBox(width: 12),
           IconButton(
             onPressed: () {
               _searchController.clear();
@@ -685,5 +699,29 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
       context: context,
       builder: (context) => BookingDetailDialog(bookingId: id),
     ).then((_) => _loadData());
+  }
+
+  void _exportReservations() async {
+    final headers = ['Client', 'Expert', 'Service', 'Date', 'Montant', 'Statut'];
+    final rows = _filteredReservations.map((r) => [
+      r['clientName'] ?? '',
+      r['expertName'] ?? '',
+      r['service'] ?? '',
+      '${r['date']} ${r['hour']}',
+      '${r['price']} DH',
+      r['status'] ?? '',
+    ]).toList();
+
+    await AdminExportUtil.exportPageToPdf(
+      filename: 'reservations_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+      title: 'Rapport des Réservations',
+      subtitle: 'Liste des interventions et réservations filtrées',
+      kpis: [
+        {'label': 'Total filtré', 'value': _filteredReservations.length.toString()},
+        {'label': 'Montant Total', 'value': '${_filteredReservations.fold(0.0, (sum, item) => sum + (item['price'] ?? 0)).toStringAsFixed(0)} DH'},
+      ],
+      tableHeaders: headers,
+      tableRows: rows,
+    );
   }
 }

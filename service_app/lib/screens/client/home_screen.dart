@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
 import '../../models/service.dart';
 import '../../widgets/start_chat_sheet.dart';
+import '../../widgets/notification_bell.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -105,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() => _userPosition = position);
 
     // 3. Liste des experts, des villes et des services
-    final experts = await _firestoreService.getExperts();
+    final experts = await _firestoreService.getExperts(onlyAvailable: true);
     final villes = await _firestoreService.getVillesExperts();
     final serviceModels = await _firestoreService.getServices();
 
@@ -345,18 +346,26 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.logout, color: Colors.white),
-                          tooltip: 'Se déconnecter',
-                          onPressed: () async {
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.clear();
-                            await FirebaseAuth.instance.signOut();
-                            if (context.mounted) {
-                              // We use pushing replacement or go to clear the stack if needed
-                              context.go('/login');
-                            }
-                          },
+                        Row(
+                          children: [
+                            NotificationBell(
+                              idUtilisateur: FirebaseAuth.instance.currentUser?.uid ?? '',
+                              role: 'Client',
+                              color: Colors.white,
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.logout, color: Colors.white),
+                              tooltip: 'Se déconnecter',
+                              onPressed: () async {
+                                final prefs = await SharedPreferences.getInstance();
+                                await prefs.clear();
+                                await FirebaseAuth.instance.signOut();
+                                if (context.mounted) {
+                                  context.go('/login');
+                                }
+                              },
+                            ),
+                          ],
                         ),
                       ],
                     ),

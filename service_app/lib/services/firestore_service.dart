@@ -10,9 +10,11 @@ import '../models/task_model.dart';
 import '../models/task_expert_model.dart';
 import '../models/expert_service_model.dart';
 import 'location_service.dart';
+import 'notification_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   FirebaseFirestore getFirestoreInstance() => _firestore;
@@ -269,15 +271,81 @@ class FirestoreService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getExpertPortfolioImagesWithDetails(String expertId) async {
+    try {
+      final List<Map<String, dynamic>> images = [];
+
+      final directExpSnap = await _firestore
+          .collection('imagesExemplaires')
+          .where('idExpert', isEqualTo: expertId)
+          .get();
+      
+      for (final doc in directExpSnap.docs) {
+        final data = doc.data();
+        final img = (data['image'] ?? data['URLimage']) as String?;
+        if (img != null && img.isNotEmpty) {
+          String serviceName = 'Autre';
+          String taskName = '';
+          
+          final serviceExpertId = data['idServiceExpert'] as String?;
+          if (serviceExpertId != null && serviceExpertId.isNotEmpty) {
+            final seDoc = await _firestore.collection('serviceExperts').doc(serviceExpertId).get();
+            if (seDoc.exists) {
+              final serviceId = seDoc.data()?['idService'] as String?;
+              if (serviceId != null) {
+                final sDoc = await _firestore.collection('services').doc(serviceId).get();
+                serviceName = sDoc.data()?['nom'] ?? 'Service Inconnu';
+              }
+            }
+          }
+
+          final taskId = data['idTacheExpert'] as String?;
+          if (taskId != null && taskId.isNotEmpty) {
+            final tDoc = await _firestore.collection('tacheExperts').doc(taskId).get();
+            taskName = tDoc.data()?['nom'] ?? '';
+          }
+
+          images.add({
+            'id': doc.id,
+            'image': img,
+            'idServiceExpert': serviceExpertId ?? '',
+            'serviceName': serviceName,
+            'taskName': taskName,
+            'isVisibleByPlan': data['isVisibleByPlan'] ?? true,
+          });
+        }
+      }
+      return images;
+    } catch (e) {
+      debugPrint('Error fetching expert portfolio images with details: $e');
+      return [];
+    }
+  }
+
   /// Reactivates a SUSPENDU subscription by setting its statut back to ACTIVE.
-  Future<void> reactivateSubscription(String subscriptionId) async {
-    await _firestore.collection('abonnements').doc(subscriptionId).update({
+  Future<void> reactivateSubscription(String subscriptionId, String expertId) async {
+    final batch = _firestore.batch();
+    
+    final subRef = _firestore.collection('abonnements').doc(subscriptionId);
+    batch.update(subRef, {
       'statut': 'ACTIVE',
       'suspendedAt': null,
       'graceStartedAt': null,
       'retryCount': 0,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    final seQ = await _firestore.collection('serviceExperts').where('idExpert', isEqualTo: expertId).get();
+    for (var doc in seQ.docs) {
+      batch.update(doc.reference, {'isVisibleByPlan': true});
+    }
+
+    final imgQ = await _firestore.collection('imagesExemplaires').where('idExpert', isEqualTo: expertId).get();
+    for (var doc in imgQ.docs) {
+      batch.update(doc.reference, {'isVisibleByPlan': true});
+    }
+
+    await batch.commit();
   }
 
   /// Cancels (expert-initiated) → sets statut to SUSPENDU. Data is preserved.
@@ -287,6 +355,94 @@ class FirestoreService {
       'suspendedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  /// Cancels subscription and hides unselected services and photos
+  Future<void> cancelSubscriptionAndSetVisibility(String subscriptionId, String expertId, List<String> keptServiceIds, {List<String>? keptImageIds}) async {
+    final batch = _firestore.batch();
+    
+    final subRef = _firestore.collection('abonnements').doc(subscriptionId);
+    batch.update(subRef, {
+      'statut': 'SUSPENDU',
+      'suspendedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // 1. Set service visibility
+    final seQ = await _firestore.collection('serviceExperts').where('idExpert', isEqualTo: expertId).get();
+    for (var doc in seQ.docs) {
+      bool keep = keptServiceIds.contains(doc.id);
+      batch.update(doc.reference, {'isVisibleByPlan': keep});
+    }
+
+    // 2. Set image visibility
+    final imgQ = await _firestore.collection('imagesExemplaires').where('idExpert', isEqualTo: expertId).get();
+    if (keptImageIds != null) {
+      for (var doc in imgQ.docs) {
+        bool keep = keptImageIds.contains(doc.id);
+        batch.update(doc.reference, {'isVisibleByPlan': keep});
+      }
+    } else {
+      // Default: only allow it for first 3 photos belonging to visible services
+      int visibleCount = 0;
+      for (var doc in imgQ.docs) {
+        final serviceId = doc.data()['idServiceExpert'];
+        bool isServiceVisible = keptServiceIds.contains(serviceId);
+        bool shouldBeVisible = isServiceVisible && visibleCount < 3;
+        if (shouldBeVisible) visibleCount++;
+        batch.update(doc.reference, {'isVisibleByPlan': shouldBeVisible});
+      }
+    }
+
+    await batch.commit();
+  }
+
+  /// Updates visibility for images based on provider's choice during downgrade
+  Future<void> updateImagesPlanVisibility(String expertId, List<String> keptImageIds) async {
+    final batch = _firestore.batch();
+    
+    // Fetch all images for this expert
+    final imgQ = await _firestore.collection('imagesExemplaires').where('idExpert', isEqualTo: expertId).get();
+    
+    for (var doc in imgQ.docs) {
+      bool keep = keptImageIds.contains(doc.id);
+      batch.update(doc.reference, {'isVisibleByPlan': keep});
+    }
+
+    await batch.commit();
+  }
+
+  /// Automatically unlocks the next hidden photos for each service of an expert until the 3-photo-per-service limit is reached.
+  Future<void> autoUnlockNextPhotosGlobal(String expertId) async {
+    final snap = await _firestore
+        .collection('imagesExemplaires')
+        .where('idExpert', isEqualTo: expertId)
+        .orderBy('createdAt', descending: false)
+        .get();
+
+    final images = snap.docs;
+    
+    // Group images by serviceExpertId
+    final Map<String, List<DocumentSnapshot<Map<String, dynamic>>>> groupedImages = {};
+    for (var doc in images) {
+      final data = doc.data()!;
+      final seId = (data['idServiceExpert'] ?? 'Other') as String;
+      groupedImages.putIfAbsent(seId, () => []).add(doc);
+    }
+
+    // For each service, ensure at least 3 photos are visible (if available)
+    for (var seId in groupedImages.keys) {
+      final serviceImages = groupedImages[seId]!;
+      int visibleCount = serviceImages.where((d) => (d.data()?['isVisibleByPlan'] ?? true) == true).length;
+
+      if (visibleCount < 3) {
+        int needed = 3 - visibleCount;
+        final hiddenImages = serviceImages.where((d) => (d.data()?['isVisibleByPlan'] ?? true) == false).toList();
+        for (int i = 0; i < hiddenImages.length && i < needed; i++) {
+          await hiddenImages[i].reference.update({'isVisibleByPlan': true});
+        }
+      }
+    }
   }
 
   Future<String?> getExpertIdByUserId(String userId) async {
@@ -376,19 +532,27 @@ class FirestoreService {
   }
 
   Future<void> subscribeToPremium(String expertId) async {
-    try {
-      await _firestore.collection('abonnements').add({
-        'idExpert': expertId,
-        'statut': 'ACTIVE',
-        'dateDebut': FieldValue.serverTimestamp(),
-        'type': 'PREMIUM',
-        'montant': 99,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      rethrow;
+    final batch = _firestore.batch();
+    
+    // 1. Create premium subscription
+    final subRef = _firestore.collection('abonnements').doc();
+    batch.set(subRef, {
+      'idExpert': expertId,
+      'statut': 'ACTIVE',
+      'dateDebut': FieldValue.serverTimestamp(),
+      'type': 'PREMIUM',
+      'montant': 99,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // 2. Make all services visible
+    final seQ = await _firestore.collection('serviceExperts').where('idExpert', isEqualTo: expertId).get();
+    for (var doc in seQ.docs) {
+      batch.update(doc.reference, {'isVisibleByPlan': true});
     }
+
+    await batch.commit();
   }
 
   Future<void> saveCardInfo({
@@ -601,13 +765,17 @@ class FirestoreService {
   }
 
 
-  Future<List<Expert>> getExperts() async {
+  Future<List<Expert>> getExperts({bool onlyAvailable = false}) async {
     try {
-      final expertsSnapshot = await _firestore.collection('experts').get();
+      Query query = _firestore.collection('experts');
+      if (onlyAvailable) {
+        query = query.where('estDisponible', isEqualTo: true);
+      }
+      final expertsSnapshot = await query.get();
       
       // Fetch all experts' data in parallel
       List<Expert> experts = await Future.wait(expertsSnapshot.docs.map((expertDoc) async {
-        final expertData = expertDoc.data();
+        final expertData = expertDoc.data() as Map<String, dynamic>;
         final expertId = expertDoc.id;
         final userId = expertData['idUtilisateur'];
 
@@ -641,7 +809,12 @@ class FirestoreService {
         // Fetch service names in parallel
         List<String> services = [];
         if (serviceExpertsSnapshot.docs.isNotEmpty) {
-          final serviceDocs = await Future.wait(serviceExpertsSnapshot.docs.map(
+          final visibleServicesDocs = serviceExpertsSnapshot.docs.where((se) =>
+              (se.data()['estActive'] ?? true) == true &&
+              (isPremium || (se.data()['isVisibleByPlan'] ?? true) == true)
+          ).toList();
+
+          final serviceDocs = await Future.wait(visibleServicesDocs.map(
             (se) => _firestore.collection('services').doc(se.data()['idService']).get()
           ));
           for (var sDoc in serviceDocs) {
@@ -700,8 +873,8 @@ class FirestoreService {
   }
 
   /// Returns only experts that have a non-null GeoPoint location stored (or falls back to city geocoding).
-  Future<List<Expert>> getExpertsWithLocation() async {
-    final all = await getExperts();
+  Future<List<Expert>> getExpertsWithLocation({bool onlyAvailable = false}) async {
+    final all = await getExperts(onlyAvailable: onlyAvailable);
     final locationService = LocationService();
     
     List<Expert> result = [];
@@ -767,7 +940,12 @@ class FirestoreService {
       // Fetch service names in parallel
       List<String> services = [];
       if (serviceExpertsSnapshot.docs.isNotEmpty) {
-        final serviceDocs = await Future.wait(serviceExpertsSnapshot.docs.map(
+        final visibleServicesDocs = serviceExpertsSnapshot.docs.where((se) =>
+            (se.data()['estActive'] ?? true) == true &&
+            (isPremium || (se.data()['isVisibleByPlan'] ?? true) == true)
+        ).toList();
+
+        final serviceDocs = await Future.wait(visibleServicesDocs.map(
           (se) => _firestore.collection('services').doc(se.data()['idService']).get()
         ));
         for (var sDoc in serviceDocs) {
@@ -1002,8 +1180,15 @@ class FirestoreService {
           .collection('imagesExemplaires')
           .where('idExpert', isEqualTo: expertId)
           .get();
+      
+      // Get expert premium status for filtering
+      final isPremium = (await isExpertPremium(expertId).first);
+
       for (final doc in directExpSnap.docs) {
         final data = doc.data();
+        final isVisible = data['isVisibleByPlan'] ?? true;
+        if (!isPremium && !isVisible) continue;
+
         final img = (data['image'] ?? data['URLimage']) as String?;
         if (img != null && img.isNotEmpty) images.add(img);
       }
@@ -1031,6 +1216,9 @@ class FirestoreService {
           final snap = await q;
           for (final doc in snap.docs) {
             final data = doc.data();
+            final isVisible = data['isVisibleByPlan'] ?? true;
+            if (!isPremium && !isVisible) continue;
+
             final img = (data['image'] ?? data['URLimage']) as String?;
             if (img != null && img.isNotEmpty) images.add(img);
           }
@@ -1121,6 +1309,15 @@ class FirestoreService {
       'idUtilisateur': uid,
     });
 
+    // Notify Admin of new registration
+    await _notificationService.sendNotification(
+      idUtilisateur: 'user_admin_001', 
+      titre: "Nouveau Client",
+      corps: "Un nouveau client ($name) s'est inscrit sur la plateforme.",
+      type: 'registration',
+      relatedId: clientDoc.id,
+    );
+
     // Save address document if address data was provided
     if (ville != null && ville.isNotEmpty) {
       await _firestore.collection('adresses').add({
@@ -1159,10 +1356,29 @@ class FirestoreService {
   }
 
   /// Updates the client's profile in Firestore using the current Firebase Auth UID.
+  Future<bool> isPhoneAlreadyUsed(String phone, String excludeUid) async {
+    final snapshot = await _firestore
+        .collection('utilisateurs')
+        .where('telephone', isEqualTo: phone)
+        .where(FieldPath.documentId, isNotEqualTo: excludeUid)
+        .get();
+    return snapshot.docs.isNotEmpty;
+  }
+
+  Future<bool> isEmailAlreadyUsed(String email, String excludeUid) async {
+    final snapshot = await _firestore
+        .collection('utilisateurs')
+        .where('email', isEqualTo: email)
+        .where(FieldPath.documentId, isNotEqualTo: excludeUid)
+        .get();
+    return snapshot.docs.isNotEmpty;
+  }
+
   Future<void> updateClientProfile({
     required String uid,
     required String name,
     required String phone,
+    String? email,
     String? imageBase64,
   }) async {
     final updateData = <String, dynamic>{
@@ -1170,6 +1386,9 @@ class FirestoreService {
       'telephone': phone,
       'updated_At': FieldValue.serverTimestamp(),
     };
+    if (email != null) {
+      updateData['email'] = email;
+    }
     if (imageBase64 != null) {
       updateData['image_profile'] = imageBase64;
     }
@@ -1284,8 +1503,13 @@ class FirestoreService {
           'serviceImage': serviceImage,
           'description': seData['description'] ?? '',
           'estActive': seData['estActive'] ?? true,
+          'isVisibleByPlan': seData['isVisibleByPlan'] ?? true,
           'anneeExperience': seData['anneeExperience'] ?? 0,
-          'images': serviceImages,
+          'images': imgSnapshot.docs.map((d) => {
+            'image': (d.data()['image'] ?? d.data()['URLimage']) as String?,
+            'isVisibleByPlan': d.data()['isVisibleByPlan'] ?? true,
+            'id': d.id,
+          }).toList(),
           'tasks': tasksData,
         });
       }
@@ -1333,6 +1557,10 @@ class FirestoreService {
           'taskId': catalogId, // Use catalog ID for mapping in save operations
           'taskName': taskName,
           'instanceId': taskId, // Keep instance ID for reference if needed
+          'isVisibleByPlan': data['isVisibleByPlan'] ?? true,
+          'publicId': data['publicId'] ?? '',
+          'storageType': data['storageType'] ?? 'base64',
+          'docId': doc.id,
         });
       }
 
@@ -1349,7 +1577,7 @@ class FirestoreService {
     required String description,
     required List<TaskModel> selectedTasks,
     required List<String> customTasks,
-    required List<Map<String, String>> base64ImagesWithTasks,
+    required List<Map<String, dynamic>> imagesWithTasks,
   }) async {
     final batch = _firestore.batch();
 
@@ -1360,6 +1588,7 @@ class FirestoreService {
       'idService': serviceId,
       'description': description,
       'estActive': true,
+      'isVisibleByPlan': true,
       'estCertifie': false,
       'anneeExperience': 0,
       'createdAt': FieldValue.serverTimestamp(),
@@ -1410,7 +1639,7 @@ class FirestoreService {
     }
 
     // 4. Add all images linked to the service expert instance
-    for (var imageData in base64ImagesWithTasks) {
+    for (var imageData in imagesWithTasks) {
       final imgRef = _firestore.collection('imagesExemplaires').doc();
       String? linkedId;
       if (imageData['taskId'] != null && imageData['taskId']!.isNotEmpty) {
@@ -1423,10 +1652,17 @@ class FirestoreService {
         print("[FirestoreService] Warning: Could not find taskId link for image associated with ${imageData['taskName'] ?? imageData['taskId']}. Check taskIdMap: $taskIdMap");
       }
 
+      // Check if expert is premium to determine initial photo visibility
+      final isPremium = (await isExpertPremium(expertId).first);
+
       batch.set(imgRef, {
         'image': imageData['image'],
+        'idExpert': expertId,
         'idServiceExpert': seRef.id,
         'idTacheExpert': linkedId ?? '',
+        'publicId': imageData['publicId'] ?? '',
+        'storageType': imageData['storageType'] ?? 'base64',
+        'isVisibleByPlan': isPremium || imagesWithTasks.indexOf(imageData) < 3,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
@@ -1519,8 +1755,59 @@ class FirestoreService {
         });
     }
 
+    // Auto-unlock hidden services if free limit frees up
+    final allServicesQuery = await _firestore.collection('serviceExperts').where('idExpert', isEqualTo: expertId).get();
+    final remainingServices = allServicesQuery.docs.where((doc) => doc.data()['idService'] != serviceId).toList();
+    
+    int visibleCount = remainingServices.where((doc) => (doc.data()['isVisibleByPlan'] ?? true) == true).length;
+    if (visibleCount < 3) {
+      int needed = 3 - visibleCount;
+      final hiddenServices = remainingServices.where((doc) => (doc.data()['isVisibleByPlan'] ?? true) == false).toList();
+      
+      // We can sort by createdAt to unlock the oldest hidden service first, or just take the first one
+      for (int i = 0; i < hiddenServices.length && i < needed; i++) {
+        batch.update(hiddenServices[i].reference, {'isVisibleByPlan': true});
+      }
+    }
+
     await batch.commit();
+
+    // 4. Auto-unlock hidden photos globally
+    await autoUnlockNextPhotosGlobal(expertId);
   }
+
+  Future<bool> hasOngoingInterventionsForService(String expertId, String serviceId) async {
+    try {
+      // 1. Get all task IDs associated with this service for this expert
+      final tasksQuery = await _firestore.collection('tacheExperts')
+          .where('idExpert', isEqualTo: expertId)
+          .where('idService', isEqualTo: serviceId)
+          .get();
+      
+      if (tasksQuery.docs.isEmpty) return false;
+      
+      final taskIds = tasksQuery.docs.map((doc) => doc.id).toList();
+
+      // 2. Check interventions for any of these tasks that are not finished or cancelled
+      for (var i = 0; i < taskIds.length; i += 10) {
+        final chunk = taskIds.sublist(i, i + 10 > taskIds.length ? taskIds.length : i + 10);
+        
+        final ongoingQuery = await _firestore.collection('interventions')
+            .where('idExpert', isEqualTo: expertId)
+            .where('idTacheExpert', whereIn: chunk)
+            .where('statut', whereIn: ['EN_ATTENTE', 'ACCEPTEE'])
+            .get();
+
+        if (ongoingQuery.docs.isNotEmpty) return true;
+      }
+
+      return false;
+    } catch (e) {
+      debugPrint("Error checking ongoing interventions: $e");
+      return false;
+    }
+  }
+
 
   Future<void> updateExpertService({
     required String expertId,
@@ -1529,7 +1816,7 @@ class FirestoreService {
     required String description,
     required List<TaskModel> selectedTasks,
     required List<String> customTasks,
-    required List<Map<String, String>> base64ImagesWithTasks,
+    required List<Map<String, dynamic>> imagesWithTasks,
     required List<String> existingImagesToDelete,
   }) async {
     final batch = _firestore.batch();
@@ -1606,7 +1893,9 @@ class FirestoreService {
     }
     
     // 4. Add all images linked to the service expert instance
-    for (var imageData in base64ImagesWithTasks) {
+    final isPremium = (await isExpertPremium(expertId).first);
+    
+    for (var imageData in imagesWithTasks) {
       final imgRef = _firestore.collection('imagesExemplaires').doc();
       String? linkedId;
       if (imageData['taskId'] != null && imageData['taskId']!.isNotEmpty) {
@@ -1621,8 +1910,12 @@ class FirestoreService {
 
       batch.set(imgRef, {
         'image': imageData['image'],
+        'idExpert': expertId,
         'idServiceExpert': serviceExpertDocId,
         'idTacheExpert': linkedId ?? '',
+        'publicId': imageData['publicId'] ?? '',
+        'storageType': imageData['storageType'] ?? 'base64',
+        'isVisibleByPlan': isPremium || imagesWithTasks.indexOf(imageData) < 3,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
@@ -1694,6 +1987,15 @@ class FirestoreService {
       'estDisponible': false,
       'profileViews': 0,
     });
+
+    // Notify Admin of new registration
+    await _notificationService.sendNotification(
+      idUtilisateur: 'user_admin_001',
+      titre: "Nouveau Prestataire",
+      corps: "Un nouveau prestataire ($name) s'est inscrit et est en attente de validation.",
+      type: 'registration',
+      relatedId: expertRef.id,
+    );
 
     for (final serviceId in serviceIds.take(3)) {
       await _firestore.collection('serviceExperts').add({
@@ -1811,6 +2113,14 @@ class FirestoreService {
       'desactiveParAdmin': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    await _notificationService.sendNotification(
+      idUtilisateur: expertId,
+      titre: "Compte Désactivé",
+      corps: "Vous avez désactivé votre compte. Votre profil n'est plus visible.",
+      type: 'account',
+      relatedId: expertId,
+    );
   }
 
   Future<void> reactivateExpertSelf(String expertId) async {
@@ -1825,5 +2135,13 @@ class FirestoreService {
       'desactiveParAdmin': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    await _notificationService.sendNotification(
+      idUtilisateur: expertId,
+      titre: "Compte Réactivé",
+      corps: "Bon retour ! Votre compte est à nouveau actif et visible.",
+      type: 'account',
+      relatedId: expertId,
+    );
   }
 }

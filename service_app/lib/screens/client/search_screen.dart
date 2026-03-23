@@ -72,7 +72,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (mounted) setState(() => _userPos = pos);
 
     // Experts + villes
-    final experts = await _firestoreService.getExperts();
+    final experts = await _firestoreService.getExperts(onlyAvailable: true);
     final villes  = await _firestoreService.getVillesExperts();
 
     if (mounted) {

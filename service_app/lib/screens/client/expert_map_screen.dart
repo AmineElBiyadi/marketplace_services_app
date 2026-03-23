@@ -52,7 +52,7 @@ class _ExpertMapScreenState extends State<ExpertMapScreen> {
     }
 
     // Load experts with location
-    final experts = await _firestoreService.getExpertsWithLocation();
+    final experts = await _firestoreService.getExpertsWithLocation(onlyAvailable: true);
 
     // Load client addresses
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
