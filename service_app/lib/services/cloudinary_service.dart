@@ -6,7 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 
 class CloudinaryService {
-  static String get cloudName => dotenv.get('CLOUDINARY_CLOUD_NAME', fallback: 'dt0swikte');
+  static String get cloudName => dotenv.get('CLOUDINARY_CLOUD_NAME', fallback: 'dt0swlkte');
   static String get uploadPreset => dotenv.get('CLOUDINARY_UPLOAD_PRESET', fallback: 'services_app_preset');
 
   /// EXEMPLE D'UTILISATION POUR L'ÉQUIPE :
