@@ -1,11 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/chat_model.dart';
+import 'notification_service.dart';
 
 /// Service that handles the full chat + intervention creation flow triggered
 /// when a client contacts an expert (from the search list or expert profile).
 class InterventionService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
 
   // ─── Step 0: Check for existing open chat ──────────────────────────────────
 
@@ -224,6 +226,15 @@ class InterventionService {
 
     // 3. Update intervention with the chatId for cross-reference
     await interventionRef.update({'idChat': chatRef.id});
+
+    // 4. Send Notification to Expert
+    await _notificationService.sendNotification(
+      idUtilisateur: expertId,
+      titre: "Nouvelle Demande",
+      corps: "${clientSnapshot['nom']} vous a envoyé une demande pour : $serviceNom ($taskNom).",
+      type: 'booking',
+      relatedId: interventionRef.id,
+    );
 
     return {
       'chatId': chatRef.id,

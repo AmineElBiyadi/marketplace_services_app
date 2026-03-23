@@ -35,6 +35,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/chat/chat_list_screen.dart';
 import '../screens/cgu_update_screen.dart';
 import '../screens/provider/provider_deactivated_screen.dart';
+import '../screens/notification_list_screen.dart';
 import 'package:provider/provider.dart';
 import '../services/maintenance_service.dart';
 import '../screens/maintenance_screen.dart';
@@ -63,6 +64,7 @@ class AppRoutes {
   static const String providerSettings = '/provider/:expertId/settings';
   static const String providerMessages = '/provider/:expertId/messages';
   static const String providerDeactivated = '/provider/deactivated';
+  static const String notifications = '/notifications';
 
   static const String adminLogin = '/admin/login';
   static const String adminDashboard = '/admin';
@@ -123,12 +125,20 @@ class AppRouter {
       // 4. Protection Générale des autres routes (Client & Provider)
       if (!publicPaths.contains(path)) {
         final user = FirebaseAuth.instance.currentUser;
-        if (user == null) {
+        
+        // If it's a notification path, check also for Admin session
+        if (path == AppRoutes.notifications) {
+          final prefs = await SharedPreferences.getInstance();
+          final adminId = prefs.getString('logged_admin_id');
+          if (user == null && (adminId == null || adminId.isEmpty)) {
+            return '/welcome';
+          }
+        } else if (user == null) {
           return '/welcome';
         }
       }
 
-      return null; // Pas de redirection nécessaire
+      return null;
     },
     routes: [
       // ── Entry ──
@@ -165,6 +175,13 @@ class AppRouter {
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>? ?? {};
           return CguUpdateScreen(extraData: extra);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.notifications,
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>;
+          return NotificationListScreen(data: data);
         },
       ),
       GoRoute(
