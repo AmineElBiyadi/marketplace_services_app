@@ -511,9 +511,9 @@ class _SignupScreenState extends State<SignupScreen> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _isValid && !_isLoading ? _handleSignup : null,
+                  onPressed: _step1Valid && !_isLoading ? _handleSignup : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isValid
+                    backgroundColor: _step1Valid
                         ? const Color(0xFF3F64B5)
                         : const Color(0xFF94A3B8),
                     shape: RoundedRectangleBorder(

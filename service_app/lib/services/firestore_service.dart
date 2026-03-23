@@ -1797,6 +1797,8 @@ class FirestoreService {
     } catch (e) {
       if (kDebugMode) print('Error updating CGU version: $e');
     }
+  }
+
   Future<void> updateExpertRadius(String expertId, int radius) async {
     await _firestore.collection('experts').doc(expertId).update({
       'rayonTravaille': radius,
