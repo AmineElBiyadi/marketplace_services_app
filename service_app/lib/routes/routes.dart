@@ -22,6 +22,7 @@ import '../screens/provider/provider_agenda_screen.dart';
 import '../screens/provider/provider_subscription_screen.dart';
 import '../screens/provider/provider_profile_screen.dart';
 import '../screens/provider/provider_personal_info_screen.dart';
+import '../screens/provider/provider_documents_screen.dart';
 import '../screens/provider/provider_statistics_screen.dart';
 import '../screens/provider/provider_cgu_screen.dart';
 import '../navigation/main_navigation.dart';
@@ -277,6 +278,13 @@ class AppRouter {
           return ProviderProfileScreen(expertId: expertId);
         },
         routes: [
+          GoRoute(
+            path: 'documents',
+            builder: (context, state) {
+              final expertId = state.pathParameters['expertId'] ?? '';
+              return ProviderDocumentsScreen(expertId: expertId);
+            },
+          ),
           GoRoute(
             path: 'personal-info',
             builder: (context, state) {
