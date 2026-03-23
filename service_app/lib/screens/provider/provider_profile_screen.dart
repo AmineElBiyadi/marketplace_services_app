@@ -21,6 +21,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   Expert? _expertData;
   ExpertModel? _expertModel;
   int _reviewsCount = 0;
+  double _rayonValue = 20.0;
+  bool _isSavingRayon = false;
 
   @override
   void initState() {
@@ -39,6 +41,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           _expertModel = expertModel;
           _expertData = expertDetailed;
           _reviewsCount = reviews.length;
+          _rayonValue = (_expertModel?.rayonTravaille ?? 20).toDouble();
           _isLoading = false;
         });
       }
@@ -86,7 +89,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   rating: rating,
                   reviewsCount: _reviewsCount,
                   city: city,
-                  rayon: rayon,
                   photoUrl: photoUrl,
                   isPremium: isPremium,
                 ),
@@ -107,7 +109,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     required double rating,
     required int reviewsCount,
     required String city,
-    required int rayon,
     required String photoUrl,
     required bool isPremium,
   }) {
@@ -233,67 +234,8 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
-
-        // Location & Response Time
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(LucideIcons.mapPin, size: 14, color: Color(0xFF64748B)),
-            const SizedBox(width: 4),
-            Text(
-              city,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF64748B),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(width: 4, height: 4, decoration: const BoxDecoration(color: Color(0xFFCBD5E1), shape: BoxShape.circle)),
-            const SizedBox(width: 8),
-            const Icon(LucideIcons.clock, size: 14, color: Color(0xFF64748B)),
-            const SizedBox(width: 4),
-            const Text(
-              "Replies in ~15 min",
-              style: TextStyle(
-                fontSize: 13,
-                color: Color(0xFF64748B),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Dynamic distance info
-        GestureDetector(
-          onTap: () {
-            // Can open personal info or edit distance modal
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(LucideIcons.search, size: 14, color: AppColors.primary), // Close approx to icon in map
-                const SizedBox(width: 6),
-                Text(
-                  "Working radius : $rayon km",
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(LucideIcons.chevronRight, size: 14, color: AppColors.primary),
-              ],
-            ),
-          ),
-        ),
+        const SizedBox(height: 24),
+        _buildRayonSlider(),
         const SizedBox(height: 24),
 
         // Preview Profile Button
@@ -304,7 +246,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
             height: 50,
             child: OutlinedButton(
               onPressed: () {
-                // Future task: preview public profile
+                if (_expertData != null) {
+                  context.push('/experts/${widget.expertId}', extra: _expertData);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Chargement des données du profil...")),
+                  );
+                }
               },
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -324,6 +272,102 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildRayonSlider() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(LucideIcons.compass, size: 16, color: Color(0xFF64748B)),
+              const SizedBox(width: 8),
+              const Text(
+                "Working radius",
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              if (_isSavingRayon)
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text("Maximum distance", style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                    Text(
+                      "${_rayonValue.toInt()} km",
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    activeTrackColor: AppColors.primary,
+                    inactiveTrackColor: const Color(0xFFE2E8F0),
+                    thumbColor: Colors.white,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10, elevation: 3),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+                    trackHeight: 4,
+                  ),
+                  child: Slider(
+                    value: _rayonValue,
+                    min: 5,
+                    max: 100,
+                    divisions: 19,
+                    onChanged: (val) {
+                      setState(() {
+                        _rayonValue = val;
+                      });
+                    },
+                    onChangeEnd: (val) async {
+                      setState(() => _isSavingRayon = true);
+                      try {
+                        await _firestoreService.updateExpertRadius(widget.expertId, val.toInt());
+                      } finally {
+                        setState(() => _isSavingRayon = false);
+                      }
+                    },
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: const [
+                    Text("5 km", style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                    Text("100 km", style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

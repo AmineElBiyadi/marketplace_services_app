@@ -36,6 +36,8 @@ import '../screens/chat/chat_list_screen.dart';
 import 'package:provider/provider.dart';
 import '../services/maintenance_service.dart';
 import '../screens/maintenance_screen.dart';
+import '../screens/client/expert_details_screen.dart';
+import '../models/expert.dart';
 
 // ─── Route name constants ──────────────────────────────────────────
 class AppRoutes {
@@ -69,6 +71,7 @@ class AppRoutes {
   static const String maintenance = '/maintenance';
   static const String review = '/review/:interventionId';
   static const String complaint = '/complaint/:interventionId';
+  static const String expertProfile = '/experts/:id';
 }
 
 // ─── GoRouter configuration ────────────────────────────────────────
@@ -183,6 +186,14 @@ class AppRouter {
         builder: (context, state) {
           final interventionId = state.pathParameters['interventionId'] ?? '';
           return ComplaintScreen(interventionId: interventionId);
+        },
+      ),
+
+      GoRoute(
+        path: AppRoutes.expertProfile,
+        builder: (context, state) {
+          final expert = state.extra as Expert;
+          return ExpertProfileScreen(expert: expert);
         },
       ),
 

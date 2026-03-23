@@ -27,16 +27,25 @@ class FirestoreService {
 
     try {
       final docRef = _firestore.collection('profileViews').doc(docId);
-      await docRef.set({
-        'idExpert': expertId,
-        'month': monthKey,
-        'count': FieldValue.increment(1),
-        'dailyCounts': {
-          dayKey: FieldValue.increment(1),
-        },
-      }, SetOptions(merge: true));
+      final docSnap = await docRef.get();
 
-      // Update legacy field on expert doc
+      if (!docSnap.exists) {
+        await docRef.set({
+          'idExpert': expertId,
+          'month': monthKey,
+          'count': 1,
+          'dailyCounts': {dayKey: 1},
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        await docRef.update({
+          'count': FieldValue.increment(1),
+          'dailyCounts.$dayKey': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Update total views on expert document
       await _firestore.collection('experts').doc(expertId).update({
         'profileViews': FieldValue.increment(1),
       });
@@ -671,6 +680,7 @@ class FirestoreService {
           isPremium: isPremium,
           services: services,
           ville: ville,
+          estDisponible: expertData['estDisponible'] ?? expertData['estdisponible'] ?? true,
           location: (userData['location'] ?? expertData['location']) as GeoPoint?,
         );
       }));
@@ -785,6 +795,7 @@ class FirestoreService {
         isPremium: isPremium,
         services: services,
         ville: ville,
+        estDisponible: expertData['estDisponible'] ?? expertData['estdisponible'] ?? true,
         location: (userData['location'] ?? expertData['location']) as GeoPoint?,
       );
     } catch (e) {
@@ -1745,5 +1756,11 @@ class FirestoreService {
     final data = userDoc.data()!;
     data['id'] = uid;
     return data;
+  }
+
+  Future<void> updateExpertRadius(String expertId, int radius) async {
+    await _firestore.collection('experts').doc(expertId).update({
+      'rayonTravaille': radius,
+    });
   }
 }
