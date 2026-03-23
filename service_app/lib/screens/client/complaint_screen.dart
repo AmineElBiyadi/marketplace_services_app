@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import '../../theme/app_colors.dart';
 import '../../models/booking.dart';
+import '../../services/notification_service.dart';
 
 class ComplaintScreen extends StatefulWidget {
   final String interventionId;
@@ -20,6 +21,7 @@ class ComplaintScreen extends StatefulWidget {
 }
 
 class _ComplaintScreenState extends State<ComplaintScreen> {
+  final NotificationService _notificationService = NotificationService();
   final TextEditingController _descriptionController = TextEditingController();
   bool _isLoading = false;
   InterventionModel? _intervention;
@@ -73,6 +75,15 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
       };
 
       await FirebaseFirestore.instance.collection('reclamations').add(complaintData);
+
+      // Notify Admin
+      await _notificationService.sendNotification(
+        idUtilisateur: 'user_admin_001',
+        titre: "Nouvelle Réclamation",
+        corps: "Une nouvelle réclamation a été déposée par ${widget.role == 'expert' ? 'un expert' : 'un client'} pour l'intervention ID: ${widget.interventionId}.",
+        type: 'claim',
+        relatedId: widget.interventionId,
+      );
 
       if (mounted) {
         showDialog(

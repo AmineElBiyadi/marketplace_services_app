@@ -11,7 +11,7 @@ import 'edit_profile_screen.dart';
 import 'my_reviews_screen.dart';
 import 'my_complaints_screen.dart';
 import 'my_addresses_screen.dart';
-
+import 'client_cgu_screen.dart';
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -26,7 +26,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _clientData;
   bool _isLoading = true;
   int _bookingsCount = 0;
-  int _reviewsCount = 0;
 
   @override
   void initState() {
@@ -39,9 +38,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final user = _authService.currentUser;
       if (user != null) {
         final data = await _firestoreService.getClientByUid(user.uid);
+        
+        int bookingsCount = 0;
+        try {
+          final querySnapshot = await _firestoreService.getFirestoreInstance()
+              .collection('interventions')
+              .where('idClient', isEqualTo: user.uid)
+              .get();
+          bookingsCount = querySnapshot.docs.length;
+        } catch (e) {
+          debugPrint("Error fetching bookings count: $e");
+        }
+
         if (mounted) {
           setState(() {
             _clientData = data;
+            _bookingsCount = bookingsCount;
             _isLoading = false;
           });
         }
@@ -229,8 +241,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     _buildStat(_bookingsCount.toString(), 'Réservations'),
                     _vDivider(),
-                    _buildStat(_reviewsCount.toString(), 'Avis'),
-                    _vDivider(),
                     _buildStat(
                       _clientData?['Pays'] ?? _clientData?['pays'] ?? 'Maroc',
                       'Pays',
@@ -346,7 +356,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _menuItem(
           icon: LucideIcons.fileText,
           title: 'CGU / Confidentialité',
-          onTap: () {},
+          onTap: () => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => const ClientCguScreen())),
         ),
         const SizedBox(height: 16),
         _menuItem(

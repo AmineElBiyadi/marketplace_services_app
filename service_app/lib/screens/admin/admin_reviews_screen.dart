@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../services/admin_dashboard_service.dart';
+import '../../services/notification_service.dart';
 import '../../layouts/admin_layout.dart';
 import '../../widgets/admin/booking_detail_dialog.dart';
+import '../../widgets/admin/user_profile_detail_dialog.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../utils/admin_export_util.dart';
+import 'package:intl/intl.dart';
 
 class AdminReviewsScreen extends StatefulWidget {
   const AdminReviewsScreen({super.key});
@@ -88,6 +92,19 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             )),
           const Text('Avis & Réclamations', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _textPrimary)),
           const Spacer(),
+          ElevatedButton.icon(
+            onPressed: _exportData,
+            icon: const Icon(LucideIcons.download, size: 14),
+            label: const Text('Export Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _textPrimary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
+          ),
+          const SizedBox(width: 12),
           IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 20)),
         ],
       ),
@@ -515,6 +532,37 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   Future<bool?> _showConfirm(String msg) => showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: Text(msg), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmer'))]));
 
   void _viewClaimDetail(Map<String, dynamic> claim) => showDialog(context: context, builder: (context) => _ClaimDetailModal(claim: claim, onUpdate: _loadData));
+
+  void _exportData() async {
+    final headers = ['Type', 'Client', 'Sujet / Expert', 'Date', 'Info / Note'];
+    final reviewRows = _allReviews.map((r) => [
+      'AVIS',
+      r['userName'] ?? '',
+      r['expertName'] ?? '',
+      r['date'] ?? '',
+      'Note: ${r['rating']}',
+    ]).toList();
+
+    final claimRows = _allClaims.map((c) => [
+      'LITIGE',
+      c['plaintifName'] ?? '',
+      c['subject'] ?? '',
+      c['date'] ?? '',
+      c['status'] ?? '',
+    ]).toList();
+
+    await AdminExportUtil.exportPageToPdf(
+      filename: 'avis_et_litiges_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+      title: 'Avis et Réclamations',
+      subtitle: 'Rapport complet des retours utilisateurs et litiges',
+      kpis: [
+        {'label': 'Total Avis', 'value': _allReviews.length.toString()},
+        {'label': 'Total Litiges', 'value': _allClaims.length.toString()},
+      ],
+      tableHeaders: headers,
+      tableRows: [...reviewRows, ...claimRows],
+    );
+  }
 }
 
 class _BaseFullListModal extends StatefulWidget {
@@ -688,6 +736,7 @@ class _ClaimDetailModal extends StatefulWidget {
 class _ClaimDetailModalState extends State<_ClaimDetailModal> {
   final TextEditingController _responseController = TextEditingController();
   final AdminDashboardService _service = AdminDashboardService();
+  final NotificationService _notificationService = NotificationService();
   bool _submitting = false;
   @override
   void initState() { super.initState(); _responseController.text = widget.claim['adminResponse'] ?? ''; }
@@ -718,6 +767,22 @@ class _ClaimDetailModalState extends State<_ClaimDetailModal> {
     setState(() => _submitting = true);
     try {
       await _service.updateClaim(widget.claim['id'], response: _responseController.text);
+      
+      // Notify the person who made the claim
+      final String? userId = widget.claim['typeReclamateur'] == 'EXPERT' 
+          ? widget.claim['idExpert'] 
+          : widget.claim['idClient'];
+
+      if (userId != null) {
+        await _notificationService.sendNotification(
+          idUtilisateur: userId,
+          titre: "Réponse à votre réclamation",
+          corps: "Un administrateur a répondu à votre réclamation concernant l'intervention ${widget.claim['idIntervention']}.",
+          type: 'claim',
+          relatedId: widget.claim['id'],
+        );
+      }
+
       widget.onUpdate();
       if (mounted) Navigator.pop(context);
     } catch (e) {

@@ -10,9 +10,11 @@ import '../models/task_model.dart';
 import '../models/task_expert_model.dart';
 import '../models/expert_service_model.dart';
 import 'location_service.dart';
+import 'notification_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   FirebaseFirestore getFirestoreInstance() => _firestore;
@@ -1307,6 +1309,15 @@ class FirestoreService {
       'idUtilisateur': uid,
     });
 
+    // Notify Admin of new registration
+    await _notificationService.sendNotification(
+      idUtilisateur: 'user_admin_001', 
+      titre: "Nouveau Client",
+      corps: "Un nouveau client ($name) s'est inscrit sur la plateforme.",
+      type: 'registration',
+      relatedId: clientDoc.id,
+    );
+
     // Save address document if address data was provided
     if (ville != null && ville.isNotEmpty) {
       await _firestore.collection('adresses').add({
@@ -1345,10 +1356,29 @@ class FirestoreService {
   }
 
   /// Updates the client's profile in Firestore using the current Firebase Auth UID.
+  Future<bool> isPhoneAlreadyUsed(String phone, String excludeUid) async {
+    final snapshot = await _firestore
+        .collection('utilisateurs')
+        .where('telephone', isEqualTo: phone)
+        .where(FieldPath.documentId, isNotEqualTo: excludeUid)
+        .get();
+    return snapshot.docs.isNotEmpty;
+  }
+
+  Future<bool> isEmailAlreadyUsed(String email, String excludeUid) async {
+    final snapshot = await _firestore
+        .collection('utilisateurs')
+        .where('email', isEqualTo: email)
+        .where(FieldPath.documentId, isNotEqualTo: excludeUid)
+        .get();
+    return snapshot.docs.isNotEmpty;
+  }
+
   Future<void> updateClientProfile({
     required String uid,
     required String name,
     required String phone,
+    String? email,
     String? imageBase64,
   }) async {
     final updateData = <String, dynamic>{
@@ -1356,6 +1386,9 @@ class FirestoreService {
       'telephone': phone,
       'updated_At': FieldValue.serverTimestamp(),
     };
+    if (email != null) {
+      updateData['email'] = email;
+    }
     if (imageBase64 != null) {
       updateData['image_profile'] = imageBase64;
     }
@@ -1955,6 +1988,15 @@ class FirestoreService {
       'profileViews': 0,
     });
 
+    // Notify Admin of new registration
+    await _notificationService.sendNotification(
+      idUtilisateur: 'user_admin_001',
+      titre: "Nouveau Prestataire",
+      corps: "Un nouveau prestataire ($name) s'est inscrit et est en attente de validation.",
+      type: 'registration',
+      relatedId: expertRef.id,
+    );
+
     for (final serviceId in serviceIds.take(3)) {
       await _firestore.collection('serviceExperts').add({
         'idExpert': expertRef.id,
@@ -2071,6 +2113,14 @@ class FirestoreService {
       'desactiveParAdmin': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    await _notificationService.sendNotification(
+      idUtilisateur: expertId,
+      titre: "Compte Désactivé",
+      corps: "Vous avez désactivé votre compte. Votre profil n'est plus visible.",
+      type: 'account',
+      relatedId: expertId,
+    );
   }
 
   Future<void> reactivateExpertSelf(String expertId) async {
@@ -2085,5 +2135,13 @@ class FirestoreService {
       'desactiveParAdmin': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    await _notificationService.sendNotification(
+      idUtilisateur: expertId,
+      titre: "Compte Réactivé",
+      corps: "Bon retour ! Votre compte est à nouveau actif et visible.",
+      type: 'account',
+      relatedId: expertId,
+    );
   }
 }

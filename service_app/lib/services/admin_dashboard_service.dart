@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -46,6 +47,7 @@ class AdminDashboardStats {
 
 class AdminDashboardService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
 
   // ─── Aggregate KPI Stats ───────────────────────────────────────────────────
   Future<AdminDashboardStats> getDashboardStats() async {
@@ -831,6 +833,26 @@ class AdminDashboardService {
     updates['updatedAt'] = FieldValue.serverTimestamp();
     
     await _db.collection('reclamations').doc(id).update(updates);
+
+    // Notify the user who made the claim
+    final claimDoc = await _db.collection('reclamations').doc(id).get();
+    if (claimDoc.exists) {
+      final claimData = claimDoc.data()!;
+      final bool isClientUser = (claimData['typeReclamateur'] ?? 'CLIENT') == 'CLIENT';
+      final String userId = isClientUser ? claimData['idClient'] : claimData['idExpert'];
+      
+      if (userId != null) {
+        await _notificationService.sendNotification(
+          idUtilisateur: userId,
+          titre: "Réponse à votre réclamation",
+          corps: status == 'REGLEE' 
+              ? "Votre réclamation a été traitée par l'administration."
+              : (response != null ? "L'admin a répondu à votre réclamation : $response" : "Votre réclamation a été mise à jour par l'admin."),
+          type: 'claim_response',
+          relatedId: id,
+        );
+      }
+    }
   }
 
   Future<void> deleteClaim(String id) async {
@@ -1063,6 +1085,21 @@ class AdminDashboardService {
     }
     
     await docRef.update(updates);
+
+    // Send In-App Notification
+    await _notificationService.sendNotification(
+      idUtilisateur: id,
+      titre: status == 'ACTIVE' 
+          ? "Compte Activé" 
+          : (status == 'SUSPENDUE' ? "Compte Suspendu" : "Compte Désactivé"),
+      corps: status == 'ACTIVE' 
+          ? "Bonne nouvelle ! Votre compte a été activé par l'administration." 
+          : (status == 'SUSPENDUE' 
+              ? "Votre compte a été suspendu temporairement pour vérification." 
+              : "Votre compte a été désactivé par un administrateur."),
+      type: 'account',
+      relatedId: id,
+    );
 
     debugPrint('DEBUG: updateUserStatus called for $id ($role) to $status');
     // Automatically send an email notification for important status changes

@@ -5,6 +5,8 @@ import '../../theme/app_colors.dart';
 import '../../layouts/admin_layout.dart';
 
 import '../../services/admin_dashboard_service.dart';
+import '../../utils/admin_export_util.dart';
+import 'package:intl/intl.dart';
 
 class AdminFinancesScreen extends StatefulWidget {
   const AdminFinancesScreen({super.key});
@@ -201,7 +203,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
           ],
         ),
         ElevatedButton.icon(
-          onPressed: () {},
+          onPressed: _exportFinances,
           icon: const Icon(LucideIcons.download, size: 14),
           label: const Text('Export Excel',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
@@ -215,6 +217,42 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
         ),
       ],
     );
+  }
+
+  void _exportFinances() {
+    if (_tabController.index == 0) {
+      // Export ACTIVE subscriptions
+      final headers = ['Prestataire', 'Pack', 'Début', 'Renouvellement', 'Montant', 'Statut'];
+      final rows = _subscriptions.map((s) => [
+        s['provider'],
+        s['pack'],
+        s['start'],
+        s['renewal'],
+        s['amount'],
+        s['status'],
+      ]).toList();
+      
+      AdminExportUtil.exportToCsv(
+        filename: 'abonnements_actifs_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+        headers: headers,
+        rows: rows,
+      );
+    } else {
+      // Export FAILED/GRACE subscriptions
+      final headers = ['Prestataire', 'Montant', 'Date Échec', 'Tentatives'];
+      final rows = _failedPayments.map((f) => [
+        f['provider'],
+        f['amount'],
+        f['date'],
+        f['attempts'],
+      ]).toList();
+
+      AdminExportUtil.exportToCsv(
+        filename: 'paiements_echoues_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+        headers: headers,
+        rows: rows,
+      );
+    }
   }
 
   // ── KPI GRID ─────────────────────────────────────────────────────────────────
