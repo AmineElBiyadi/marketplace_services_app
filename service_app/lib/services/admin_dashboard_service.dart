@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'notification_service.dart';
 
 class AdminDashboardStats {
   final int totalUsers;
@@ -46,6 +47,7 @@ class AdminDashboardStats {
 
 class AdminDashboardService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final NotificationService _notificationService = NotificationService();
 
   // ─── Aggregate KPI Stats ───────────────────────────────────────────────────
   Future<AdminDashboardStats> getDashboardStats() async {
@@ -1083,7 +1085,8 @@ class AdminDashboardService {
     // Resolve idUtilisateur for notification
     String? idUtilisateur;
     if (docSnap.exists) {
-      idUtilisateur = docSnap.data()?['idUtilisateur'];
+      final data = docSnap.data() as Map<String, dynamic>?;
+      idUtilisateur = data?['idUtilisateur'];
     } else {
       idUtilisateur = id; // id was already the UID
     }

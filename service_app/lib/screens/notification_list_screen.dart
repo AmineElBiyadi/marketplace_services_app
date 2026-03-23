@@ -6,16 +6,101 @@ import '../models/notification_model.dart';
 import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
 
-class NotificationListScreen extends StatelessWidget {
-  final Map<String, dynamic> data; // idUtilisateur, role
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-  const NotificationListScreen({super.key, required this.data});
+class NotificationListScreen extends StatefulWidget {
+  final Map<String, dynamic>? data; // idUtilisateur, role
+
+  const NotificationListScreen({super.key, this.data});
+
+  @override
+  State<NotificationListScreen> createState() => _NotificationListScreenState();
+}
+
+class _NotificationListScreenState extends State<NotificationListScreen> {
+  String? _idUtilisateur;
+  String? _role;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveSession();
+  }
+
+  Future<void> _resolveSession() async {
+    if (widget.data != null && widget.data!['idUtilisateur'] != null) {
+      if (mounted) {
+        setState(() {
+          _idUtilisateur = widget.data!['idUtilisateur'];
+          _role = widget.data!['role'];
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Check Admin
+    final adminId = prefs.getString('logged_admin_id');
+    if (adminId != null && adminId.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _idUtilisateur = adminId;
+          _role = 'admin';
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    // Check Client
+    final clientId = prefs.getString('logged_client_id') ?? FirebaseAuth.instance.currentUser?.uid;
+    if (clientId != null && clientId.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _idUtilisateur = clientId;
+          _role = 'client';
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    // Check Expert/Provider
+    final expertId = FirebaseAuth.instance.currentUser?.uid;
+    if (expertId != null && expertId.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _idUtilisateur = expertId;
+          _role = 'expert';
+          _isLoading = false;
+        });
+      }
+      return;
+    }
+
+    if (mounted) setState(() => _isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.primary)));
+    }
+
+    if (_idUtilisateur == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Notifications")),
+        body: const Center(child: Text("Veuillez vous connecter pour voir vos notifications.")),
+      );
+    }
+
     final _service = NotificationService();
-    final String idUtilisateur = data['idUtilisateur'] ?? '';
-    final String role = data['role'] ?? 'Client';
+    final String idUtilisateur = _idUtilisateur!;
+    final String role = _role ?? 'Client';
 
     return Scaffold(
       backgroundColor: Colors.white,

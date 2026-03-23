@@ -40,6 +40,8 @@ import '../services/maintenance_service.dart';
 import '../screens/maintenance_screen.dart';
 import '../screens/client/expert_details_screen.dart';
 import '../models/expert.dart';
+import '../screens/notification_list_screen.dart';
+import '../layouts/admin_layout.dart';
 
 // ─── Route name constants ──────────────────────────────────────────
 class AppRoutes {
@@ -72,10 +74,12 @@ class AppRoutes {
   static const String adminReviews = '/admin/reviews';
   static const String adminFinances = '/admin/finances';
   static const String adminSettings = '/admin/settings';
+  static const String adminNotifications = '/admin/notifications';
   static const String maintenance = '/maintenance';
   static const String review = '/review/:interventionId';
   static const String complaint = '/complaint/:interventionId';
   static const String expertProfile = '/experts/:id';
+  static const String notifications = '/notifications';
 }
 
 // ─── GoRouter configuration ────────────────────────────────────────
@@ -201,6 +205,11 @@ class AppRouter {
       ),
 
       GoRoute(
+        path: AppRoutes.notifications,
+        builder: (context, state) => const NotificationListScreen(),
+      ),
+
+      GoRoute(
         path: AppRoutes.expertProfile,
         builder: (context, state) {
           final expert = state.extra as Expert;
@@ -284,6 +293,10 @@ class AppRouter {
         ],
       ),
       GoRoute(
+        path: AppRoutes.providerNotifications,
+        builder: (context, state) => const NotificationListScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.providerMessages,
         builder: (context, state) {
           final expertId = state.pathParameters['expertId'] ?? '';
@@ -330,6 +343,10 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.adminSettings,
         pageBuilder: (context, state) => const NoTransitionPage(child: AdminSettingsScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.adminNotifications,
+        pageBuilder: (context, state) => NoTransitionPage(child: AdminLayout(activeRoute: '/admin/notifications', child: NotificationListScreen())),
       ),
 
       // ── System ──

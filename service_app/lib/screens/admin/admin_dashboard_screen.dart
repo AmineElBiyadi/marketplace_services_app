@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
+import '../../widgets/notification_bell.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -129,26 +130,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const Spacer(),
           const SizedBox(width: 16),
           // Notifications
-          Stack(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
-                child: const Icon(LucideIcons.bell, size: 20, color: _textPrimary),
-              ),
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: const BoxDecoration(color: _destructive, shape: BoxShape.circle),
-                  alignment: Alignment.center,
-                  child: Text(_stats?.unreadNotifications.toString() ?? '0', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
+          const NotificationBell(
+            color: _textPrimary,
           ),
           const SizedBox(width: 12),
           // Admin Profile

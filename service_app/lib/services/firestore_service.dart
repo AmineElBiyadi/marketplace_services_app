@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'notification_service.dart';
 import '../models/booking.dart';
 import '../models/expert.dart';
 import '../models/user.dart';
@@ -14,6 +14,7 @@ import 'location_service.dart';
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final NotificationService _notificationService = NotificationService();
 
   FirebaseFirestore getFirestoreInstance() => _firestore;
 
@@ -1822,7 +1823,8 @@ class FirestoreService {
     final doc = await _firestore.collection('experts').doc(expertId).get();
     if (!doc.exists) return;
     
-    final idUtilisateur = doc.data()?['idUtilisateur'];
+    final data = doc.data() as Map<String, dynamic>?;
+    final idUtilisateur = data?['idUtilisateur'];
 
     await _firestore.collection('experts').doc(expertId).update({
       'etatCompte': 'DESACTIVE',
@@ -1844,7 +1846,8 @@ class FirestoreService {
   Future<void> reactivateExpertSelf(String expertId) async {
     // Only reactivate if not disabled by admin
     final doc = await _firestore.collection('experts').doc(expertId).get();
-    if (doc.exists && (doc.data()?['desactiveParAdmin'] ?? false) == true) {
+    final data = doc.data() as Map<String, dynamic>?;
+    if (doc.exists && (data?['desactiveParAdmin'] ?? false) == true) {
       throw Exception("Compte désactivé par l'administrateur. Veuillez contacter le support.");
     }
 
