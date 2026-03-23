@@ -362,16 +362,19 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(children: [
-          Icon(LucideIcons.alertTriangle, color: Colors.orange, size: 22),
-          SizedBox(width: 10),
-          Text("Confirmer la suspension",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+        title: Row(children: const [
+          Icon(LucideIcons.alertTriangle, color: Colors.orange, size: 20),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text("Suspendre l'abonnement",
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+          ),
         ]),
         content: const Text(
-          "Votre abonnement sera suspendu et votre accès Premium coupé.\nVos données sont conservées — vous pourrez réactiver sans ressaisir votre carte.",
-          style: TextStyle(fontSize: 13, color: Colors.grey, height: 1.5),
+          "Votre accès Premium sera coupé.\nVos données sont conservées (réactivation possible sans carte).",
+          style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
         ),
         actions: [
           TextButton(
@@ -384,6 +387,12 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
             onPressed: () async {
               Navigator.pop(ctx);
               try {
+                final services = await _firestoreService.getExpertServicesDetailed(_resolvedExpertId!);
+                if (services.length > 3) {
+                  if (mounted) _showServiceSelectionDialog(subscriptionId, services);
+                  return;
+                }
+                
                 await _firestoreService.cancelSubscription(subscriptionId);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -411,6 +420,129 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
             child: const Text("Oui, suspendre"),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showServiceSelectionDialog(String subscriptionId, List<Map<String, dynamic>> services) {
+    List<String> selectedIds = [];
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          final isSelectionValid = selectedIds.length == 3;
+          
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            titlePadding: EdgeInsets.zero,
+            contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            title: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+              ),
+              child: Row(
+                children: const [
+                  Icon(LucideIcons.alertTriangle, color: Colors.orange, size: 22),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text("Sélectionnez 3 services", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepOrange)),
+                  ),
+                ],
+              ),
+            ),
+            content: Container(
+              width: double.maxFinite,
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.05),
+                        border: Border.all(color: Colors.red.withOpacity(0.2)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "En passant au plan gratuit, seuls 3 services resteront visibles. Les autres seront masqués pour vos clients.",
+                        style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w500, height: 1.4),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text("${selectedIds.length}/3 sélectionnés", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isSelectionValid ? Colors.green : AppColors.primary)),
+                    const SizedBox(height: 8),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: services.length,
+                      itemBuilder: (context, index) {
+                        final s = services[index];
+                        final id = s['id'] as String;
+                        final isSelected = selectedIds.contains(id);
+                        
+                        return CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                          title: Text(s['serviceName'] ?? 'Service', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          subtitle: Text(s['description'] ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
+                          value: isSelected,
+                          activeColor: AppColors.primary,
+                          onChanged: (val) {
+                            setState(() {
+                              if (val == true) {
+                                if (selectedIds.length < 3) selectedIds.add(id);
+                              } else {
+                                selectedIds.remove(id);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("Annuler", style: TextStyle(color: Colors.grey, fontSize: 13)),
+              ),
+              ElevatedButton(
+                onPressed: isSelectionValid ? () async {
+                  Navigator.pop(ctx);
+                  try {
+                    await _firestoreService.cancelSubscriptionAndSetVisibility(subscriptionId, _resolvedExpertId!, selectedIds);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("Abonnement suspendu. Vos 3 services ont été conservés."), backgroundColor: Colors.orange),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Erreur: $e"), backgroundColor: Colors.red),
+                      );
+                    }
+                  }
+                } : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text("Confirmer"),
+              ),
+            ],
+          );
+        }
       ),
     );
   }
@@ -1089,7 +1221,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
       final hasCard = await _firestoreService.hasStoredCard(_resolvedExpertId!);
       if (!mounted) return;
       if (hasCard) {
-        await _firestoreService.reactivateSubscription(subId);
+        await _firestoreService.reactivateSubscription(subId, _resolvedExpertId!);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -1133,8 +1265,11 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
           return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            title: const Text("Paiement sécurisé", style: TextStyle(fontWeight: FontWeight.bold)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+            titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+            title: const Text("Paiement sécurisé", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1149,11 +1284,13 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                   const SizedBox(height: 20),
                   TextField(
                     controller: cardNumberController,
+                    style: const TextStyle(fontSize: 13),
                     decoration: InputDecoration(
                       labelText: "Numéro de carte",
                       hintText: "0000 0000 0000 0000",
-                      prefixIcon: const Icon(LucideIcons.creditCard),
+                      prefixIcon: const Icon(LucideIcons.creditCard, size: 20),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                     ),
                     keyboardType: TextInputType.number,
                   ),
@@ -1163,10 +1300,12 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                       Expanded(
                         child: TextField(
                           controller: expiryController,
+                          style: const TextStyle(fontSize: 13),
                           decoration: InputDecoration(
                             labelText: "MM/AA",
                             hintText: "12/28",
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                           ),
                           keyboardType: TextInputType.datetime,
                         ),
@@ -1175,10 +1314,12 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                       Expanded(
                         child: TextField(
                           controller: cvvController,
+                          style: const TextStyle(fontSize: 13),
                           decoration: InputDecoration(
                             labelText: "CVV",
                             hintText: "123",
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                           ),
                           keyboardType: TextInputType.number,
                           obscureText: true,
