@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/app_colors.dart';
 import '../../layouts/provider_layout.dart';
 import '../../services/firestore_service.dart';
@@ -405,21 +406,81 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         ),
         _buildMenuItem(
           icon: LucideIcons.fileText,
-          title: "Supporting Documents",
-          onTap: () {
-            // context.push('/provider/${widget.expertId}/documents');
-          },
-        ),
-        _buildMenuItem(
-          icon: LucideIcons.fileCode, // Approximating CGU icon
           title: "Terms of Service / Privacy Policy",
           onTap: () {
             context.push('/provider/${widget.expertId}/profile/cgu');
           },
         ),
-        
+        _buildMenuItem(
+          icon: LucideIcons.alertTriangle,
+          title: "Désactiver mon compte",
+          onTap: () => _showDeactivateDialog(context),
+          textColor: Colors.orange,
+          iconColor: Colors.orange,
+        ),
+        _buildMenuItem(
+          icon: LucideIcons.logOut,
+          title: "Se déconnecter",
+          onTap: () async {
+            bool confirm = await showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                title: const Text("Déconnexion"),
+                content: const Text("Voulez-vous vraiment vous déconnecter?"),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Annuler")),
+                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Déconnexion", style: TextStyle(color: Colors.red))),
+                ],
+              ),
+            ) ?? false;
+            if (confirm) {
+              await FirebaseAuth.instance.signOut();
+              if (mounted) context.go('/welcome');
+            }
+          },
+          textColor: Colors.red,
+          iconColor: Colors.red,
+          hideArrow: true,
+        ),
       ],
     );
+  }
+
+  void _showDeactivateDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Désactiver mon compte"),
+        content: const Text(
+          "Êtes-vous sûr de vouloir désactiver votre compte ? Votre profil ne sera plus visible par les clients. Vous pourrez le réactiver à tout moment.",
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Annuler")),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              _handleDeactivate();
+            },
+            child: const Text("Désactiver", style: TextStyle(color: Colors.orange)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleDeactivate() async {
+    try {
+      await _firestoreService.deactivateExpertSelf(widget.expertId);
+      if (mounted) {
+        context.go('/provider/deactivated');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erreur: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Widget _buildMenuItem({

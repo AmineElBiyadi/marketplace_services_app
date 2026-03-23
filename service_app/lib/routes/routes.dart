@@ -33,6 +33,7 @@ import '../screens/splash_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/chat/chat_list_screen.dart';
+import '../screens/provider/provider_deactivated_screen.dart';
 import 'package:provider/provider.dart';
 import '../services/maintenance_service.dart';
 import '../screens/maintenance_screen.dart';
@@ -59,6 +60,7 @@ class AppRoutes {
   static const String providerSubscription = '/provider/:expertId/subscription';
   static const String providerSettings = '/provider/:expertId/settings';
   static const String providerMessages = '/provider/:expertId/messages';
+  static const String providerDeactivated = '/provider/deactivated';
 
   static const String adminLogin = '/admin/login';
   static const String adminDashboard = '/admin';
@@ -205,6 +207,10 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.providerSignup,
         builder: (context, state) => const provider_signup.ProviderSignupScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.providerDeactivated,
+        builder: (context, state) => const ProviderDeactivatedScreen(),
       ),
       GoRoute(
         path: AppRoutes.providerPending,
