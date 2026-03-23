@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/app_colors.dart';
-import '../../widgets/admin/booking_detail_dialog.dart';
 import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
+import '../../utils/admin_export_util.dart';
+import '../../widgets/admin/user_profile_detail_dialog.dart';
+import 'package:intl/intl.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({super.key});
@@ -123,6 +125,19 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             ),
           const Text('Gestion des Clients', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
           const Spacer(),
+          ElevatedButton.icon(
+            onPressed: _exportUsers,
+            icon: const Icon(LucideIcons.download, size: 14),
+            label: const Text('Export Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _textPrimary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
+          ),
+          const SizedBox(width: 12),
           IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
         ],
       ),
@@ -528,6 +543,28 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _exportUsers() async {
+    final headers = ['Nom', 'Téléphone', 'Date Création', 'Statut'];
+    final rows = _filteredUsers.map((u) => [
+      u['name'] ?? '',
+      u['phone'] ?? '',
+      u['createdAt'] ?? '',
+      u['status'] ?? '',
+    ]).toList();
+
+    await AdminExportUtil.exportPageToPdf(
+      filename: 'clients_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+      title: 'Liste des Clients',
+      subtitle: 'Extraction de la liste des utilisateurs de type Client',
+      kpis: [
+        {'label': 'Total Clients', 'value': _filteredUsers.length.toString()},
+        {'label': 'Actifs', 'value': _filteredUsers.where((u) => u['status'] == 'ACTIVE').length.toString()},
+      ],
+      tableHeaders: headers,
+      tableRows: rows,
     );
   }
 }

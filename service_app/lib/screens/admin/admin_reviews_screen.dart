@@ -3,7 +3,10 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
 import '../../widgets/admin/booking_detail_dialog.dart';
+import '../../widgets/admin/user_profile_detail_dialog.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../utils/admin_export_util.dart';
+import 'package:intl/intl.dart';
 
 class AdminReviewsScreen extends StatefulWidget {
   const AdminReviewsScreen({super.key});
@@ -88,6 +91,19 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             )),
           const Text('Avis & Réclamations', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _textPrimary)),
           const Spacer(),
+          ElevatedButton.icon(
+            onPressed: _exportData,
+            icon: const Icon(LucideIcons.download, size: 14),
+            label: const Text('Export Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _textPrimary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
+          ),
+          const SizedBox(width: 12),
           IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 20)),
         ],
       ),
@@ -515,6 +531,37 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   Future<bool?> _showConfirm(String msg) => showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: Text(msg), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmer'))]));
 
   void _viewClaimDetail(Map<String, dynamic> claim) => showDialog(context: context, builder: (context) => _ClaimDetailModal(claim: claim, onUpdate: _loadData));
+
+  void _exportData() async {
+    final headers = ['Type', 'Client', 'Sujet / Expert', 'Date', 'Info / Note'];
+    final reviewRows = _allReviews.map((r) => [
+      'AVIS',
+      r['userName'] ?? '',
+      r['expertName'] ?? '',
+      r['date'] ?? '',
+      'Note: ${r['rating']}',
+    ]).toList();
+
+    final claimRows = _allClaims.map((c) => [
+      'LITIGE',
+      c['plaintifName'] ?? '',
+      c['subject'] ?? '',
+      c['date'] ?? '',
+      c['status'] ?? '',
+    ]).toList();
+
+    await AdminExportUtil.exportPageToPdf(
+      filename: 'avis_et_litiges_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+      title: 'Avis et Réclamations',
+      subtitle: 'Rapport complet des retours utilisateurs et litiges',
+      kpis: [
+        {'label': 'Total Avis', 'value': _allReviews.length.toString()},
+        {'label': 'Total Litiges', 'value': _allClaims.length.toString()},
+      ],
+      tableHeaders: headers,
+      tableRows: [...reviewRows, ...claimRows],
+    );
+  }
 }
 
 class _BaseFullListModal extends StatefulWidget {

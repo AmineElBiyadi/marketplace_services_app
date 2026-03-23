@@ -5,6 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
+import '../../utils/admin_export_util.dart';
+import 'package:screenshot/screenshot.dart';
+import 'dart:typed_data';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -36,8 +39,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Map<String, int> _categoriesData = {};
   List<Map<String, dynamic>> _dailyInscriptions = [];
   List<Map<String, dynamic>> _monthlyRevenue = [];
+  bool _exporting = false;
+
+  final ScreenshotController _inscriptionController = ScreenshotController();
+  final ScreenshotController _categoryController = ScreenshotController();
+  final ScreenshotController _packController = ScreenshotController();
+  final ScreenshotController _revenueController = ScreenshotController();
 
   final TextEditingController _searchController = TextEditingController();
+
 
   @override
   void initState() {
@@ -190,6 +200,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const Text('Tableau de bord', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: _textPrimary)),
           const Text('Vue d\'ensemble de la plateforme', style: TextStyle(fontSize: 14, color: _textSecondary)),
           const SizedBox(height: 24),
+          
+          Row(
+            children: [
+              const Spacer(),
+              ElevatedButton.icon(
+                onPressed: _exporting || _stats == null ? null : _exportPdf,
+                icon: _exporting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(LucideIcons.fileText, size: 16),
+                label: Text(_exporting ? 'Génération...' : 'Exporter Rapport PDF'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
 
           // KPIs
           _buildKPIGrid(),
@@ -268,28 +296,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     return Column(
       children: [
-        Row(
+          Row(
           children: [
-            Expanded(flex: 1, child: _chartCard('Évolution des inscriptions (30j)', _buildInscriptionsChart())),
+            Expanded(flex: 1, child: _chartCard('Évolution des inscriptions (30j)', Screenshot(controller: _inscriptionController, child: _buildInscriptionsChart()))),
             const SizedBox(width: 24),
-            if (isPageWide) Expanded(flex: 1, child: _chartCard('Réservations par catégorie', _buildCategoryChart())),
+            if (isPageWide) Expanded(flex: 1, child: _chartCard('Réservations par catégorie', Screenshot(controller: _categoryController, child: _buildCategoryChart()))),
           ],
         ),
         if (!isPageWide) ...[
           const SizedBox(height: 24),
-          _chartCard('Réservations par catégorie', _buildCategoryChart()),
+          _chartCard('Réservations par catégorie', Screenshot(controller: _categoryController, child: _buildCategoryChart())),
         ],
         const SizedBox(height: 24),
         Row(
           children: [
-            Expanded(flex: 1, child: _chartCard('Répartition Gratuit vs Premium', _buildPackChart())),
+            Expanded(flex: 1, child: _chartCard('Répartition Gratuit vs Premium', Screenshot(controller: _packController, child: _buildPackChart()))),
             const SizedBox(width: 24),
-            if (isPageWide) Expanded(flex: 1, child: _chartCard('Revenus mensuels', _buildRevenueChart())),
+            if (isPageWide) Expanded(flex: 1, child: _chartCard('Revenus mensuels', Screenshot(controller: _revenueController, child: _buildRevenueChart()))),
           ],
         ),
         if (!isPageWide) ...[
           const SizedBox(height: 24),
-          _chartCard('Revenus mensuels', _buildRevenueChart()),
+          _chartCard('Revenus mensuels', Screenshot(controller: _revenueController, child: _buildRevenueChart())),
         ],
       ],
     );
@@ -704,4 +732,54 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
     );
   }
+
+  Future<void> _exportPdf() async {
+    setState(() => _exporting = true);
+    try {
+      final s = _stats!;
+      final double cancellationRate = s.totalReservations > 0 ? (s.cancelledReservations / s.totalReservations) * 100 : 0;
+
+      // 1. Prepare KPIs
+      final kpis = [
+        {'label': 'Total Clients', 'value': s.totalClients.toString()},
+        {'label': 'Réservations du mois', 'value': s.reservationsThisMonth.toString()},
+        {'label': 'Revenus totaux', 'value': '${NumberFormat("#,##0", "fr_FR").format(s.totalRevenue)} DH'},
+        {'label': 'En attente', 'value': s.pendingProviders.toString()},
+        {'label': 'Terminées', 'value': s.totalFinishedReservations.toString()},
+        {'label': 'Taux d\'annulation', 'value': '${cancellationRate.toStringAsFixed(1)}%'},
+      ];
+
+      // 2. Capture Charts
+      final chartImages = await Future.wait([
+        _inscriptionController.capture(pixelRatio: 2.0).then((img) => img!),
+        _categoryController.capture(pixelRatio: 2.0).then((img) => img!),
+        _packController.capture(pixelRatio: 2.0).then((img) => img!),
+        _revenueController.capture(pixelRatio: 2.0).then((img) => img!),
+      ]);
+
+      // 3. Prepare Recent Context Table
+      final tableHeaders = ['Type', 'Nom / Sujet', 'Date', 'Statut / Info'];
+      final tableRows = [
+        ..._pendingProviders.map((p) => ['EN ATTENTE', p['name'] ?? '', p['date'] ?? '', p['category'] ?? '']),
+        ..._recentUsers.map((u) => ['NOUVEAU', u['name'] ?? '', u['date'] ?? '', u['type'] ?? '']),
+        ..._openClaims.map((c) => ['LITIGE', c['subject'] ?? '', c['date'] ?? '', c['priority'] ?? '']),
+      ];
+
+      // 4. Export
+      await AdminExportUtil.exportPageToPdf(
+        filename: 'dashboard_report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+        title: 'Rapport Tableau de Bord',
+        subtitle: 'Vue d\'ensemble de la plateforme Marketplace',
+        kpis: kpis,
+        chartImages: chartImages,
+        tableHeaders: tableHeaders,
+        tableRows: tableRows,
+      );
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur d\'export: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
+  }
 }
+

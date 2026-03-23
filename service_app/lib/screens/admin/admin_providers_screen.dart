@@ -3,6 +3,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
 import '../../widgets/admin/booking_detail_dialog.dart';
+import '../../widgets/admin/user_profile_detail_dialog.dart';
+import '../../utils/admin_export_util.dart';
+import 'package:intl/intl.dart';
 
 class AdminProvidersScreen extends StatefulWidget {
   const AdminProvidersScreen({super.key});
@@ -124,6 +127,19 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
             ),
           const Text('Gestion des Prestataires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
           const Spacer(),
+          ElevatedButton.icon(
+            onPressed: _exportProviders,
+            icon: const Icon(LucideIcons.download, size: 14),
+            label: const Text('Export Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _textPrimary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
+          ),
+          const SizedBox(width: 12),
           IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
         ],
       ),
@@ -623,6 +639,29 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _exportProviders() async {
+    final headers = ['Nom', 'Pack', 'Évaluations', 'Interventions', 'Statut'];
+    final rows = _filteredProviders.map((p) => [
+      p['name'] ?? '',
+      p['pack'] ?? '',
+      p['rating']?.toStringAsFixed(1) ?? '0.0',
+      p['interventionsCount']?.toString() ?? '0',
+      p['status'] ?? '',
+    ]).toList();
+
+    await AdminExportUtil.exportPageToPdf(
+      filename: 'prestataires_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+      title: 'Liste des Prestataires',
+      subtitle: 'Extraction de la liste des experts et prestataires de services',
+      kpis: [
+        {'label': 'Total Prestataires', 'value': _filteredProviders.length.toString()},
+        {'label': 'Experts Premium', 'value': _filteredProviders.where((p) => p['pack'] == 'PREMIUM').length.toString()},
+      ],
+      tableHeaders: headers,
+      tableRows: rows,
     );
   }
 }
