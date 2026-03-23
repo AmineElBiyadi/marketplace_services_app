@@ -53,9 +53,9 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
       final currentMonthStart = DateTime(now.year, now.month, 1);
       final prevMonthStart = DateTime(now.month == 1 ? now.year - 1 : now.year, now.month == 1 ? 12 : now.month - 1, 1);
 
-      // 1. Fetch Expert for profileViews (default to 342 if not tracked)
+      // 1. Fetch Expert for total profileViews
       final expertDoc = await FirebaseFirestore.instance.collection('experts').doc(widget.expertId).get();
-      final int profileViews = expertDoc.data()?['profileViews'] ?? 342; 
+      final int totalProfileViewsFromExpertDoc = expertDoc.data()?['profileViews'] ?? 0;
 
       // 2. Fetch Interventions
       final interventionsQuery = await FirebaseFirestore.instance
@@ -64,7 +64,8 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
           .get();
       
       final totalInterventions = interventionsQuery.docs.length;
-      final conversionRate = profileViews > 0 ? (totalInterventions / profileViews) * 100 : 0.0;
+      final int actualProfileViewsToUse = totalProfileViewsFromExpertDoc;
+      final conversionRate = actualProfileViewsToUse > 0 ? (totalInterventions / actualProfileViewsToUse) * 100 : 0.0;
 
       // Calculate Loyal Customers & Top Skills
       Map<String, int> clientInterventionsCount = {};
@@ -145,7 +146,7 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
       final prevAvg = prevMonthRatingCount > 0 ? prevMonthRatings / prevMonthRatingCount : averageRating;
       final avgRatingTrend = prevAvg > 0 ? ((currentAvg - prevAvg) / prevAvg) * 100 : 0.0;
 
-      final conversionTrend = prevInterventions > 0 ? (((currentInterventions/(profileViews == 0 ? 1 : profileViews)) - (prevInterventions/(profileViews == 0 ? 1 : profileViews))) / (prevInterventions/(profileViews == 0 ? 1 : profileViews))) * 100 : 5.0; 
+      final conversionTrend = prevInterventions > 0 ? (((currentInterventions/(actualProfileViewsToUse == 0 ? 1 : actualProfileViewsToUse)) - (prevInterventions/(actualProfileViewsToUse == 0 ? 1 : actualProfileViewsToUse))) / (prevInterventions/(actualProfileViewsToUse == 0 ? 1 : actualProfileViewsToUse))) * 100 : 5.0; 
 
       // Sort skills Top 5
       var sortedSkills = skillCounts.entries.toList()..sort((a, b) => b.value.compareTo(a.value));

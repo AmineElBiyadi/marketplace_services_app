@@ -27,16 +27,25 @@ class FirestoreService {
 
     try {
       final docRef = _firestore.collection('profileViews').doc(docId);
-      await docRef.set({
-        'idExpert': expertId,
-        'month': monthKey,
-        'count': FieldValue.increment(1),
-        'dailyCounts': {
-          dayKey: FieldValue.increment(1),
-        },
-      }, SetOptions(merge: true));
+      final docSnap = await docRef.get();
 
-      // Update legacy field on expert doc
+      if (!docSnap.exists) {
+        await docRef.set({
+          'idExpert': expertId,
+          'month': monthKey,
+          'count': 1,
+          'dailyCounts': {dayKey: 1},
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } else {
+        await docRef.update({
+          'count': FieldValue.increment(1),
+          'dailyCounts.$dayKey': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // Update total views on expert document
       await _firestore.collection('experts').doc(expertId).update({
         'profileViews': FieldValue.increment(1),
       });
@@ -671,6 +680,7 @@ class FirestoreService {
           isPremium: isPremium,
           services: services,
           ville: ville,
+          estDisponible: expertData['estDisponible'] ?? expertData['estdisponible'] ?? true,
           location: (userData['location'] ?? expertData['location']) as GeoPoint?,
         );
       }));
@@ -785,6 +795,7 @@ class FirestoreService {
         isPremium: isPremium,
         services: services,
         ville: ville,
+        estDisponible: expertData['estDisponible'] ?? expertData['estdisponible'] ?? true,
         location: (userData['location'] ?? expertData['location']) as GeoPoint?,
       );
     } catch (e) {
@@ -1723,6 +1734,7 @@ class FirestoreService {
     final data = userDoc.data()!;
     data['id'] = uid;
     data['etatCompte'] = expertQuery.docs.first.data()['etatCompte'] ?? 'PENDING';
+    data['desactiveParAdmin'] = expertQuery.docs.first.data()['desactiveParAdmin'] ?? false;
     data['expertId'] = expertQuery.docs.first.id;
     return data;
   }
@@ -1745,5 +1757,33 @@ class FirestoreService {
     final data = userDoc.data()!;
     data['id'] = uid;
     return data;
+  }
+
+  Future<void> updateExpertRadius(String expertId, int radius) async {
+    await _firestore.collection('experts').doc(expertId).update({
+      'rayonTravaille': radius,
+    });
+  }
+
+  Future<void> deactivateExpertSelf(String expertId) async {
+    await _firestore.collection('experts').doc(expertId).update({
+      'etatCompte': 'DESACTIVE',
+      'desactiveParAdmin': false,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> reactivateExpertSelf(String expertId) async {
+    // Only reactivate if not disabled by admin
+    final doc = await _firestore.collection('experts').doc(expertId).get();
+    if (doc.exists && (doc.data()?['desactiveParAdmin'] ?? false) == true) {
+      throw Exception("Compte désactivé par l'administrateur. Veuillez contacter le support.");
+    }
+
+    await _firestore.collection('experts').doc(expertId).update({
+      'etatCompte': 'ACTIVE',
+      'desactiveParAdmin': false,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 }

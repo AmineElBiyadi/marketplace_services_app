@@ -1049,10 +1049,20 @@ class AdminDashboardService {
       }
     }
 
-    await docRef.update({
+    Map<String, dynamic> updates = {
       'etatCompte': status,
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    
+    if (collection == 'experts') {
+      if (status == 'DESACTIVE' || status == 'SUSPENDUE') {
+        updates['desactiveParAdmin'] = true;
+      } else if (status == 'ACTIVE') {
+        updates['desactiveParAdmin'] = false;
+      }
+    }
+    
+    await docRef.update(updates);
 
     debugPrint('DEBUG: updateUserStatus called for $id ($role) to $status');
     // Automatically send an email notification for important status changes
