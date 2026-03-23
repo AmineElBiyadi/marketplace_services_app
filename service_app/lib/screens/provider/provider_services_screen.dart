@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui';
 import 'package:image_picker/image_picker.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/glass_container.dart';
@@ -13,6 +14,7 @@ import '../../layouts/provider_layout.dart';
 import '../../services/firestore_service.dart';
 import '../../models/service.dart';
 import '../../models/task_model.dart';
+import '../../services/cloudinary_service.dart';
 
 // Categories will be loaded from Firestore
 
@@ -43,7 +45,10 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
 
   void _subscribeToPremuim() {
     _premiumSub = _firestoreService.isExpertPremium(widget.expertId).listen((isPremium) {
-      if (mounted) setState(() => _isPremium = isPremium);
+      if (mounted) {
+        setState(() => _isPremium = isPremium);
+        _loadData(); // Trigger reload to get updated isVisibleByPlan status
+      }
     });
   }
 
@@ -203,6 +208,9 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
 
       try {
         await _firestoreService.deleteExpertService(widget.expertId, serviceId);
+        // After deletion, auto-unlock logic is handled in FirestoreService.deleteExpertService
+        // But we already have logic to unlock hidden services there.
+        // Photo auto-unlock is triggered if we delete a specific photo, not the whole service.
         _loadData();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Service deleted successfully")),
@@ -223,11 +231,12 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   List<TaskModel> _availableTasks = [];
   final List<TaskModel> _selectedTasks = [];
   final List<String> _customTasks = [];
-  final List<Map<String, String>> _base64ImagesWithTasks = [];
+  final List<Map<String, dynamic>> _imagesWithTasks = [];
   bool _isSaving = false;
 
   Future<void> _pickImage(StateSetter setSheetState) async {
-    if (_base64ImagesWithTasks.length >= 3 && !_isPremium) {
+    final visiblePhotosCount = _imagesWithTasks.where((img) => (img['isVisibleByPlan'] as bool? ?? true) == true).length;
+    if (visiblePhotosCount >= 3 && !_isPremium) {
       showDialog(
         context: context,
         builder: (context) => Dialog(
@@ -352,10 +361,11 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
 
       if (selectedTaskName != null) {
         setSheetState(() {
-          _base64ImagesWithTasks.add({
+          _imagesWithTasks.add({
             'image': base64,
             'taskId': selectedTaskId ?? '',
             'taskName': selectedTaskName!,
+            'isVisibleByPlan': _isPremium || (visiblePhotosCount < 3),
           });
         });
         setState(() {});
@@ -372,7 +382,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
       _availableTasks = [];
       _selectedTasks.clear();
       _customTasks.clear();
-      _base64ImagesWithTasks.clear();
+      _imagesWithTasks.clear();
       _isSaving = false;
     });
   }
@@ -387,13 +397,39 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
 
     setState(() => _isSaving = true);
     try {
+      // 1. Upload new images to Cloudinary
+      final List<Map<String, dynamic>> finalImagesWithMetadata = [];
+      
+      for (var imgData in _imagesWithTasks) {
+        final imageSource = imgData['image']!;
+        
+        if (imageSource.startsWith('http')) {
+          // Already on Cloudinary
+          finalImagesWithMetadata.add(imgData);
+        } else {
+          // It's Base64, upload it
+          final String? url = await CloudinaryService.uploadImage(imageSource);
+          if (url != null) {
+            final publicId = url.split('/').last.split('.').first;
+            finalImagesWithMetadata.add({
+              ...imgData,
+              'image': url,
+              'publicId': publicId,
+              'storageType': 'cloudinary',
+            });
+          } else {
+            throw Exception("Failed to upload image to Cloudinary");
+          }
+        }
+      }
+
       await _firestoreService.addExpertService(
         expertId: widget.expertId,
         serviceId: _selectedCategory!.id!,
         description: _descriptionController.text,
         selectedTasks: _selectedTasks,
         customTasks: _customTasks,
-        base64ImagesWithTasks: _base64ImagesWithTasks,
+        imagesWithTasks: finalImagesWithMetadata,
       );
       
       Navigator.pop(context);
@@ -419,6 +455,30 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
 
     setState(() => _isSaving = true);
     try {
+      // 1. Upload new images to Cloudinary
+      final List<Map<String, dynamic>> finalImagesWithMetadata = [];
+      
+      for (var imgData in _imagesWithTasks) {
+        final imageSource = imgData['image']!;
+        
+        if (imageSource.startsWith('http')) {
+          finalImagesWithMetadata.add(imgData);
+        } else {
+          final String? url = await CloudinaryService.uploadImage(imageSource);
+          if (url != null) {
+            final publicId = url.split('/').last.split('.').first;
+            finalImagesWithMetadata.add({
+              ...imgData,
+              'image': url,
+              'publicId': publicId,
+              'storageType': 'cloudinary',
+            });
+          } else {
+            throw Exception("Failed to upload image to Cloudinary");
+          }
+        }
+      }
+
       await _firestoreService.updateExpertService(
         expertId: widget.expertId,
         serviceExpertDocId: serviceData['id'],
@@ -426,7 +486,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
         description: _descriptionController.text,
         selectedTasks: _selectedTasks,
         customTasks: _customTasks,
-        base64ImagesWithTasks: _base64ImagesWithTasks,
+        imagesWithTasks: finalImagesWithMetadata,
         existingImagesToDelete: [], 
       );
       
@@ -741,6 +801,26 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   }
 
   Widget _buildStep2(StateSetter setSheetState, {required bool isEditing, Map<String, dynamic>? serviceData}) {
+    Widget imageWidget(String imagePath) {
+      if (imagePath.startsWith('http')) {
+        return Image.network(
+          imagePath,
+          width: 100,
+          height: 100,
+          fit: BoxFit.cover,
+          errorBuilder: (context, _, __) => Container(color: Colors.grey.shade200, child: const Icon(Icons.broken_image)),
+        );
+      } else {
+        return Image.memory(
+          base64Decode(imagePath.contains(',') ? imagePath.split(',').last : imagePath),
+          width: 100,
+          height: 100,
+          fit: BoxFit.cover,
+          errorBuilder: (context, _, __) => Container(color: Colors.grey.shade200, child: const Icon(Icons.broken_image)),
+        );
+      }
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -839,6 +919,32 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
           "Photos (Max 3)",
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
+        if (!_isPremium && _imagesWithTasks.any((img) => (img['isVisibleByPlan'] as bool? ?? true) == false))
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.star, color: Colors.orange, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    "Passez au Premium pour rendre toutes vos photos visibles !",
+                    style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => context.push('/provider/${widget.expertId}/subscription'),
+                  child: const Text("Passer au Premium", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.orange)),
+                ),
+              ],
+            ),
+          ),
         const SizedBox(height: 8),
         SizedBox(
           height: 120,
@@ -860,7 +966,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              ..._base64ImagesWithTasks.asMap().entries.map((entry) => Padding(
+              ..._imagesWithTasks.asMap().entries.map((entry) => Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: Stack(
                   children: [
@@ -868,11 +974,34 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: Image.memory(
-                            base64Decode(entry.value['image']!),
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.cover,
+                          child: Stack(
+                            children: [
+                              ((entry.value['isVisibleByPlan'] ?? true) == true || entry.value['isVisibleByPlan'] == 'true')
+                                ? imageWidget(entry.value['image']!)
+                                : Opacity(
+                                    opacity: 0.6,
+                                    child: ImageFiltered(
+                                      imageFilter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+                                      child: imageWidget(entry.value['image']!),
+                                    ),
+                                  ),
+                              if (!((entry.value['isVisibleByPlan'] ?? true) == true || entry.value['isVisibleByPlan'] == 'true'))
+                                Positioned.fill(
+                                  child: Container(
+                                    color: Colors.black.withOpacity(0.2),
+                                    child: const Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.lock, color: Colors.white, size: 24),
+                                          SizedBox(height: 4),
+                                          Text("LOCKED", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -894,7 +1023,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                       child: GestureDetector(
                         onTap: () {
                           setSheetState(() {
-                            _base64ImagesWithTasks.removeAt(entry.key);
+                            _imagesWithTasks.removeAt(entry.key);
                           });
                         },
                         child: Container(
@@ -928,15 +1057,19 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
     
     _selectedTasks.clear();
     _customTasks.clear();
-    _base64ImagesWithTasks.clear();
+    _imagesWithTasks.clear();
     
-    // Load images with their task associations
+    // Load images with their task associations and visibility
     final imagesWithTasks = await _firestoreService.getImagesWithTasks(service['id']);
     for (var imgData in imagesWithTasks) {
-        _base64ImagesWithTasks.add({
+        _imagesWithTasks.add({
           'image': imgData['image']!,
           'taskId': imgData['taskId'] ?? '',
           'taskName': imgData['taskName'] ?? 'Existing Image',
+          'isVisibleByPlan': imgData['isVisibleByPlan'] ?? true,
+          'publicId': imgData['publicId'] ?? '',
+          'storageType': imgData['storageType'] ?? 'base64',
+          'docId': imgData['docId'], // Store docId for deletion/auto-unlock
         });
     }
     
@@ -1545,9 +1678,43 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                                         Expanded(
                                           child: ClipRRect(
                                             borderRadius: BorderRadius.circular(16),
-                                            child: img.isNotEmpty
-                                              ? Image.memory(base64Decode(img), fit: BoxFit.cover, width: double.infinity)
-                                              : Container(color: Colors.grey.shade200, child: const Icon(Icons.image, color: Colors.grey)),
+                                            child: Stack(
+                                              children: [
+                                                ((imgData['isVisibleByPlan'] ?? true) == true || imgData['isVisibleByPlan'] == 'true' || _isPremium)
+                                                  ? (img.startsWith('http')
+                                                      ? Image.network(img, fit: BoxFit.cover, width: double.infinity,
+                                                          errorBuilder: (context, _, __) => Container(color: Colors.grey.shade200, child: const Icon(Icons.broken_image)))
+                                                      : Image.memory(base64Decode(img), fit: BoxFit.cover, width: double.infinity,
+                                                          errorBuilder: (context, _, __) => Container(color: Colors.grey.shade200, child: const Icon(Icons.broken_image))))
+                                                  : Opacity(
+                                                      opacity: 0.6,
+                                                      child: ImageFiltered(
+                                                        imageFilter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+                                                        child: img.startsWith('http')
+                                                          ? Image.network(img, fit: BoxFit.cover, width: double.infinity,
+                                                              errorBuilder: (context, _, __) => Container(color: Colors.grey.shade200, child: const Icon(Icons.broken_image)))
+                                                          : Image.memory(base64Decode(img), fit: BoxFit.cover, width: double.infinity,
+                                                              errorBuilder: (context, _, __) => Container(color: Colors.grey.shade200, child: const Icon(Icons.broken_image))),
+                                                      ),
+                                                    ),
+                                                if (!((imgData['isVisibleByPlan'] ?? true) == true || imgData['isVisibleByPlan'] == 'true' || _isPremium))
+                                                  Positioned.fill(
+                                                    child: Container(
+                                                      color: Colors.black.withOpacity(0.2),
+                                                      child: const Center(
+                                                        child: Column(
+                                                          mainAxisAlignment: MainAxisAlignment.center,
+                                                          children: [
+                                                            Icon(Icons.lock, color: Colors.white, size: 24),
+                                                            SizedBox(height: 4),
+                                                            Text("LOCKED", style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
                                           ),
                                         ),
                                         if (taskName.isNotEmpty) ...[
@@ -1586,7 +1753,9 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                                   if (img.contains(',')) img = img.split(',').last;
                                   return ClipRRect(
                                     borderRadius: BorderRadius.circular(16),
-                                    child: Image.memory(base64Decode(img), fit: BoxFit.cover),
+                                    child: img.startsWith('http')
+                                      ? Image.network(img, fit: BoxFit.cover, errorBuilder: (context, _, __) => Container(color: Colors.grey.shade200, child: const Icon(Icons.broken_image)))
+                                      : Image.memory(base64Decode(img), fit: BoxFit.cover, errorBuilder: (context, _, __) => Container(color: Colors.grey.shade200, child: const Icon(Icons.broken_image))),
                                   );
                                 },
                               );
