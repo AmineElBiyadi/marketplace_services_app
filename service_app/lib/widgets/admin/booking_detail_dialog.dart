@@ -109,6 +109,7 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            _buildCancelBanner(),
             _buildInfoCard(),
             const SizedBox(height: 20),
             _buildProfilesCard(),
@@ -119,12 +120,47 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(32),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
         children: [
-          Expanded(flex: 3, child: _buildInfoCard()),
-          const SizedBox(width: 24),
-          Expanded(flex: 2, child: _buildProfilesCard()),
+          _buildCancelBanner(),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 3, child: _buildInfoCard()),
+              const SizedBox(width: 24),
+              Expanded(flex: 2, child: _buildProfilesCard()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCancelBanner() {
+    if (_booking!['status'] != 'ANNULEE' || (_booking!['cancelCount'] ?? 0) <= 0) return const SizedBox.shrink();
+    
+    final role = _booking!['cancelRole'] == 'expert' ? 'prestataire' : 'client';
+    final count = _booking!['cancelCount'];
+    
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.red.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(LucideIcons.alertTriangle, color: Colors.red, size: 24),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              'Attention : Ce $role a annulé $count réservation${count > 1 ? 's' : ''} ce mois-ci.',
+              style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          ),
         ],
       ),
     );

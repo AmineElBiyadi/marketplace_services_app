@@ -126,23 +126,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          const Expanded(
-            child: Row(
-              children: [
-                Icon(LucideIcons.search, size: 16, color: _textSecondary),
-                SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher...',
-                      hintStyle: TextStyle(color: _textSecondary, fontSize: 14),
-                      border: InputBorder.none,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const Spacer(),
           const SizedBox(width: 16),
           // Notifications
           Stack(
@@ -501,16 +485,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _panelWrapper('Prestataires à valider', _buildPendingList(), '/admin/providers')),
-              const SizedBox(width: 24),
               Expanded(child: _panelWrapper('Réclamations urgentes', _buildClaimsList(), '/admin/reviews')),
               const SizedBox(width: 24),
               Expanded(child: _panelWrapper('Derniers Clients', _buildUsersList(), '/admin/users')),
             ],
           )
         else ...[
-          _panelWrapper('Prestataires à valider', _buildPendingList(), '/admin/providers'),
-          const SizedBox(height: 24),
           _panelWrapper('Réclamations urgentes', _buildClaimsList(), '/admin/reviews'),
           const SizedBox(height: 24),
           _panelWrapper('Derniers Clients', _buildUsersList(), '/admin/users'),

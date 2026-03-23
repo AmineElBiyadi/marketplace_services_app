@@ -472,6 +472,7 @@ class AdminDashboardService {
         'phone': data['telephone'] ?? '',
         'imageUrl': data['image_profile'],
         'status': status,
+        'rawDate': data['created_At'] is Timestamp ? (data['created_At'] as Timestamp).toDate() : DateTime(2000),
         'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
       });
     }
@@ -560,6 +561,7 @@ class AdminDashboardService {
         'date': _formatRelativeDate(data['createdAt']),
         'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
         'imageUrl': imageUrl,
+        'rawDate': data['createdAt'] is Timestamp ? (data['createdAt'] as Timestamp).toDate() : DateTime(2000),
         'zone': (services.isNotEmpty ? services.first : (data['region'] ?? 'N/A')),
         // New detailed fields
         'CarteNationale': data['CarteNationale'] ?? 'Non fourni',
@@ -920,6 +922,31 @@ class AdminDashboardService {
       }
     }
 
+    int cancelCount = 0;
+    String cancelRole = '';
+    if (data['statut'] == 'ANNULEE' && data['annulerPar'] != null) {
+      cancelRole = data['annulerPar'].toString().toLowerCase();
+      final targetId = cancelRole == 'expert' ? data['idExpert'] : data['idClient'];
+      
+      if (targetId != null) {
+        final now = DateTime.now();
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        
+        final snap = await _db.collection('interventions')
+            .where('statut', isEqualTo: 'ANNULEE')
+            .where(cancelRole == 'expert' ? 'idExpert' : 'idClient', isEqualTo: targetId)
+            .get();
+        
+        cancelCount = snap.docs.where((d) {
+          final docData = d.data();
+          if (docData['annulerPar']?.toString().toLowerCase() != cancelRole) return false;
+          final updatedTs = docData['updatedAt'] as Timestamp? ?? docData['createdAt'] as Timestamp?;
+          if (updatedTs == null) return false;
+          return updatedTs.toDate().isAfter(startOfMonth) || updatedTs.toDate().isAtSameMomentAs(startOfMonth);
+        }).length;
+      }
+    }
+
     return {
       'id': doc.id,
       'idClient': data['idClient'],
@@ -941,6 +968,9 @@ class AdminDashboardService {
       'createdAt': data['createdAt'],
       'motifAnnulation': data['motifAnnulation'],
       'motifRefus': data['motifRefus'],
+      'cancelCount': cancelCount,
+      'cancelRole': cancelRole,
+      'annulerPar': data['annulerPar'],
     };
   }
 

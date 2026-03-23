@@ -28,6 +28,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _selectedRole = 'Tous';
   String _selectedStatus = 'Tous';
+  String _selectedSort = 'Plus récents';
 
   @override
   void initState() {
@@ -78,6 +79,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         final statusMatches = _selectedStatus == 'Tous' || (user['status'] == _selectedStatus);
         return nameMatches && roleMatches && statusMatches;
       }).toList();
+      
+      if (_selectedSort == 'Plus récents') {
+        _filteredUsers.sort((a, b) => (b['rawDate'] as DateTime).compareTo(a['rawDate'] as DateTime));
+      } else if (_selectedSort == 'Plus anciens') {
+        _filteredUsers.sort((a, b) => (a['rawDate'] as DateTime).compareTo(b['rawDate'] as DateTime));
+      }
     });
   }
 
@@ -158,6 +165,18 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         }
                       },
                     ),
+                    const SizedBox(height: 12),
+                    _buildDropdownFilter(
+                      value: _selectedSort,
+                      items: ['Plus récents', 'Plus anciens'],
+                      label: 'Tri',
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _selectedSort = val);
+                          _applyFilters();
+                        }
+                      },
+                    ),
                   ],
                 )
               : Row(
@@ -200,6 +219,20 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         onChanged: (val) {
                           if (val != null) {
                             setState(() => _selectedStatus = val);
+                            _applyFilters();
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildDropdownFilter(
+                        value: _selectedSort,
+                        items: ['Plus récents', 'Plus anciens'],
+                        label: 'Tri',
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _selectedSort = val);
                             _applyFilters();
                           }
                         },
