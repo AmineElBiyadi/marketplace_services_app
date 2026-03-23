@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../services/admin_dashboard_service.dart';
+import '../../services/notification_service.dart';
 import '../../layouts/admin_layout.dart';
 import '../../widgets/admin/booking_detail_dialog.dart';
 import '../../widgets/admin/user_profile_detail_dialog.dart';
@@ -735,6 +736,7 @@ class _ClaimDetailModal extends StatefulWidget {
 class _ClaimDetailModalState extends State<_ClaimDetailModal> {
   final TextEditingController _responseController = TextEditingController();
   final AdminDashboardService _service = AdminDashboardService();
+  final NotificationService _notificationService = NotificationService();
   bool _submitting = false;
   @override
   void initState() { super.initState(); _responseController.text = widget.claim['adminResponse'] ?? ''; }
@@ -765,6 +767,22 @@ class _ClaimDetailModalState extends State<_ClaimDetailModal> {
     setState(() => _submitting = true);
     try {
       await _service.updateClaim(widget.claim['id'], response: _responseController.text);
+      
+      // Notify the person who made the claim
+      final String? userId = widget.claim['typeReclamateur'] == 'EXPERT' 
+          ? widget.claim['idExpert'] 
+          : widget.claim['idClient'];
+
+      if (userId != null) {
+        await _notificationService.sendNotification(
+          idUtilisateur: userId,
+          titre: "Réponse à votre réclamation",
+          corps: "Un administrateur a répondu à votre réclamation concernant l'intervention ${widget.claim['idIntervention']}.",
+          type: 'claim',
+          relatedId: widget.claim['id'],
+        );
+      }
+
       widget.onUpdate();
       if (mounted) Navigator.pop(context);
     } catch (e) {

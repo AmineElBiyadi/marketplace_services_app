@@ -30,7 +30,6 @@ class _ProviderOTPScreenState extends State<ProviderOTPScreen> {
   
   final _authService = AuthService();
   final _firestoreService = FirestoreService();
-  final _cloudinaryService = CloudinaryService();
   bool _isLoading = false;
   Timer? _emailVerificationTimer;
 
@@ -63,15 +62,15 @@ class _ProviderOTPScreenState extends State<ProviderOTPScreen> {
       
       if (widget.extraData!['cinFront'] != null) {
         final bytes = Uint8List.fromList(List<int>.from(widget.extraData!['cinFront']));
-        cinFrontUrl = await _cloudinaryService.uploadFile(bytes, 'provider_docs', '${phone}_cin_front');
+        cinFrontUrl = await CloudinaryService.uploadImage(bytes);
       }
       if (widget.extraData!['cinBack'] != null) {
         final bytes = Uint8List.fromList(List<int>.from(widget.extraData!['cinBack']));
-        cinBackUrl = await _cloudinaryService.uploadFile(bytes, 'provider_docs', '${phone}_cin_back');
+        cinBackUrl = await CloudinaryService.uploadImage(bytes);
       }
       if (widget.extraData!['certificate'] != null) {
         final bytes = Uint8List.fromList(List<int>.from(widget.extraData!['certificate']));
-        certificateUrl = await _cloudinaryService.uploadFile(bytes, 'provider_docs', '${phone}_certificate');
+        certificateUrl = await CloudinaryService.uploadImage(bytes);
       }
 
       await _firestoreService.registerProvider(

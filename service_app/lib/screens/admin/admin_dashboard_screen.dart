@@ -8,6 +8,9 @@ import '../../layouts/admin_layout.dart';
 import '../../utils/admin_export_util.dart';
 import 'package:screenshot/screenshot.dart';
 import 'dart:typed_data';
+import '../../widgets/notification_bell.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -47,6 +50,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   final ScreenshotController _revenueController = ScreenshotController();
 
   final TextEditingController _searchController = TextEditingController();
+  String? _adminId;
 
 
   @override
@@ -61,6 +65,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       _error = null;
     });
     try {
+      final prefs = await SharedPreferences.getInstance();
+      _adminId = prefs.getString('logged_admin_id');
+
       final results = await Future.wait([
         _service.getDashboardStats(),
         _service.getPendingProviders(limit: 5),
@@ -139,26 +146,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const Spacer(),
           const SizedBox(width: 16),
           // Notifications
-          Stack(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(color: _bg, borderRadius: BorderRadius.circular(12)),
-                child: const Icon(LucideIcons.bell, size: 20, color: _textPrimary),
-              ),
-              Positioned(
-                top: 0,
-                right: 0,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: const BoxDecoration(color: _destructive, shape: BoxShape.circle),
-                  alignment: Alignment.center,
-                  child: Text(_stats?.unreadNotifications.toString() ?? '0', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
+          NotificationBell(
+            idUtilisateur: _adminId ?? 'user_admin_001',
+            role: 'Admin',
           ),
           const SizedBox(width: 12),
           // Admin Profile

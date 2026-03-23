@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
+import '../../../services/cloudinary_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> clientData;
@@ -22,22 +24,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   late TextEditingController _nameController;
   late TextEditingController _phoneController;
+  late TextEditingController _emailController;
 
   String? _imageBase64;
+  Uint8List? _selectedImageBytes;
   bool _isLoading = false;
+  bool _isPhoneBased = true;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.clientData['nom']);
-    _phoneController = TextEditingController(text: widget.clientData['telephone']);
+    _nameController = TextEditingController(text: widget.clientData['nom'] ?? '');
+    _phoneController = TextEditingController(text: widget.clientData['telephone'] ?? '');
+    _emailController = TextEditingController(text: widget.clientData['email'] ?? '');
     _imageBase64 = widget.clientData['image_profile'];
+    _isPhoneBased = _authService.isPhoneBasedUser();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
@@ -51,16 +59,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
       if (image != null) {
         final bytes = await image.readAsBytes();
-        if (bytes.length > 700000) {
+        if (bytes.length > 5000000) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Image file is too large (max ~700 KB).')),
+              const SnackBar(content: Text('Image trop volumineuse (max 5 MB).')),
             );
           }
           return;
         }
         setState(() {
-          _imageBase64 = base64Encode(bytes);
+          _selectedImageBytes = bytes;
         });
       }
     } catch (e) {
@@ -75,10 +83,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _saveChanges() async {
     final name = _nameController.text.trim();
     final phone = _phoneController.text.trim();
+    final email = _emailController.text.trim();
+    
+    final oldPhone = widget.clientData['telephone']?.trim() ?? '';
+    final oldEmail = widget.clientData['email']?.trim() ?? '';
 
     if (name.isEmpty || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields.')),
+        const SnackBar(content: Text('Veuillez remplir le nom et téléphone.')),
       );
       return;
     }
@@ -87,26 +99,85 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       final user = _authService.currentUser;
-      if (user != null) {
-        await _firestoreService.updateClientProfile(
-          uid: user.uid,
-          name: name,
-          phone: phone,
-          imageBase64: _imageBase64,
-        );
-        if (mounted) {
-          context.pop(true); // Return true to indicate successful update
-        }
-      } else {
+      if (user == null) {
         setState(() => _isLoading = false);
+        return;
+      }
+
+      // 1. Check uniqueness if changed
+      if (phone != oldPhone) {
+        final isTaken = await _firestoreService.isPhoneAlreadyUsed(phone, user.uid);
+        if (isTaken) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ce numéro est déjà utilisé par un autre compte.')));
+          setState(() => _isLoading = false);
+          return;
+        }
+      }
+
+      if (email.isNotEmpty && email != oldEmail) {
+        final isTaken = await _firestoreService.isEmailAlreadyUsed(email, user.uid);
+        if (isTaken) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cet email est déjà utilisé par un autre compte.')));
+          setState(() => _isLoading = false);
+          return;
+        }
+      }
+
+      // 3. Image Upload
+      String? finalImageUrl = _imageBase64; // Keep existing URL/base64 as fallback
+      
+      if (_selectedImageBytes != null) {
+        // Show uploading indicator
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Upload de l\'image en cours...'),
+              duration: Duration(seconds: 10),
+            ),
+          );
+        }
+        
+        final url = await CloudinaryService.uploadImage(_selectedImageBytes!);
+        
+        // Dismiss any snackbar
+        if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
+        
+        if (url == null || url.isEmpty) {
+          // Upload failed — alert user and stop
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Échec de l\'upload Cloudinary. Vérifiez votre connexion ou le preset.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            setState(() => _isLoading = false);
+          }
+          return;
+        }
+        
+        finalImageUrl = url; // Use the Cloudinary URL
+      }
+
+      // 4. Update Firestore Profile
+      await _firestoreService.updateClientProfile(
+        uid: user.uid,
+        name: name,
+        phone: phone,
+        email: email.isEmpty ? null : email,
+        imageBase64: finalImageUrl,
+      );
+      
+      if (mounted) {
+        context.pop(true);
       }
     } catch (e) {
-      setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving profile: $e')),
+          SnackBar(content: Text('Erreur: $e')),
         );
       }
+      setState(() => _isLoading = false);
     }
   }
 
@@ -116,7 +187,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     const primaryBlue = Color(0xFF2A4278);
 
     ImageProvider? imageProvider;
-    if (_imageBase64 != null && _imageBase64!.isNotEmpty) {
+    if (_selectedImageBytes != null) {
+      imageProvider = MemoryImage(_selectedImageBytes!);
+    } else if (_imageBase64 != null && _imageBase64!.isNotEmpty) {
       if (_imageBase64!.startsWith('http://') || _imageBase64!.startsWith('https://')) {
         imageProvider = NetworkImage(_imageBase64!);
       } else {
@@ -193,11 +266,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
+                readOnly: _isPhoneBased,
                 decoration: InputDecoration(
-                  labelText: 'Phone Number',
+                  labelText: 'Numéro de Téléphone',
                   labelStyle: const TextStyle(color: primaryBlue),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: _isPhoneBased ? Colors.grey[100] : Colors.white,
+                  suffixIcon: _isPhoneBased ? const Icon(Icons.lock, color: Colors.grey) : null,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -208,7 +283,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 20),
+              
+              // Email Field
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                readOnly: !_isPhoneBased,
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  labelStyle: const TextStyle(color: primaryBlue),
+                  filled: true,
+                  fillColor: !_isPhoneBased ? Colors.grey[100] : Colors.white,
+                  suffixIcon: !_isPhoneBased ? const Icon(Icons.lock, color: Colors.grey) : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: primaryBlue, width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
 
               // Save Button
               SizedBox(
