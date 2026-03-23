@@ -1005,23 +1005,47 @@ class AdminDashboardService {
       
       if (profile != null && profile['email'] != null && profile['email'].isNotEmpty) {
         String subject = "";
-        String body = "";
+        String title = "";
+        String desc = "";
+        String color = "#4F46E5"; // Default primary
         
         if (status == 'ACTIVE') {
-          subject = "Votre compte a été activé";
-          body = "Félicitations ${profile['name']}, votre compte est désormais actif sur notre plateforme.";
+          subject = "🎉 Votre compte a été activé !";
+          title = "Bienvenue sur Marketplace";
+          desc = "Félicitations <b>${profile['name']}</b>,<br><br>Votre compte est désormais entièrement vérifié et actif sur notre plateforme. Vous pouvez dès à présent profiter de toutes les fonctionnalités et commencer à interagir avec notre communauté.";
+          color = "#10B981"; // success green
         } else if (status == 'SUSPENDUE') {
-          subject = "Votre compte a été suspendu";
-          body = "Bonjour ${profile['name']}, votre compte a été suspendu par l'administration pour vérification.";
+          subject = "⚠️ Votre compte a été temporairement suspendu";
+          title = "Action requise sur votre compte";
+          desc = "Bonjour <b>${profile['name']}</b>,<br><br>Nous vous informons que votre compte a été temporairement suspendu par notre équipe d'administration dans le cadre d'une vérification de routine.<br><br>Pour nous aider à rétablir votre accès rapidement, veuillez répondre à cet email ou contacter le support client.";
+          color = "#F59E0B"; // warning orange
         } else if (status == 'DESACTIVE') {
-          subject = "Votre compte a été désactivé";
-          body = "Bonjour ${profile['name']}, votre compte a été désactivé.";
+          subject = "❌ Désactivation de votre compte";
+          title = "Compte désactivé";
+          desc = "Bonjour <b>${profile['name']}</b>,<br><br>Nous vous informons que votre compte a été désactivé suite à une décision administrative.<br><br>Si vous pensez qu'il s'agit d'une erreur, merci de contacter immédiatement notre support par email.";
+          color = "#EF4444"; // danger red
         }
+
+        final htmlBody = '''
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 40px 20px; border-radius: 8px;">
+          <div style="background-color: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 6px solid $color;">
+            <h2 style="color: #111827; font-size: 24px; margin-top: 0; margin-bottom: 24px;">\$title</h2>
+            <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 32px;">
+              \$desc
+            </p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
+            <p style="color: #6b7280; font-size: 14px; margin: 0;">
+              Cordialement,<br>
+              <strong>L'équipe d'administration Marketplace</strong>
+            </p>
+          </div>
+        </div>
+        ''';
 
         await sendAutomaticEmail(
           to: profile['email'],
           subject: subject,
-          html: "<p>$body</p><p>L'équipe Support.</p>",
+          html: htmlBody.replaceAll('\$', ''), // Remove literal escape
         );
       } else {
         debugPrint('DEBUG: No email found for user $id');

@@ -428,40 +428,77 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setLocalState) => AlertDialog(
-          title: const Text('Nouvel E-mail'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: subjectController,
-                decoration: const InputDecoration(labelText: 'Sujet', border: OutlineInputBorder()),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: bodyController,
-                maxLines: 5,
-                decoration: const InputDecoration(labelText: 'Message', border: OutlineInputBorder(), alignLabelWithHint: true),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
-            ElevatedButton(
-              onPressed: sending ? null : () async {
-                if (bodyController.text.isEmpty) return;
-                setLocalState(() => sending = true);
-                await _service.sendAutomaticEmail(
-                  to: _user!['email'],
-                  subject: subjectController.text,
-                  html: "<p>${bodyController.text.replaceAll('\n', '<br>')}</p><p>Cordialement,<br>L'administration.</p>",
-                );
-                if (context.mounted) Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('E-mail envoyé avec succès'), backgroundColor: Colors.green));
-              },
-              child: sending ? const SizedBox(height: 15, width: 15, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Envoyer'),
+        builder: (context, setLocalState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            width: 500,
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Nouvel E-mail', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                const SizedBox(height: 24),
+                TextField(
+                  controller: subjectController,
+                  decoration: InputDecoration(
+                    labelText: 'Sujet',
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: bodyController,
+                  maxLines: 6,
+                  decoration: InputDecoration(
+                    labelText: 'Message',
+                    alignLabelWithHint: true,
+                    filled: true,
+                    fillColor: const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
+                      child: const Text('Annuler', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: sending ? null : () async {
+                        if (bodyController.text.isEmpty) return;
+                        setLocalState(() => sending = true);
+                        await _service.sendAutomaticEmail(
+                          to: _user!['email'],
+                          subject: subjectController.text,
+                          html: "<div style='font-family: sans-serif; color: #333;'><p>${bodyController.text.replaceAll('\n', '<br>')}</p><br><p>Cordialement,<br><strong>L'équipe Marketplace</strong></p></div>",
+                        );
+                        if (context.mounted) Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('E-mail envoyé avec succès !'), backgroundColor: Colors.green));
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: sending 
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                        : const Text('Envoyer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

@@ -318,7 +318,6 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(p['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(p['zone'] ?? '', style: const TextStyle(fontSize: 11, color: _textSecondary)),
               ],
             ),
           ],
@@ -523,7 +522,6 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(p['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                      Text(p['zone'] ?? '', style: const TextStyle(fontSize: 11, color: _textSecondary)),
                     ],
                   ),
                 ),
