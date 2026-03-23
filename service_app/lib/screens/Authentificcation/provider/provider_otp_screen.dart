@@ -6,9 +6,11 @@ import '../../../widgets/glass_container.dart';
 import '../../../widgets/custom_button.dart';
 
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
+import '../../../services/cloudinary_service.dart';
 
 class ProviderOTPScreen extends StatefulWidget {
   final Map<String, dynamic>? extraData;
@@ -26,6 +28,7 @@ class _ProviderOTPScreenState extends State<ProviderOTPScreen> {
   
   final _authService = AuthService();
   final _firestoreService = FirestoreService();
+  final _cloudinaryService = CloudinaryService();
   bool _isLoading = false;
   Timer? _emailVerificationTimer;
 
@@ -52,16 +55,34 @@ class _ProviderOTPScreenState extends State<ProviderOTPScreen> {
     try {
       if (widget.extraData == null) throw Exception('Missing registration data');
       
+      // Upload documents to Cloudinary first
+      String? cinFrontUrl, cinBackUrl, certificateUrl;
+      final phone = widget.extraData!['phone'] as String;
+      
+      if (widget.extraData!['cinFront'] != null) {
+        final bytes = Uint8List.fromList(List<int>.from(widget.extraData!['cinFront']));
+        cinFrontUrl = await _cloudinaryService.uploadFile(bytes, 'provider_docs', '${phone}_cin_front');
+      }
+      if (widget.extraData!['cinBack'] != null) {
+        final bytes = Uint8List.fromList(List<int>.from(widget.extraData!['cinBack']));
+        cinBackUrl = await _cloudinaryService.uploadFile(bytes, 'provider_docs', '${phone}_cin_back');
+      }
+      if (widget.extraData!['certificate'] != null) {
+        final bytes = Uint8List.fromList(List<int>.from(widget.extraData!['certificate']));
+        certificateUrl = await _cloudinaryService.uploadFile(bytes, 'provider_docs', '${phone}_certificate');
+      }
+
       await _firestoreService.registerProvider(
         name: widget.extraData!['name'],
-        phone: widget.extraData!['phone'],
+        phone: phone,
         email: widget.extraData!['email'],
         serviceIds: List<String>.from(widget.extraData!['serviceIds'] ?? []),
         description: widget.extraData!['description'],
         zone: widget.extraData!['zone'],
-        cinFrontBase64: widget.extraData!['cinFront'],
-        cinBackBase64: widget.extraData!['cinBack'],
-        certificateBase64: widget.extraData!['certificate'],
+        cinFrontUrl: cinFrontUrl,
+        cinBackUrl: cinBackUrl,
+        certificateUrl: certificateUrl,
+        acceptedCguVersion: widget.extraData!['acceptedCguVersion'] ?? '1.0',
       );
 
       if (mounted) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_colors.dart';
 import '../../../services/auth_service.dart';
@@ -24,6 +25,24 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _showConfirm = false;
   bool _agreed = false;
   bool _isLoading = false;
+  String? _cguContent;
+  String? _cguVersion;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCgu();
+  }
+
+  Future<void> _fetchCgu() async {
+    final cguData = await _firestoreService.fetchActiveCGU('CLIENT');
+    if (cguData != null && mounted) {
+      setState(() {
+        _cguContent = cguData['content'];
+        _cguVersion = cguData['version'];
+      });
+    }
+  }
 
   bool get _isValid {
     final hasContact = _phoneController.text.isNotEmpty ||
@@ -32,7 +51,7 @@ class _SignupScreenState extends State<SignupScreen> {
         hasContact &&
         _passwordController.text.length >= 6 &&
         _passwordController.text == _confirmController.text &&
-        _agreed;
+        _agreed && _cguVersion != null;
   }
 
   @override
@@ -84,6 +103,7 @@ class _SignupScreenState extends State<SignupScreen> {
         'phone': _phoneController.text.trim(),
         'email': _emailController.text.trim(),
         'role': 'client',
+        'acceptedCguVersion': _cguVersion,
       };
 
       // ── If phone provided → create proxy Firebase Auth account then SMS OTP ──
@@ -135,6 +155,74 @@ class _SignupScreenState extends State<SignupScreen> {
       content: Text(msg),
       backgroundColor: AppColors.destructive,
     ));
+  }
+
+  void _showCguDialog() {
+    if (_cguContent == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Les conditions d\'utilisation ne sont pas encore configurées.')),
+      );
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.8,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, controller) => Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'Conditions Générales & Politique',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A237E),
+                ),
+              ),
+            ),
+            const Divider(),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: controller,
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  _cguContent!.replaceAll('\\n', '\n'),
+                  style: const TextStyle(fontSize: 14, height: 1.5),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() => _agreed = true);
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3F64B5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('Accepter', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -241,23 +329,25 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: RichText(
-                      text: const TextSpan(
-                        style: TextStyle(
+                      text: TextSpan(
+                        style: const TextStyle(
                             fontSize: 12.5, color: Color(0xFF64748B)),
                         children: [
-                          TextSpan(text: "J'accepte les "),
+                          const TextSpan(text: "J'accepte les "),
                           TextSpan(
                             text: 'Conditions générales',
-                            style: TextStyle(
+                            style: const TextStyle(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w600),
+                            recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
                           ),
-                          TextSpan(text: ' et la '),
+                          const TextSpan(text: ' et la '),
                           TextSpan(
                             text: 'Politique de confidentialité',
-                            style: TextStyle(
+                            style: const TextStyle(
                                 color: AppColors.primary,
                                 fontWeight: FontWeight.w600),
+                            recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
                           ),
                         ],
                       ),

@@ -101,6 +101,7 @@ class _OTPScreenState extends State<OTPScreen> {
           name: widget.extraData!['name'],
           phone: widget.extraData!['phone'],
           email: widget.extraData!['email'],
+          acceptedCguVersion: widget.extraData!['acceptedCguVersion'] ?? '1.0',
         );
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('logged_client_id', uid);
@@ -113,9 +114,10 @@ class _OTPScreenState extends State<OTPScreen> {
           serviceIds: List<String>.from(widget.extraData!['serviceIds'] ?? []),
           description: widget.extraData!['description'] ?? '',
           zone: widget.extraData!['zone'] ?? '',
-          cinFrontBase64: widget.extraData!['cinFront'] ?? '',
-          cinBackBase64: widget.extraData!['cinBack'] ?? '',
-          certificateBase64: widget.extraData!['certificate'] ?? '',
+          cinFrontUrl: widget.extraData!['cinFront'] ?? '',
+          cinBackUrl: widget.extraData!['cinBack'] ?? '',
+          certificateUrl: widget.extraData!['certificate'] ?? '',
+          acceptedCguVersion: widget.extraData!['acceptedCguVersion'] ?? '1.0',
         );
         if (mounted) context.go('/provider/pending');
       }
