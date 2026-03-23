@@ -52,9 +52,20 @@ class _SplashScreenState extends State<SplashScreen> {
     // Try client
     final clientData = await _firestoreService.getClientByUid(user.uid);
     if (clientData != null) {
+      final activeCgu = await _firestoreService.fetchActiveCGU('CLIENT');
+      final acceptedVersion = clientData['acceptedCguVersion'] ?? 'none';
+      final activeVersion = activeCgu?['version'] ?? '1.0';
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('logged_client_id', user.uid);
-      if (mounted) context.go('/home');
+      
+      if (mounted) {
+        if (acceptedVersion != activeVersion) {
+          context.go('/cgu_update', extra: {'role': 'CLIENT', 'uid': user.uid, 'cgu': activeCgu});
+        } else {
+          context.go('/home');
+        }
+      }
       return;
     }
 
@@ -62,9 +73,19 @@ class _SplashScreenState extends State<SplashScreen> {
     final providerData = await _firestoreService.getProviderByUid(user.uid);
     if (providerData != null) {
       final expertId = providerData['expertId'] ?? '';
+      final activeCgu = await _firestoreService.fetchActiveCGU('EXPERT');
+      final acceptedVersion = providerData['acceptedCguVersion'] ?? 'none';
+      final activeVersion = activeCgu?['version'] ?? '1.0';
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('logged_expert_id', expertId);
+      
       if (mounted) {
+        if (acceptedVersion != activeVersion) {
+          context.go('/cgu_update', extra: {'role': 'EXPERT', 'uid': user.uid, 'cgu': activeCgu});
+          return;
+        }
+
         final etatCompte = providerData['etatCompte'] ?? 'PENDING';
         if (etatCompte == 'ACTIVE') {
           context.go('/provider/$expertId/dashboard');
@@ -96,18 +117,10 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 120,
+            Image.asset(
+              'assets/logo.png',
               height: 120,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEEF2FF),
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: const Icon(
-                Icons.handyman,
-                size: 60,
-                color: Color(0xFF3F64B5),
-              ),
+              errorBuilder: (context, error, stackTrace) => const SizedBox(height: 120),
             ),
             const SizedBox(height: 24),
             const CircularProgressIndicator(

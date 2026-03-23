@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:go_router/go_router.dart';
@@ -45,14 +46,32 @@ class _SignupScreenState extends State<SignupScreen> {
   // ── Services ──────────────────────────────────────────────────
   final _authService      = AuthService();
   final _firestoreService = FirestoreService();
-  final _locationService  = LocationService();
+ final _locationService  = LocationService();
 
   // ── UI State ──────────────────────────────────────────────────
-  bool _showPassword   = false;
-  bool _showConfirm    = false;
-  bool _agreed         = false;
-  bool _isLoading      = false;
   bool _detectingLoc   = false;
+  bool _showPassword = false;
+  bool _showConfirm = false;
+  bool _agreed = false;
+  bool _isLoading = false;
+  String? _cguContent;
+  String? _cguVersion;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCgu();
+  }
+
+  Future<void> _fetchCgu() async {
+    final cguData = await _firestoreService.fetchActiveCGU('CLIENT');
+    if (cguData != null && mounted) {
+      setState(() {
+        _cguContent = cguData['content'];
+        _cguVersion = cguData['version'];
+      });
+    }
+  }
 
   bool get _step1Valid {
     final hasContact = _phoneController.text.isNotEmpty ||
@@ -61,7 +80,7 @@ class _SignupScreenState extends State<SignupScreen> {
         hasContact &&
         _passwordController.text.length >= 6 &&
         _passwordController.text == _confirmController.text &&
-        _agreed;
+        _agreed && _cguVersion != null;
   }
 
   bool get _step2Valid =>
@@ -272,7 +291,8 @@ class _SignupScreenState extends State<SignupScreen> {
         'name':  _nameController.text.trim(),
         'phone': _phoneController.text.trim(),
         'email': _emailController.text.trim(),
-        'role':  'client',
+        'role': 'client',
+        'acceptedCguVersion': _cguVersion,
         if (addressData != null) 'address': addressData,
         if (addressGeoPoint != null) 'lat': addressGeoPoint.latitude,
         if (addressGeoPoint != null) 'lng': addressGeoPoint.longitude,
@@ -335,6 +355,74 @@ class _SignupScreenState extends State<SignupScreen> {
     ));
   }
 
+  void _showCguDialog() {
+    if (_cguContent == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Les conditions d\'utilisation ne sont pas encore configurées.')),
+      );
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.8,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, controller) => Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'Conditions Générales & Politique',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A237E),
+                ),
+              ),
+            ),
+            const Divider(),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: controller,
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  _cguContent!.replaceAll('\\n', '\n'),
+                  style: const TextStyle(fontSize: 14, height: 1.5),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() => _agreed = true);
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3F64B5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('Accepter', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─────────────────────────────────────────────────────────────
   //  BUILD
   // ─────────────────────────────────────────────────────────────
@@ -371,6 +459,107 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+              // ── Terms checkbox ──
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: _agreed,
+                      onChanged: (v) => setState(() => _agreed = v ?? false),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(4)),
+                      activeColor: AppColors.primary,
+                      side: const BorderSide(
+                          color: Color(0xFFCBD5E1), width: 1.5),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                            fontSize: 12.5, color: Color(0xFF64748B)),
+                        children: [
+                          const TextSpan(text: "J'accepte les "),
+                          TextSpan(
+                            text: 'Conditions générales',
+                            style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600),
+                            recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
+                          ),
+                          const TextSpan(text: ' et la '),
+                          TextSpan(
+                            text: 'Politique de confidentialité',
+                            style: const TextStyle(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w600),
+                            recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // ── Sign up button ──
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton(
+                  onPressed: _isValid && !_isLoading ? _handleSignup : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isValid
+                        ? const Color(0xFF3F64B5)
+                        : const Color(0xFF94A3B8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30)),
+                    elevation: 0,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : const Text(
+                          "S'inscrire",
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // ── Login link ──
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Déjà un compte ? ',
+                        style: TextStyle(
+                            fontSize: 14, color: Color(0xFF64748B))),
+                    GestureDetector(
+                      onTap: () => context.go('/login'),
+                      child: const Text(
+                        'Se connecter',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF3F64B5),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
               // ── Step indicator ──
               _buildStepIndicator(),
               const SizedBox(height: 20),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:convert';
@@ -8,6 +9,8 @@ import '../../../theme/app_colors.dart';
 import '../../../utils/auth_errors.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/auth_service.dart';
@@ -41,6 +44,8 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
   final _firestoreService = FirestoreService();
   final _locationService = LocationService();
   bool _isLoading = false;
+  String? _cguContent;
+  String? _cguVersion;
 
   // Address fields
   final _villeController      = TextEditingController();
@@ -62,11 +67,11 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
 
   // ── Step 3 ─────────────────────────────────────────────────
   String? _cinFrontName;
-  String? _cinFrontBase64;
+  Uint8List? _cinFrontBytes;
   String? _cinBackName;
-  String? _cinBackBase64;
+  Uint8List? _cinBackBytes;
   String? _certificateName;
-  String? _certificateBase64;
+  Uint8List? _certificateBytes;
   final ImagePicker _picker = ImagePicker();
 
   // ── Validators ─────────────────────────────────────────────
@@ -77,7 +82,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         hasContact &&
         _passwordController.text.length >= 6 &&
         _passwordController.text == _confirmController.text &&
-        _agreed;
+        _agreed && _cguVersion != null;
   }
 
   bool get _step2Valid =>
@@ -87,14 +92,25 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
       _villeController.text.isNotEmpty;
 
   bool get _step3Valid =>
-      _cinFrontBase64 != null &&
-      _cinBackBase64 != null &&
-      _certificateBase64 != null;
+      _cinFrontBytes != null &&
+      _cinBackBytes != null &&
+      _certificateBytes != null;
 
   @override
   void initState() {
     super.initState();
     _loadServices();
+    _fetchCgu();
+  }
+
+  Future<void> _fetchCgu() async {
+    final cguData = await _firestoreService.fetchActiveCGU('EXPERT');
+    if (cguData != null && mounted) {
+      setState(() {
+        _cguContent = cguData['content'];
+        _cguVersion = cguData['version'];
+      });
+    }
   }
 
   @override
@@ -125,7 +141,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
     }
   }
 
-  Future<void> _pickImage(Function(String, String) setter) async {
+  Future<void> _pickImage(Function(String, Uint8List) setter) async {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -135,11 +151,11 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
       );
       if (image != null) {
         final bytes = await image.readAsBytes();
-        if (bytes.length > 700000) {
-          if (mounted) _showError('Fichier trop volumineux (max ~700 Ko).');
+        if (bytes.length > 5000000) { // Increased to 5MB for Cloudinary
+          if (mounted) _showError('Fichier trop volumineux (max ~5 Mo).');
           return;
         }
-        setter(image.name, base64Encode(bytes));
+        setter(image.name, bytes);
         if (mounted) setState(() {});
       }
     } catch (e) {
@@ -147,7 +163,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
     }
   }
 
-  Future<void> _pickDocument(Function(String, String) setter) async {
+  Future<void> _pickDocument(Function(String, Uint8List) setter) async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -156,11 +172,11 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
       );
       if (result != null && result.files.single.bytes != null) {
         final bytes = result.files.single.bytes!;
-        if (bytes.length > 700000) {
-          if (mounted) _showError('Fichier trop volumineux (max ~700 Ko).');
+        if (bytes.length > 5000000) {
+          if (mounted) _showError('Fichier trop volumineux (max ~5 Mo).');
           return;
         }
-        setter(result.files.single.name, base64Encode(bytes));
+        setter(result.files.single.name, bytes);
         if (mounted) setState(() {});
       }
     } catch (e) {
@@ -349,16 +365,17 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         'serviceIds': _selectedServiceIds,
         'description': _descriptionController.text.trim(),
         'zone': _zoneController.text.trim(),
+        'role': 'provider',
+        'acceptedCguVersion': _cguVersion,
         'ville': _villeController.text.trim(),
         'pays': _paysController.text.trim(),
         'num_batiment': _numBatController.text.trim(),
         'rue': _rueController.text.trim(),
         'quartier': _quartierController.text.trim(),
         'code_postal': _codePostalController.text.trim(),
-        'cinFront': _cinFrontBase64,
-        'cinBack': _cinBackBase64,
-        'certificate': _certificateBase64,
-        'role': 'provider',
+        'cinFront': _cinFrontBytes?.toList(), // Extra requires List<int> typically to survive GoRouter (or object if complex)
+        'cinBack': _cinBackBytes?.toList(),
+        'certificate': _certificateBytes?.toList(),
         if (geoPoint != null) 'lat': geoPoint.latitude,
         if (geoPoint != null) 'lng': geoPoint.longitude,
       };
@@ -539,22 +556,26 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: RichText(
-                text: const TextSpan(
-                  style: TextStyle(
+                text: TextSpan(
+                  style: const TextStyle(
                       fontSize: 12.5, color: Color(0xFF64748B)),
                   children: [
-                    TextSpan(text: "J'accepte les "),
+                    const TextSpan(text: "J'accepte les "),
                     TextSpan(
                         text: "Conditions d'utilisation",
-                        style: TextStyle(
+                        style: const TextStyle(
                             color: Color(0xFF3F64B5),
-                            fontWeight: FontWeight.w600)),
-                    TextSpan(text: ' et la '),
+                            fontWeight: FontWeight.w600),
+                        recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
+                    ),
+                    const TextSpan(text: ' et la '),
                     TextSpan(
                         text: 'Politique de confidentialité',
-                        style: TextStyle(
+                        style: const TextStyle(
                             color: Color(0xFF3F64B5),
-                            fontWeight: FontWeight.w600)),
+                            fontWeight: FontWeight.w600),
+                        recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
+                    ),
                   ],
                 ),
               ),
@@ -782,10 +803,10 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
           label: 'CIN - Recto',
           fileName: _cinFrontName,
           icon: Icons.camera_alt_outlined,
-          onTap: () => _pickImage((name, b64) {
+          onTap: () => _pickImage((name, bytes) {
             setState(() {
               _cinFrontName = name;
-              _cinFrontBase64 = b64;
+              _cinFrontBytes = bytes;
             });
           }),
         ),
@@ -794,10 +815,10 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
           label: 'CIN - Verso',
           fileName: _cinBackName,
           icon: Icons.camera_alt_outlined,
-          onTap: () => _pickImage((name, b64) {
+          onTap: () => _pickImage((name, bytes) {
             setState(() {
               _cinBackName = name;
-              _cinBackBase64 = b64;
+              _cinBackBytes = bytes;
             });
           }),
         ),
@@ -806,10 +827,10 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
           label: 'Certificat de bonne conduite',
           fileName: _certificateName,
           icon: Icons.upload_outlined,
-          onTap: () => _pickDocument((name, b64) {
+          onTap: () => _pickDocument((name, bytes) {
             setState(() {
               _certificateName = name;
-              _certificateBase64 = b64;
+              _certificateBytes = bytes;
             });
           }),
         ),
@@ -1019,6 +1040,73 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
           ),
         ),
       ],
+    );
+  }
+  void _showCguDialog() {
+    if (_cguContent == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Les conditions d\'utilisation ne sont pas encore configurées.')),
+      );
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.8,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (_, controller) => Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'Conditions d\'utilisation & Politique',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A237E),
+                ),
+              ),
+            ),
+            const Divider(),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: controller,
+                padding: const EdgeInsets.all(20),
+                child: Text(
+                  _cguContent!.replaceAll('\\n', '\n'),
+                  style: const TextStyle(fontSize: 14, height: 1.5),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      setState(() => _agreed = true);
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3F64B5),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: const Text('Accepter', style: TextStyle(color: Colors.white, fontSize: 16)),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
