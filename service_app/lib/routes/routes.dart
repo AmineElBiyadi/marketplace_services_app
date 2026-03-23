@@ -33,6 +33,7 @@ import '../screens/splash_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../screens/chat/chat_list_screen.dart';
+import '../screens/cgu_update_screen.dart';
 
 // ─── Route name constants ──────────────────────────────────────────
 class AppRoutes {
@@ -41,6 +42,7 @@ class AppRoutes {
   static const String signup = '/signup';
   static const String otp = '/otp';
   static const String forgotPassword = '/forgot-password';
+  static const String cguUpdate = '/cgu_update';
 
   static const String providerLogin = '/provider/login';
   static const String providerSignup = '/provider/signup';
@@ -80,6 +82,7 @@ final GoRouter router = GoRouter(
       AppRoutes.signup,
       AppRoutes.otp,
       AppRoutes.forgotPassword,
+      AppRoutes.cguUpdate,
       AppRoutes.providerLogin,
       AppRoutes.providerSignup,
       AppRoutes.providerPending,
@@ -142,6 +145,13 @@ final GoRouter router = GoRouter(
       path: AppRoutes.forgotPassword,
       builder: (context, state) =>
           const client_forgot_password.ForgotPasswordScreen(),
+    ),
+    GoRoute(
+      path: AppRoutes.cguUpdate,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>? ?? {};
+        return CguUpdateScreen(extraData: extra);
+      },
     ),
     GoRoute(
       path: '/booking-detail/:bookingId',
