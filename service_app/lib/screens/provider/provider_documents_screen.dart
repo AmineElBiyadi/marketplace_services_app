@@ -68,9 +68,11 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
                     ),
                     IconButton(
                       icon: const Icon(LucideIcons.x, color: Colors.black),
@@ -79,19 +81,21 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
                   ],
                 ),
               ),
-              InteractiveViewer(
-                child: CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  fit: BoxFit.contain,
-                  placeholder: (context, url) => Container(
-                    height: 300,
-                    color: Colors.white,
-                    child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    height: 300,
-                    color: Colors.white,
-                    child: const Center(child: Icon(LucideIcons.imageOff, size: 50, color: Colors.grey)),
+              Flexible(
+                child: InteractiveViewer(
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.contain,
+                    placeholder: (context, url) => Container(
+                      height: 300,
+                      color: Colors.white,
+                      child: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      height: 300,
+                      color: Colors.white,
+                      child: const Center(child: Icon(LucideIcons.imageOff, size: 50, color: Colors.grey)),
+                    ),
                   ),
                 ),
               ),
@@ -118,6 +122,7 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
@@ -125,12 +130,14 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
               children: [
                 const Icon(LucideIcons.fileImage, color: AppColors.primary),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E293B),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E293B),
+                    ),
                   ),
                 ),
               ],
