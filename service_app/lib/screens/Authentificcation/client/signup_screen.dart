@@ -459,59 +459,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // ── Sign up button ──
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _step1Valid && !_isLoading ? _handleSignup : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _step1Valid
-                        ? const Color(0xFF3F64B5)
-                        : const Color(0xFF94A3B8),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30)),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2.5),
-                        )
-                      : const Text(
-                          "S'inscrire",
-                          style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // ── Login link ──
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('Déjà un compte ? ',
-                        style: TextStyle(
-                            fontSize: 14, color: Color(0xFF64748B))),
-                    GestureDetector(
-                      onTap: () => context.go('/login'),
-                      child: const Text(
-                        'Se connecter',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF3F64B5),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               const SizedBox(height: 24),
               // ── Step indicator ──
               _buildStepIndicator(),
