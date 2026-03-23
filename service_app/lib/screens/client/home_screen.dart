@@ -105,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() => _userPosition = position);
 
     // 3. Liste des experts, des villes et des services
-    final experts = await _firestoreService.getExperts();
+    final experts = await _firestoreService.getExperts(onlyAvailable: true);
     final villes = await _firestoreService.getVillesExperts();
     final serviceModels = await _firestoreService.getServices();
 

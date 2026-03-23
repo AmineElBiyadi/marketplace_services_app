@@ -101,7 +101,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     if (expert != null) {
       if (mounted) {
         setState(() {
-          _isOnline = expert.etatCompte == 'ACTIVE';
+          _isOnline = expert.estDisponible;
           _expertName = expert.user?.nom ?? expert.user?.email.split('@')[0] ?? "Expert";
         });
       }
