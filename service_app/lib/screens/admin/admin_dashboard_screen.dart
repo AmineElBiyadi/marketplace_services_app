@@ -621,7 +621,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(c['subject'], style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    Text('De: ${c['from']}', style: const TextStyle(fontSize: 10, color: _textSecondary)),
+                    Text(c['from'], style: const TextStyle(fontSize: 10, color: _textSecondary)),
                   ],
                 ),
               ),

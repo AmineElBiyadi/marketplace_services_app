@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../services/admin_dashboard_service.dart';
 import '../../layouts/admin_layout.dart';
+import '../../widgets/admin/user_profile_detail_dialog.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 class AdminReviewsScreen extends StatefulWidget {
@@ -318,6 +319,29 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             ],
           ),
           const SizedBox(height: 12),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (claim['typeReclamateur'] == 'EXPERT') ...[
+                _clickableName(claim['expertName'], claim['idExpert'], 'Prestataire'),
+                const Text('réclame contre', style: TextStyle(fontSize: 12, color: _textSecondary)),
+                _clickableName(claim['clientName'], claim['idClient'], 'Client'),
+              ] else ...[
+                _clickableName(claim['clientName'], claim['idClient'], 'Client'),
+                const Text('réclame contre', style: TextStyle(fontSize: 12, color: _textSecondary)),
+                _clickableName(claim['expertName'], claim['idExpert'], 'Prestataire'),
+              ],
+              if ((claim['expertClaimCount'] ?? 0) > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
+                  child: Text('⚠ ${claim['expertClaimCount']} récla.', style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold)),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Text(claim['description'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _textPrimary)),
           const SizedBox(height: 8),
           Text('ID: ${claim['idIntervention']}', style: const TextStyle(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.bold)),
@@ -333,6 +357,25 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _clickableName(String name, String? id, String role) {
+    return InkWell(
+      onTap: id == null ? null : () {
+        showDialog(
+          context: context,
+          builder: (ctx) => UserProfileDetailDialog(id: id, role: role),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
+        child: Text(
+          '$name ($role)',
+          style: const TextStyle(fontSize: 12, color: _primary, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }

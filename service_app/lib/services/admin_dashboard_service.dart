@@ -350,22 +350,28 @@ class AdminDashboardService {
     final List<Map<String, dynamic>> result = [];
     for (final doc in snap.docs) {
       final data = doc.data();
-      String clientName = 'Inconnu';
-      final clientId = data['idClient'] as String?;
-      if (clientId != null) {
-        final clientDoc = await _db.collection('clients').doc(clientId).get();
-        if (clientDoc.exists) {
-          final idUtil = clientDoc.data()?['idUtilisateur'] as String?;
-          if (idUtil != null) {
-            final userDoc = await _db.collection('utilisateurs').doc(idUtil).get();
-            if (userDoc.exists) clientName = userDoc.data()?['nom'] ?? userDoc.data()?['email'] ?? clientId;
+      String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+      String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+
+      if (clientName == 'Client' || expertName == 'Expert') {
+        final intervId = data['idIntervention'];
+        if (intervId != null) {
+          final intervDoc = await _db.collection('interventions').doc(intervId).get();
+          if (intervDoc.exists) {
+            final intervData = intervDoc.data()!;
+            clientName = intervData['clientSnapshot']?['nom'] ?? clientName;
+            expertName = intervData['expertSnapshot']?['nom'] ?? expertName;
           }
         }
       }
 
+      final complainerStr = data['typeReclamateur'] == 'EXPERT' 
+          ? '$expertName (Expert) réclame contre $clientName'
+          : '$clientName (Client) réclame contre $expertName';
+
       result.add({
         'id': doc.id,
-        'from': clientName,
+        'from': complainerStr,
         'subject': data['description'] ?? 'Sans objet',
         'priority': data['typeReclamateur'] == 'CLIENT' ? 'Normal' : 'Urgent',
         'status': data['etatReclamation'] ?? 'EN_ATTENTE',
@@ -622,10 +628,10 @@ class AdminDashboardService {
         'service': data['tacheSnapshot']?['serviceNom'] ?? 'Service',
         'date': data['dateDebutIntervention'] != null 
             ? DateFormat('dd/MM/yyyy').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
-            : 'N/A',
+            : '-',
         'time': data['dateDebutIntervention'] != null 
             ? DateFormat('HH:mm').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
-            : 'N/A',
+            : '-',
         'amount': data['prixNegocie'] ?? 0,
         'status': data['statut'] ?? 'EN_ATTENTE',
         'isUrgent': data['isUrgent'] ?? false,
@@ -758,6 +764,18 @@ class AdminDashboardService {
   /// Fetches all claims/reclamations
   Future<List<Map<String, dynamic>>> getAdminClaims() async {
     final snap = await _db.collection('reclamations').orderBy('createdAt', descending: true).get();
+    
+    final Map<String, int> expertClaimCounts = {};
+    for (final d in snap.docs) {
+      final data = d.data();
+      if ((data['typeReclamateur'] ?? 'CLIENT') == 'CLIENT') {
+        final expertId = data['idExpert'] as String?;
+        if (expertId != null) {
+          expertClaimCounts[expertId] = (expertClaimCounts[expertId] ?? 0) + 1;
+        }
+      }
+    }
+
     final List<Map<String, dynamic>> result = [];
     
     for (final doc in snap.docs) {
@@ -786,10 +804,13 @@ class AdminDashboardService {
         'idIntervention': data['idIntervention'],
         'clientName': clientName,
         'expertName': expertName,
+        'idClient': data['idClient'],
+        'idExpert': data['idExpert'],
+        'expertClaimCount': expertClaimCounts[data['idExpert']] ?? 0,
         'adminResponse': data['adminResponse'],
         'date': data['createdAt'] != null 
             ? DateFormat('dd/MM/yyyy').format((data['createdAt'] as Timestamp).toDate()) 
-            : 'N/A',
+            : '-',
       });
     }
     return result;
@@ -904,10 +925,10 @@ class AdminDashboardService {
                  data['nomService'] ?? 'Service',
       'date': data['dateDebutIntervention'] != null 
           ? DateFormat('dd/MM/yyyy').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
-          : 'N/A',
+          : '-',
       'time': data['dateDebutIntervention'] != null 
           ? DateFormat('HH:mm').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
-          : 'N/A',
+          : '-',
       'amount': data['prixNegocie'] ?? data['prix'] ?? 0,
       'status': data['statut'] ?? 'EN_ATTENTE',
       'isUrgent': data['isUrgent'] ?? false,
