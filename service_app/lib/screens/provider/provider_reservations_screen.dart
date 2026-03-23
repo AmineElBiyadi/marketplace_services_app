@@ -79,6 +79,13 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
     DocumentSnapshot chatDoc;
     if (chatQuery.docs.isNotEmpty) {
       chatDoc = chatQuery.docs.first;
+      
+      // Auto-close check
+      final bool shouldBeClosed = ['TERMINEE', 'ANNULEE', 'REFUSEE'].contains(intervention.statut);
+      if (shouldBeClosed && chatDoc['estOuvert'] == true) {
+        await chatDoc.reference.update({'estOuvert': false});
+        chatDoc = await chatDoc.reference.get(); // Refresh doc
+      }
     } else {
       final newChatRef = FirebaseFirestore.instance.collection('chats').doc();
       final data = {
@@ -117,6 +124,16 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
         'statut': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      
+      if (['TERMINEE', 'ANNULEE', 'REFUSEE'].contains(newStatus)) {
+        try {
+          final chats = await FirebaseFirestore.instance.collection('chats').where('idIntervention', isEqualTo: interventionId).get();
+          for (var doc in chats.docs) {
+            await doc.reference.update({'estOuvert': false});
+          }
+        } catch (_) {}
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Status updated ($newStatus)')),
@@ -272,6 +289,14 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                               'annulerPar': 'expert',
                               'updatedAt': FieldValue.serverTimestamp(),
                             });
+                            
+                            try {
+                              final chats = await FirebaseFirestore.instance.collection('chats').where('idIntervention', isEqualTo: intervention.id).get();
+                              for (var doc in chats.docs) {
+                                await doc.reference.update({'estOuvert': false});
+                              }
+                            } catch (_) {}
+
                             if (mounted) {
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -364,6 +389,14 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                                 'dateFinIntervention': FieldValue.serverTimestamp(),
                                 'updatedAt': FieldValue.serverTimestamp(),
                               });
+                              
+                              try {
+                                final chats = await FirebaseFirestore.instance.collection('chats').where('idIntervention', isEqualTo: intervention.id).get();
+                                for (var doc in chats.docs) {
+                                  await doc.reference.update({'estOuvert': false});
+                                }
+                              } catch (_) {}
+
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('Status updated (TERMINEE)')),

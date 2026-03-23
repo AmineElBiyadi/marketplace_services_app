@@ -95,6 +95,13 @@ class _BookingsScreenState extends State<BookingsScreen> {
     DocumentSnapshot chatDoc;
     if (chatQuery.docs.isNotEmpty) {
       chatDoc = chatQuery.docs.first;
+      
+      // Auto-close check
+      final bool shouldBeClosed = ['TERMINEE', 'ANNULEE', 'REFUSEE'].contains(intervention.statut);
+      if (shouldBeClosed && chatDoc['estOuvert'] == true) {
+        await chatDoc.reference.update({'estOuvert': false});
+        chatDoc = await chatDoc.reference.get(); // Refresh doc
+      }
     } else {
       final newChatRef = FirebaseFirestore.instance.collection('chats').doc();
       final data = {
@@ -277,6 +284,14 @@ class _BookingsScreenState extends State<BookingsScreen> {
                               'annulerPar': 'client',
                               'updatedAt': FieldValue.serverTimestamp(),
                             });
+                            // Auto-close associated chat
+                            try {
+                              final chats = await FirebaseFirestore.instance.collection('chats').where('idIntervention', isEqualTo: intervention.id).get();
+                              for (var doc in chats.docs) {
+                                await doc.reference.update({'estOuvert': false});
+                              }
+                            } catch (_) {}
+
                             if (mounted) {
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -546,6 +561,22 @@ class _BookingsScreenState extends State<BookingsScreen> {
                 ),
               ],
             ),
+            if (isPending) ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildActionButton(
+                      label: "Cancel",
+                      icon: Icons.close,
+                      color: Colors.red,
+                      filled: false,
+                      onTap: () => _showCancelDialog(intervention),
+                    ),
+                  ),
+                ],
+              ),
+            ],
             if (hasDetails) ...[
               const SizedBox(height: 12),
               const Divider(height: 1),
