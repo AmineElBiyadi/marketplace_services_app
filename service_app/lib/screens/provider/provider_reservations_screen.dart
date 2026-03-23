@@ -8,6 +8,8 @@ import '../../models/task_model.dart';
 import '../../models/chat_model.dart';
 import '../chat/chat_screen.dart';
 import '../client/complaint_screen.dart';
+import '../../services/notification_service.dart';
+import '../../models/user.dart';
 
 const _tabs = ["Pending", "Confirmed", "Completed", "Cancelled", "Refused"];
 const _tabStatusMap = {
@@ -28,6 +30,7 @@ class ProviderReservationsScreen extends StatefulWidget {
 
 class _ProviderReservationsScreenState extends State<ProviderReservationsScreen> {
   int _selectedTab = 0;
+  final NotificationService _notificationService = NotificationService();
 
   Color _statusColor(String status) {
     switch (status) {
@@ -111,12 +114,42 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
     }
   }
 
-  Future<void> _updateStatus(String interventionId, String newStatus) async {
+  Future<void> _updateStatus(String interventionId, String newStatus, {String? clientId}) async {
     try {
       await FirebaseFirestore.instance.collection('interventions').doc(interventionId).update({
         'statut': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      if (clientId != null) {
+        String titre = "";
+        String corps = "";
+        
+        if (newStatus == 'REFUSEE') {
+          titre = "Demande Refusée";
+          corps = "Désolé, l'expert a dû refuser votre demande d'intervention.";
+        } else if (newStatus == 'ACCEPTEE') {
+          titre = "Demande Acceptée !";
+          corps = "L'expert a accepté votre demande. Consultez les détails pour la date prévue.";
+        } else if (newStatus == 'TERMINEE') {
+          titre = "Intervention Terminée";
+          corps = "Félicitations ! L'intervention est terminée. N'oubliez pas de laisser un avis.";
+        } else if (newStatus == 'ANNULEE') {
+          titre = "Intervention Annulée";
+          corps = "L'expert a annulé l'intervention.";
+        }
+
+        if (titre.isNotEmpty) {
+          await _notificationService.sendNotification(
+            idUtilisateur: clientId,
+            titre: titre,
+            corps: corps,
+            type: 'booking',
+            relatedId: interventionId,
+          );
+        }
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Status updated ($newStatus)')),
@@ -272,6 +305,15 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                               'annulerPar': 'expert',
                               'updatedAt': FieldValue.serverTimestamp(),
                             });
+                            
+                            await _notificationService.sendNotification(
+                              idUtilisateur: intervention.idClient,
+                              titre: "Intervention Annulée",
+                              corps: "L'expert a annulé l'intervention : $inputReason",
+                              type: 'booking',
+                              relatedId: intervention.id,
+                            );
+
                             if (mounted) {
                               Navigator.pop(context);
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -364,6 +406,15 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                                 'dateFinIntervention': FieldValue.serverTimestamp(),
                                 'updatedAt': FieldValue.serverTimestamp(),
                               });
+
+                              await _notificationService.sendNotification(
+                                idUtilisateur: intervention.idClient,
+                                titre: "Intervention Terminée",
+                                corps: "Félicitations ! L'intervention est terminée. N'oubliez pas de laisser un avis.",
+                                type: 'booking',
+                                relatedId: intervention.id,
+                              );
+
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('Status updated (TERMINEE)')),
@@ -532,6 +583,15 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                             
                             try {
                               await FirebaseFirestore.instance.collection('interventions').doc(intervention.id).update(updateData);
+                              
+                              await _notificationService.sendNotification(
+                                idUtilisateur: intervention.idClient,
+                                titre: "Demande Acceptée !",
+                                corps: "L'expert a accepté votre demande. Consultez les détails pour la date prévue.",
+                                type: 'booking',
+                                relatedId: intervention.id,
+                              );
+
                               if (mounted) {
                                 Navigator.pop(context);
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -911,7 +971,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                       icon: Icons.close,
                       color: Colors.red,
                       filled: false,
-                      onTap: () => _updateStatus(intervention.id!, "REFUSEE"),
+                      onTap: () => _updateStatus(intervention.id!, "REFUSEE", clientId: intervention.idClient),
                     ),
                   ),
                 ],
