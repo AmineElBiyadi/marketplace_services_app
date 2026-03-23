@@ -270,14 +270,24 @@ class FirestoreService {
   }
 
   /// Reactivates a SUSPENDU subscription by setting its statut back to ACTIVE.
-  Future<void> reactivateSubscription(String subscriptionId) async {
-    await _firestore.collection('abonnements').doc(subscriptionId).update({
+  Future<void> reactivateSubscription(String subscriptionId, String expertId) async {
+    final batch = _firestore.batch();
+    
+    final subRef = _firestore.collection('abonnements').doc(subscriptionId);
+    batch.update(subRef, {
       'statut': 'ACTIVE',
       'suspendedAt': null,
       'graceStartedAt': null,
       'retryCount': 0,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    final seQ = await _firestore.collection('serviceExperts').where('idExpert', isEqualTo: expertId).get();
+    for (var doc in seQ.docs) {
+      batch.update(doc.reference, {'isVisibleByPlan': true});
+    }
+
+    await batch.commit();
   }
 
   /// Cancels (expert-initiated) → sets statut to SUSPENDU. Data is preserved.
@@ -287,6 +297,26 @@ class FirestoreService {
       'suspendedAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  /// Cancels subscription and hides unselected services
+  Future<void> cancelSubscriptionAndSetVisibility(String subscriptionId, String expertId, List<String> keptServiceIds) async {
+    final batch = _firestore.batch();
+    
+    final subRef = _firestore.collection('abonnements').doc(subscriptionId);
+    batch.update(subRef, {
+      'statut': 'SUSPENDU',
+      'suspendedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    final seQ = await _firestore.collection('serviceExperts').where('idExpert', isEqualTo: expertId).get();
+    for (var doc in seQ.docs) {
+      bool keep = keptServiceIds.contains(doc.id);
+      batch.update(doc.reference, {'isVisibleByPlan': keep});
+    }
+
+    await batch.commit();
   }
 
   Future<String?> getExpertIdByUserId(String userId) async {
@@ -376,19 +406,27 @@ class FirestoreService {
   }
 
   Future<void> subscribeToPremium(String expertId) async {
-    try {
-      await _firestore.collection('abonnements').add({
-        'idExpert': expertId,
-        'statut': 'ACTIVE',
-        'dateDebut': FieldValue.serverTimestamp(),
-        'type': 'PREMIUM',
-        'montant': 99,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      rethrow;
+    final batch = _firestore.batch();
+    
+    // 1. Create premium subscription
+    final subRef = _firestore.collection('abonnements').doc();
+    batch.set(subRef, {
+      'idExpert': expertId,
+      'statut': 'ACTIVE',
+      'dateDebut': FieldValue.serverTimestamp(),
+      'type': 'PREMIUM',
+      'montant': 99,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    // 2. Make all services visible
+    final seQ = await _firestore.collection('serviceExperts').where('idExpert', isEqualTo: expertId).get();
+    for (var doc in seQ.docs) {
+      batch.update(doc.reference, {'isVisibleByPlan': true});
     }
+
+    await batch.commit();
   }
 
   Future<void> saveCardInfo({
@@ -641,7 +679,12 @@ class FirestoreService {
         // Fetch service names in parallel
         List<String> services = [];
         if (serviceExpertsSnapshot.docs.isNotEmpty) {
-          final serviceDocs = await Future.wait(serviceExpertsSnapshot.docs.map(
+          final visibleServicesDocs = serviceExpertsSnapshot.docs.where((se) =>
+              (se.data()['estActive'] ?? true) == true &&
+              (isPremium || (se.data()['isVisibleByPlan'] ?? true) == true)
+          ).toList();
+
+          final serviceDocs = await Future.wait(visibleServicesDocs.map(
             (se) => _firestore.collection('services').doc(se.data()['idService']).get()
           ));
           for (var sDoc in serviceDocs) {
@@ -767,7 +810,12 @@ class FirestoreService {
       // Fetch service names in parallel
       List<String> services = [];
       if (serviceExpertsSnapshot.docs.isNotEmpty) {
-        final serviceDocs = await Future.wait(serviceExpertsSnapshot.docs.map(
+        final visibleServicesDocs = serviceExpertsSnapshot.docs.where((se) =>
+            (se.data()['estActive'] ?? true) == true &&
+            (isPremium || (se.data()['isVisibleByPlan'] ?? true) == true)
+        ).toList();
+
+        final serviceDocs = await Future.wait(visibleServicesDocs.map(
           (se) => _firestore.collection('services').doc(se.data()['idService']).get()
         ));
         for (var sDoc in serviceDocs) {
@@ -1282,6 +1330,7 @@ class FirestoreService {
           'serviceImage': serviceImage,
           'description': seData['description'] ?? '',
           'estActive': seData['estActive'] ?? true,
+          'isVisibleByPlan': seData['isVisibleByPlan'] ?? true,
           'anneeExperience': seData['anneeExperience'] ?? 0,
           'images': serviceImages,
           'tasks': tasksData,
@@ -1358,6 +1407,7 @@ class FirestoreService {
       'idService': serviceId,
       'description': description,
       'estActive': true,
+      'isVisibleByPlan': true,
       'estCertifie': false,
       'anneeExperience': 0,
       'createdAt': FieldValue.serverTimestamp(),
@@ -1517,8 +1567,56 @@ class FirestoreService {
         });
     }
 
+    // Auto-unlock hidden services if free limit frees up
+    final allServicesQuery = await _firestore.collection('serviceExperts').where('idExpert', isEqualTo: expertId).get();
+    final remainingServices = allServicesQuery.docs.where((doc) => doc.data()['idService'] != serviceId).toList();
+    
+    int visibleCount = remainingServices.where((doc) => (doc.data()['isVisibleByPlan'] ?? true) == true).length;
+    if (visibleCount < 3) {
+      int needed = 3 - visibleCount;
+      final hiddenServices = remainingServices.where((doc) => (doc.data()['isVisibleByPlan'] ?? true) == false).toList();
+      
+      // We can sort by createdAt to unlock the oldest hidden service first, or just take the first one
+      for (int i = 0; i < hiddenServices.length && i < needed; i++) {
+        batch.update(hiddenServices[i].reference, {'isVisibleByPlan': true});
+      }
+    }
+
     await batch.commit();
   }
+
+  Future<bool> hasOngoingInterventionsForService(String expertId, String serviceId) async {
+    try {
+      // 1. Get all task IDs associated with this service for this expert
+      final tasksQuery = await _firestore.collection('tacheExperts')
+          .where('idExpert', isEqualTo: expertId)
+          .where('idService', isEqualTo: serviceId)
+          .get();
+      
+      if (tasksQuery.docs.isEmpty) return false;
+      
+      final taskIds = tasksQuery.docs.map((doc) => doc.id).toList();
+
+      // 2. Check interventions for any of these tasks that are not finished or cancelled
+      for (var i = 0; i < taskIds.length; i += 10) {
+        final chunk = taskIds.sublist(i, i + 10 > taskIds.length ? taskIds.length : i + 10);
+        
+        final ongoingQuery = await _firestore.collection('interventions')
+            .where('idExpert', isEqualTo: expertId)
+            .where('idTacheExpert', whereIn: chunk)
+            .where('statut', whereIn: ['EN_ATTENTE', 'ACCEPTEE'])
+            .get();
+
+        if (ongoingQuery.docs.isNotEmpty) return true;
+      }
+
+      return false;
+    } catch (e) {
+      debugPrint("Error checking ongoing interventions: $e");
+      return false;
+    }
+  }
+
 
   Future<void> updateExpertService({
     required String expertId,
