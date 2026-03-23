@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../theme/app_colors.dart';
 import '../../layouts/provider_layout.dart';
 import '../../services/firestore_service.dart';
+import 'dart:convert';
 
 class ProviderSubscriptionScreen extends StatefulWidget {
   final String expertId;
@@ -22,6 +23,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
   String? _resolvedExpertId;
   bool _isSubscribing = false;
   bool _isReactivating = false;
+  bool _isLoading = false;
   Map<String, dynamic>? _suspendedSub; // cached suspended subscription for reactivation
 
   @override
@@ -388,8 +390,23 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
               Navigator.pop(ctx);
               try {
                 final services = await _firestoreService.getExpertServicesDetailed(_resolvedExpertId!);
+                
+                // 1. Check if services > 3
                 if (services.length > 3) {
                   if (mounted) _showServiceSelectionDialog(subscriptionId, services);
+                  return;
+                }
+                
+                // 2. Check if any of these services has > 3 photos
+                final allImages = await _firestoreService.getExpertPortfolioImagesWithDetails(_resolvedExpertId!);
+                final Map<String, List<Map<String, dynamic>>> grouped = {};
+                for (var img in allImages) {
+                  grouped.putIfAbsent(img['idServiceExpert'], () => []).add(img);
+                }
+                final hasExceedingService = grouped.values.any((imgs) => imgs.length > 3);
+
+                if (hasExceedingService) {
+                  if (mounted) _showPhotoSelectionDialog(subscriptionId, allImages);
                   return;
                 }
                 
@@ -520,6 +537,22 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                 onPressed: isSelectionValid ? () async {
                   Navigator.pop(ctx);
                   try {
+                    // After services are hidden, check for photos
+                    // After services are hidden, check for photos within the KEPT services
+                    final allImages = await _firestoreService.getExpertPortfolioImagesWithDetails(_resolvedExpertId!);
+                    final keptImages = allImages.where((img) => selectedIds.contains(img['idServiceExpert'])).toList();
+                    
+                    final Map<String, List<Map<String, dynamic>>> grouped = {};
+                    for (var img in keptImages) {
+                      grouped.putIfAbsent(img['idServiceExpert'], () => []).add(img);
+                    }
+                    final hasExceedingService = grouped.values.any((imgs) => imgs.length > 3);
+
+                    if (hasExceedingService) {
+                       if (mounted) _showPhotoSelectionDialog(subscriptionId, allImages, keptServiceIds: selectedIds);
+                       return;
+                    }
+
                     await _firestoreService.cancelSubscriptionAndSetVisibility(subscriptionId, _resolvedExpertId!, selectedIds);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1505,5 +1538,250 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
         );
       },
     );
+  }
+
+void _showPhotoSelectionDialog(String subscriptionId, List<Map<String, dynamic>> allImages, {List<String>? keptServiceIds}) {
+    // 1. Group images by idServiceExpert (only including those from kept services)
+    final Map<String, List<Map<String, dynamic>>> groupedImages = {};
+    for (var img in allImages) {
+      final seId = img['idServiceExpert'] as String;
+      groupedImages.putIfAbsent(seId, () => []).add(img);
+    }
+
+    // 2. Identify services that have more than 3 photos
+    final Map<String, List<Map<String, dynamic>>> servicesToPickFor = {};
+    final List<String> autoKeepImageIds = [];
+
+    groupedImages.forEach((seId, serviceImgs) {
+      if (serviceImgs.length > 3) {
+        servicesToPickFor[seId] = serviceImgs;
+      } else {
+        autoKeepImageIds.addAll(serviceImgs.map((img) => img['id'] as String));
+      }
+    });
+
+    // If no service has > 3 photos, we can just proceed with automatic keeping
+    if (servicesToPickFor.isEmpty) {
+      _finishDowngrade(subscriptionId, keptServiceIds, autoKeepImageIds);
+      return;
+    }
+
+    // Map to track selections per service: {seId: [selectedImageIds]}
+    final Map<String, List<String>> selectionsPerService = {};
+    servicesToPickFor.forEach((seId, _) => selectionsPerService[seId] = []);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          bool allSelectionsValid = true;
+          servicesToPickFor.forEach((seId, _) {
+            if (selectionsPerService[seId]!.length != 3) allSelectionsValid = false;
+          });
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            titlePadding: EdgeInsets.zero,
+            contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            title: Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
+              ),
+              child: Row(
+                children: const [
+                  Icon(LucideIcons.image, color: Colors.blue, size: 22),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text("Gestion du Portfolio", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueAccent)),
+                  ),
+                ],
+              ),
+            ),
+            content: Container(
+              width: double.maxFinite,
+              constraints: const BoxConstraints(maxWidth: 500, maxHeight: 600),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.05),
+                        border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        "En plan gratuit, vous pouvez garder 3 photos visibles par service. Sélectionnez vos meilleures réalisations !",
+                        style: TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.w500, height: 1.4),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    
+                    ...servicesToPickFor.entries.map((entry) {
+                      final seId = entry.key;
+                      final serviceImgs = entry.value;
+                      final serviceName = serviceImgs.first['serviceName'] ?? "Service";
+                      final selectedCount = selectionsPerService[seId]!.length;
+                      
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(serviceName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
+                                Text("$selectedCount / 3", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: selectedCount == 3 ? Colors.green : AppColors.primary)),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3,
+                              crossAxisSpacing: 8,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 0.8,
+                            ),
+                            itemCount: serviceImgs.length,
+                            itemBuilder: (context, index) {
+                              final img = serviceImgs[index];
+                              final id = img['id'] as String;
+                              final taskName = img['taskName'] ?? "";
+                              final isSelected = selectionsPerService[seId]!.contains(id);
+                              final imageData = img['image'] as String;
+                              
+                              return Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Expanded(
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          if (isSelected) {
+                                            selectionsPerService[seId]!.remove(id);
+                                          } else if (selectionsPerService[seId]!.length < 3) {
+                                            selectionsPerService[seId]!.add(id);
+                                          }
+                                        });
+                                      },
+                                      child: Stack(
+                                        children: [
+                                          Container(
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(color: isSelected ? AppColors.primary : Colors.grey.shade300, width: 2),
+                                            ),
+                                            child: ClipRRect(
+                                              borderRadius: BorderRadius.circular(6),
+                                              child: imageData.startsWith('http')
+                                                  ? Image.network(imageData, fit: BoxFit.cover, width: double.infinity, height: double.infinity)
+                                                  : Image.memory(base64Decode(imageData.contains(',') ? imageData.split(',').last : imageData), fit: BoxFit.cover, width: double.infinity, height: double.infinity),
+                                            ),
+                                          ),
+                                          if (isSelected)
+                                            const Positioned(
+                                              top: 4, right: 4,
+                                              child: Icon(Icons.check_circle, color: AppColors.primary, size: 20),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    taskName,
+                                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("Annuler", style: TextStyle(color: Colors.grey, fontSize: 13)),
+              ),
+              ElevatedButton(
+                onPressed: allSelectionsValid ? () async {
+                  Navigator.pop(ctx);
+                  
+                  // Combine all selected IDs + auto-kept IDs
+                  final List<String> finalKeptImageIds = [...autoKeepImageIds];
+                  selectionsPerService.values.forEach((list) => finalKeptImageIds.addAll(list));
+                  
+                  _finishDowngrade(subscriptionId, keptServiceIds, finalKeptImageIds);
+                } : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text("Confirmer"),
+              ),
+            ],
+          );
+        }
+      ),
+    );
+  }
+
+  Future<void> _finishDowngrade(String subscriptionId, List<String>? keptServiceIds, List<String> finalKeptImageIds) async {
+    try {
+      setState(() => _isLoading = true);
+      
+      // Update visibility for both services and photos
+      List<String> servicesToKeep = keptServiceIds ?? [];
+      if (servicesToKeep.isEmpty) {
+        final currentServices = await _firestoreService.getExpertServicesDetailed(_resolvedExpertId!);
+        servicesToKeep = currentServices.map((s) => s['id'] as String).toList();
+      }
+
+      await _firestoreService.cancelSubscriptionAndSetVisibility(
+        subscriptionId, 
+        _resolvedExpertId!, 
+        servicesToKeep,
+        keptImageIds: finalKeptImageIds
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Abonnement suspendu. Vos choix ont été enregistrés."), backgroundColor: Colors.orange),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erreur: $e"), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 }
