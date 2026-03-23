@@ -459,53 +459,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // ── Terms checkbox ──
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: Checkbox(
-                      value: _agreed,
-                      onChanged: (v) => setState(() => _agreed = v ?? false),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4)),
-                      activeColor: AppColors.primary,
-                      side: const BorderSide(
-                          color: Color(0xFFCBD5E1), width: 1.5),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: RichText(
-                      text: TextSpan(
-                        style: const TextStyle(
-                            fontSize: 12.5, color: Color(0xFF64748B)),
-                        children: [
-                          const TextSpan(text: "J'accepte les "),
-                          TextSpan(
-                            text: 'Conditions générales',
-                            style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600),
-                            recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
-                          ),
-                          const TextSpan(text: ' et la '),
-                          TextSpan(
-                            text: 'Politique de confidentialité',
-                            style: const TextStyle(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.w600),
-                            recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
               // ── Sign up button ──
               SizedBox(
                 width: double.infinity,
@@ -654,13 +607,21 @@ class _SignupScreenState extends State<SignupScreen> {
         const SizedBox(width: 10),
         Expanded(
           child: RichText(
-            text: const TextSpan(
-              style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+            text: TextSpan(
+              style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
               children: [
-                TextSpan(text: "J'accepte les "),
-                TextSpan(text: 'Conditions générales', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
-                TextSpan(text: ' et la '),
-                TextSpan(text: 'Politique de confidentialité', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                const TextSpan(text: "J'accepte les "),
+                TextSpan(
+                  text: 'Conditions générales',
+                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                  recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
+                ),
+                const TextSpan(text: ' et la '),
+                TextSpan(
+                  text: 'Politique de confidentialité',
+                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                  recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
+                ),
               ],
             ),
           ),
