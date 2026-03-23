@@ -350,22 +350,28 @@ class AdminDashboardService {
     final List<Map<String, dynamic>> result = [];
     for (final doc in snap.docs) {
       final data = doc.data();
-      String clientName = 'Inconnu';
-      final clientId = data['idClient'] as String?;
-      if (clientId != null) {
-        final clientDoc = await _db.collection('clients').doc(clientId).get();
-        if (clientDoc.exists) {
-          final idUtil = clientDoc.data()?['idUtilisateur'] as String?;
-          if (idUtil != null) {
-            final userDoc = await _db.collection('utilisateurs').doc(idUtil).get();
-            if (userDoc.exists) clientName = userDoc.data()?['nom'] ?? userDoc.data()?['email'] ?? clientId;
+      String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+      String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+
+      if (clientName == 'Client' || expertName == 'Expert') {
+        final intervId = data['idIntervention'];
+        if (intervId != null) {
+          final intervDoc = await _db.collection('interventions').doc(intervId).get();
+          if (intervDoc.exists) {
+            final intervData = intervDoc.data()!;
+            clientName = intervData['clientSnapshot']?['nom'] ?? clientName;
+            expertName = intervData['expertSnapshot']?['nom'] ?? expertName;
           }
         }
       }
 
+      final complainerStr = data['typeReclamateur'] == 'EXPERT' 
+          ? 'Plaintif: $expertName (Expert) • Contre: $clientName'
+          : 'Plaintif: $clientName (Client) • Contre: $expertName';
+
       result.add({
         'id': doc.id,
-        'from': clientName,
+        'from': complainerStr,
         'subject': data['description'] ?? 'Sans objet',
         'priority': data['typeReclamateur'] == 'CLIENT' ? 'Normal' : 'Urgent',
         'status': data['etatReclamation'] ?? 'EN_ATTENTE',
@@ -446,7 +452,12 @@ class AdminDashboardService {
       final expertCheck = await _db.collection('experts').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
       final adminCheck = await _db.collection('admins').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
       
-      String status = 'Actif';
+      String status = 'ACTIVE';
+      final clientCheck = await _db.collection('clients').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
+      if (clientCheck.docs.isNotEmpty) {
+        status = clientCheck.docs.first.data()['etatCompte'] ?? 'ACTIVE';
+      }
+
       if (adminCheck.docs.isNotEmpty || expertCheck.docs.isNotEmpty) {
         continue; // Skip admins and providers (experts)
       }
@@ -461,6 +472,7 @@ class AdminDashboardService {
         'phone': data['telephone'] ?? '',
         'imageUrl': data['image_profile'],
         'status': status,
+        'rawDate': data['created_At'] is Timestamp ? (data['created_At'] as Timestamp).toDate() : DateTime(2000),
         'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
       });
     }
@@ -549,6 +561,7 @@ class AdminDashboardService {
         'date': _formatRelativeDate(data['createdAt']),
         'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
         'imageUrl': imageUrl,
+        'rawDate': data['createdAt'] is Timestamp ? (data['createdAt'] as Timestamp).toDate() : DateTime(2000),
         'zone': (services.isNotEmpty ? services.first : (data['region'] ?? 'N/A')),
         // New detailed fields
         'CarteNationale': data['CarteNationale'] ?? 'Non fourni',
@@ -617,10 +630,10 @@ class AdminDashboardService {
         'service': data['tacheSnapshot']?['serviceNom'] ?? 'Service',
         'date': data['dateDebutIntervention'] != null 
             ? DateFormat('dd/MM/yyyy').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
-            : 'N/A',
+            : '-',
         'time': data['dateDebutIntervention'] != null 
             ? DateFormat('HH:mm').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
-            : 'N/A',
+            : '-',
         'amount': data['prixNegocie'] ?? 0,
         'status': data['statut'] ?? 'EN_ATTENTE',
         'isUrgent': data['isUrgent'] ?? false,
@@ -753,6 +766,17 @@ class AdminDashboardService {
   /// Fetches all claims/reclamations
   Future<List<Map<String, dynamic>>> getAdminClaims() async {
     final snap = await _db.collection('reclamations').orderBy('createdAt', descending: true).get();
+    
+    final Map<String, int> targetClaimCounts = {};
+    for (final d in snap.docs) {
+      final data = d.data();
+      final isClientComplaining = (data['typeReclamateur'] ?? 'CLIENT') == 'CLIENT';
+      final targetId = isClientComplaining ? data['idExpert'] : data['idClient'];
+      if (targetId != null) {
+        targetClaimCounts[targetId as String] = (targetClaimCounts[targetId as String] ?? 0) + 1;
+      }
+    }
+
     final List<Map<String, dynamic>> result = [];
     
     for (final doc in snap.docs) {
@@ -760,7 +784,9 @@ class AdminDashboardService {
       String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
       String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
 
-      // Fallback: Si les snapshots manquent, chercher dans l'intervention
+      String? idClient = data['idClient'];
+      String? idExpert = data['idExpert'];
+
       if (clientName == 'Client' || expertName == 'Expert') {
         final intervId = data['idIntervention'];
         if (intervId != null) {
@@ -769,9 +795,14 @@ class AdminDashboardService {
             final intervData = intervDoc.data()!;
             clientName = intervData['clientSnapshot']?['nom'] ?? clientName;
             expertName = intervData['expertSnapshot']?['nom'] ?? expertName;
+            idClient ??= intervData['idClient'];
+            idExpert ??= intervData['idExpert'];
           }
         }
       }
+
+      final isClientComplaining = (data['typeReclamateur'] ?? 'CLIENT') == 'CLIENT';
+      final targetId = isClientComplaining ? idExpert : idClient;
 
       result.add({
         'id': doc.id,
@@ -781,10 +812,13 @@ class AdminDashboardService {
         'idIntervention': data['idIntervention'],
         'clientName': clientName,
         'expertName': expertName,
+        'idClient': idClient,
+        'idExpert': idExpert,
+        'targetClaimCount': targetClaimCounts[targetId] ?? 0,
         'adminResponse': data['adminResponse'],
         'date': data['createdAt'] != null 
             ? DateFormat('dd/MM/yyyy').format((data['createdAt'] as Timestamp).toDate()) 
-            : 'N/A',
+            : '-',
       });
     }
     return result;
@@ -888,6 +922,31 @@ class AdminDashboardService {
       }
     }
 
+    int cancelCount = 0;
+    String cancelRole = '';
+    if (data['statut'] == 'ANNULEE' && data['annulerPar'] != null) {
+      cancelRole = data['annulerPar'].toString().toLowerCase();
+      final targetId = cancelRole == 'expert' ? data['idExpert'] : data['idClient'];
+      
+      if (targetId != null) {
+        final now = DateTime.now();
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        
+        final snap = await _db.collection('interventions')
+            .where('statut', isEqualTo: 'ANNULEE')
+            .where(cancelRole == 'expert' ? 'idExpert' : 'idClient', isEqualTo: targetId)
+            .get();
+        
+        cancelCount = snap.docs.where((d) {
+          final docData = d.data();
+          if (docData['annulerPar']?.toString().toLowerCase() != cancelRole) return false;
+          final updatedTs = docData['updatedAt'] as Timestamp? ?? docData['createdAt'] as Timestamp?;
+          if (updatedTs == null) return false;
+          return updatedTs.toDate().isAfter(startOfMonth) || updatedTs.toDate().isAtSameMomentAs(startOfMonth);
+        }).length;
+      }
+    }
+
     return {
       'id': doc.id,
       'idClient': data['idClient'],
@@ -899,16 +958,19 @@ class AdminDashboardService {
                  data['nomService'] ?? 'Service',
       'date': data['dateDebutIntervention'] != null 
           ? DateFormat('dd/MM/yyyy').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
-          : 'N/A',
+          : '-',
       'time': data['dateDebutIntervention'] != null 
           ? DateFormat('HH:mm').format((data['dateDebutIntervention'] as Timestamp).toDate()) 
-          : 'N/A',
+          : '-',
       'amount': data['prixNegocie'] ?? data['prix'] ?? 0,
       'status': data['statut'] ?? 'EN_ATTENTE',
       'isUrgent': data['isUrgent'] ?? false,
       'createdAt': data['createdAt'],
       'motifAnnulation': data['motifAnnulation'],
       'motifRefus': data['motifRefus'],
+      'cancelCount': cancelCount,
+      'cancelRole': cancelRole,
+      'annulerPar': data['annulerPar'],
     };
   }
 
@@ -968,10 +1030,30 @@ class AdminDashboardService {
   /// Updates the account status in the role collection (experts or clients)
   Future<void> updateUserStatus(String id, String role, String status) async {
     final collection = (role == 'Expert' || role == 'Prestataire') ? 'experts' : 'clients';
+    DocumentReference docRef = _db.collection(collection).doc(id);
+    
+    // Fallback: If not found by direct ID, search by idUtilisateur
+    final docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      final snap = await _db.collection(collection).where('idUtilisateur', isEqualTo: id).limit(1).get();
+      if (snap.docs.isNotEmpty) {
+        docRef = snap.docs.first.reference;
+      } else {
+        // Create the document if it doesn't exist so we can set the status
+        await docRef.set({
+          'idUtilisateur': id,
+          'etatCompte': status,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
     Map<String, dynamic> updates = {
       'etatCompte': status,
       'updatedAt': FieldValue.serverTimestamp(),
     };
+    
     if (collection == 'experts') {
       if (status == 'DESACTIVE' || status == 'SUSPENDUE') {
         updates['desactiveParAdmin'] = true;
@@ -979,7 +1061,8 @@ class AdminDashboardService {
         updates['desactiveParAdmin'] = false;
       }
     }
-    await _db.collection(collection).doc(id).update(updates);
+    
+    await docRef.update(updates);
 
     debugPrint('DEBUG: updateUserStatus called for $id ($role) to $status');
     // Automatically send an email notification for important status changes
@@ -989,23 +1072,47 @@ class AdminDashboardService {
       
       if (profile != null && profile['email'] != null && profile['email'].isNotEmpty) {
         String subject = "";
-        String body = "";
+        String title = "";
+        String desc = "";
+        String color = "#4F46E5"; // Default primary
         
         if (status == 'ACTIVE') {
-          subject = "Votre compte a été activé";
-          body = "Félicitations ${profile['name']}, votre compte est désormais actif sur notre plateforme.";
+          subject = "🎉 Votre compte a été activé !";
+          title = "Bienvenue sur Marketplace";
+          desc = "Félicitations <b>${profile['name']}</b>,<br><br>Votre compte est désormais entièrement vérifié et actif sur notre plateforme. Vous pouvez dès à présent profiter de toutes les fonctionnalités et commencer à interagir avec notre communauté.";
+          color = "#10B981"; // success green
         } else if (status == 'SUSPENDUE') {
-          subject = "Votre compte a été suspendu";
-          body = "Bonjour ${profile['name']}, votre compte a été suspendu par l'administration pour vérification.";
+          subject = "⚠️ Votre compte a été temporairement suspendu";
+          title = "Action requise sur votre compte";
+          desc = "Bonjour <b>${profile['name']}</b>,<br><br>Nous vous informons que votre compte a été temporairement suspendu par notre équipe d'administration dans le cadre d'une vérification de routine.<br><br>Pour nous aider à rétablir votre accès rapidement, veuillez répondre à cet email ou contacter le support client.";
+          color = "#F59E0B"; // warning orange
         } else if (status == 'DESACTIVE') {
-          subject = "Votre compte a été désactivé";
-          body = "Bonjour ${profile['name']}, votre compte a été désactivé.";
+          subject = "❌ Désactivation de votre compte";
+          title = "Compte désactivé";
+          desc = "Bonjour <b>${profile['name']}</b>,<br><br>Nous vous informons que votre compte a été désactivé suite à une décision administrative.<br><br>Si vous pensez qu'il s'agit d'une erreur, merci de contacter immédiatement notre support par email.";
+          color = "#EF4444"; // danger red
         }
+
+        final htmlBody = '''
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 40px 20px; border-radius: 8px;">
+          <div style="background-color: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 6px solid $color;">
+            <h2 style="color: #111827; font-size: 24px; margin-top: 0; margin-bottom: 24px;">\$title</h2>
+            <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 32px;">
+              \$desc
+            </p>
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
+            <p style="color: #6b7280; font-size: 14px; margin: 0;">
+              Cordialement,<br>
+              <strong>L'équipe d'administration Marketplace</strong>
+            </p>
+          </div>
+        </div>
+        ''';
 
         await sendAutomaticEmail(
           to: profile['email'],
           subject: subject,
-          html: "<p>$body</p><p>L'équipe Support.</p>",
+          html: htmlBody.replaceAll('\$', ''), // Remove literal escape
         );
       } else {
         debugPrint('DEBUG: No email found for user $id');
