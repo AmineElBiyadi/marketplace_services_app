@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
-
+import '../../../services/cloudinary_service.dart';
 class EditProfileScreen extends StatefulWidget {
   final Map<String, dynamic> clientData;
 
@@ -24,6 +24,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _phoneController;
 
   String? _imageBase64;
+  Uint8List? _selectedImageBytes;
   bool _isLoading = false;
 
   @override
@@ -51,16 +52,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
       if (image != null) {
         final bytes = await image.readAsBytes();
-        if (bytes.length > 700000) {
+        if (bytes.length > 5000000) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Image file is too large (max ~700 KB).')),
+              const SnackBar(content: Text('Image trop volumineuse (max 5 MB).')),
             );
           }
           return;
         }
         setState(() {
-          _imageBase64 = base64Encode(bytes);
+          _selectedImageBytes = bytes;
         });
       }
     } catch (e) {
@@ -88,14 +89,49 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final user = _authService.currentUser;
       if (user != null) {
+        String? finalImageUrl = _imageBase64; // Keep existing URL/base64 as fallback
+        
+        if (_selectedImageBytes != null) {
+          // Show uploading indicator
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Upload de l\'image en cours...'),
+                duration: Duration(seconds: 10),
+              ),
+            );
+          }
+          
+          final url = await CloudinaryService.uploadImage(_selectedImageBytes!);
+          
+          // Dismiss any snackbar
+          if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
+          
+          if (url == null || url.isEmpty) {
+            // Upload failed — alert user and stop
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Échec de l\'upload Cloudinary. Vérifiez votre connexion ou le preset.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+              setState(() => _isLoading = false);
+            }
+            return;
+          }
+          
+          finalImageUrl = url; // Use the Cloudinary URL
+        }
+
         await _firestoreService.updateClientProfile(
           uid: user.uid,
           name: name,
           phone: phone,
-          imageBase64: _imageBase64,
+          imageBase64: finalImageUrl,
         );
         if (mounted) {
-          context.pop(true); // Return true to indicate successful update
+          context.pop(true);
         }
       } else {
         setState(() => _isLoading = false);
@@ -116,7 +152,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     const primaryBlue = Color(0xFF2A4278);
 
     ImageProvider? imageProvider;
-    if (_imageBase64 != null && _imageBase64!.isNotEmpty) {
+    if (_selectedImageBytes != null) {
+      imageProvider = MemoryImage(_selectedImageBytes!);
+    } else if (_imageBase64 != null && _imageBase64!.isNotEmpty) {
       if (_imageBase64!.startsWith('http://') || _imageBase64!.startsWith('https://')) {
         imageProvider = NetworkImage(_imageBase64!);
       } else {
