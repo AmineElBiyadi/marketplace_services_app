@@ -129,8 +129,8 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
           const Spacer(),
           ElevatedButton.icon(
             onPressed: _exportProviders,
-            icon: const Icon(LucideIcons.download, size: 14),
-            label: const Text('Export Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            icon: const Icon(LucideIcons.fileText, size: 14),
+            label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
               backgroundColor: _textPrimary,
               foregroundColor: Colors.white,
@@ -653,12 +653,13 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     ]).toList();
 
     await AdminExportUtil.exportPageToPdf(
-      filename: 'prestataires_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-      title: 'Liste des Prestataires',
-      subtitle: 'Extraction de la liste des experts et prestataires de services',
+      filename: 'providers_presto_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+      title: 'Registre des Prestataires',
+      subtitle: 'Liste des experts et professionnels inscrits sur Presto',
       kpis: [
-        {'label': 'Total Prestataires', 'value': _filteredProviders.length.toString()},
-        {'label': 'Experts Premium', 'value': _filteredProviders.where((p) => p['pack'] == 'PREMIUM').length.toString()},
+        {'label': 'Total Experts', 'value': _allProviders.length.toString()},
+        {'label': 'Premium', 'value': _allProviders.where((p) => p['pack'] == 'Premium').length.toString()},
+        {'label': 'En Attente', 'value': _allProviders.where((p) => p['status'] == 'EN_ATTENTE' || p['status'] == 'En attente').length.toString()},
       ],
       tableHeaders: headers,
       tableRows: rows,

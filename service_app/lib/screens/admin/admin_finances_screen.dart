@@ -204,8 +204,8 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
         ),
         ElevatedButton.icon(
           onPressed: _exportFinances,
-          icon: const Icon(LucideIcons.download, size: 14),
-          label: const Text('Export Excel',
+          icon: const Icon(LucideIcons.fileText, size: 14),
+          label: const Text('Exporter PDF',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.foreground,
@@ -219,40 +219,36 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
     );
   }
 
-  void _exportFinances() {
-    if (_tabController.index == 0) {
-      // Export ACTIVE subscriptions
-      final headers = ['Prestataire', 'Pack', 'Début', 'Renouvellement', 'Montant', 'Statut'];
-      final rows = _subscriptions.map((s) => [
-        s['provider'],
-        s['pack'],
-        s['start'],
-        s['renewal'],
-        s['amount'],
-        s['status'],
-      ]).toList();
-      
-      AdminExportUtil.exportToCsv(
-        filename: 'abonnements_actifs_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-        headers: headers,
-        rows: rows,
-      );
-    } else {
-      // Export FAILED/GRACE subscriptions
-      final headers = ['Prestataire', 'Montant', 'Date Échec', 'Tentatives'];
-      final rows = _failedPayments.map((f) => [
-        f['provider'],
-        f['amount'],
-        f['date'],
-        f['attempts'],
-      ]).toList();
+  void _exportFinances() async {
+    final bool isAbonnements = _tabController.index == 0;
+    
+    final List<String> headers = isAbonnements 
+        ? ['Prestataire', 'Pack', 'Début', 'Renouvellement', 'Montant', 'Statut']
+        : ['Prestataire', 'Montant', 'Date Échec', 'Tentatives'];
 
-      AdminExportUtil.exportToCsv(
-        filename: 'paiements_echoues_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-        headers: headers,
-        rows: rows,
-      );
-    }
+    final List<List<dynamic>> rows = isAbonnements
+        ? _subscriptions.map((s) => [
+            s['provider'], s['pack'], s['start'], s['renewal'], s['amount'], s['status']
+          ]).toList()
+        : _failedPayments.map((f) => [
+            f['provider'], f['amount'], f['date'], f['attempts']
+          ]).toList();
+
+    await AdminExportUtil.exportPageToPdf(
+      filename: isAbonnements ? 'abonnements_presto' : 'impayes_presto',
+      title: isAbonnements ? 'Rapport des Abonnements' : 'Rapport des Impayés',
+      subtitle: isAbonnements 
+          ? 'Liste des experts avec un abonnement actif'
+          : 'Liste des paiements en échec ou en période de grâce',
+      kpis: [
+        {'label': 'Revenu Total', 'value': '${_totalRevenue.toInt()} DH'},
+        {'label': 'Experts Premium', 'value': '$_premiumCount'},
+        {'label': 'Revenu Mois', 'value': '${_currentMonthRevenue.toInt()} DH'},
+        {'label': 'Impayés', 'value': '$_graceCount'},
+      ],
+      tableHeaders: headers,
+      tableRows: rows,
+    );
   }
 
   // ── KPI GRID ─────────────────────────────────────────────────────────────────
