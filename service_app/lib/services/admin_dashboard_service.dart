@@ -446,7 +446,12 @@ class AdminDashboardService {
       final expertCheck = await _db.collection('experts').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
       final adminCheck = await _db.collection('admins').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
       
-      String status = 'Actif';
+      String status = 'ACTIVE';
+      final clientCheck = await _db.collection('clients').where('idUtilisateur', isEqualTo: doc.id).limit(1).get();
+      if (clientCheck.docs.isNotEmpty) {
+        status = clientCheck.docs.first.data()['etatCompte'] ?? 'ACTIVE';
+      }
+
       if (adminCheck.docs.isNotEmpty || expertCheck.docs.isNotEmpty) {
         continue; // Skip admins and providers (experts)
       }
@@ -968,7 +973,26 @@ class AdminDashboardService {
   /// Updates the account status in the role collection (experts or clients)
   Future<void> updateUserStatus(String id, String role, String status) async {
     final collection = (role == 'Expert' || role == 'Prestataire') ? 'experts' : 'clients';
-    await _db.collection(collection).doc(id).update({
+    DocumentReference docRef = _db.collection(collection).doc(id);
+    
+    // Fallback: If not found by direct ID, search by idUtilisateur
+    final docSnap = await docRef.get();
+    if (!docSnap.exists) {
+      final snap = await _db.collection(collection).where('idUtilisateur', isEqualTo: id).limit(1).get();
+      if (snap.docs.isNotEmpty) {
+        docRef = snap.docs.first.reference;
+      } else {
+        // Create the document if it doesn't exist so we can set the status
+        await docRef.set({
+          'idUtilisateur': id,
+          'etatCompte': status,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    await docRef.update({
       'etatCompte': status,
       'updatedAt': FieldValue.serverTimestamp(),
     });
