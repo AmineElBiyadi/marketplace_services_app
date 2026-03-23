@@ -1,0 +1,93 @@
+Launching lib\main.dart on Chrome in debug mode...
+Waiting for connection from debug service on Chrome...          
+lib/widgets/admin/user_profile_detail_dialog.dart:220:136: Error: String starting with " must end with ".
+                          html: \"<div style='font-family: sans-serif; color: #333;'><p>${bodyController.text.replaceAll('\n', '<br>')}</p><br><p>Cordialement,<br><strong>L'├®quipe Marketplace</strong></p></div>\",
+                                                                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:277:47: Error: String starting with " must end with ".
+    final displayValue = (isLong || isUrl) ? \"Document fourni\" : strValue;
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:338:37: Error: String starting with " must end with ".
+                        const Text(\"L'aper├ºu est bloqu├® par la s├®curit├® du navigateur (CORS) ou le fichier n'est pas une image.\", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:343:46: Error: String starting with " must end with ".
+                          label: const Text(\"Ouvrir dans un nouvel onglet\"),
+                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:340:44: Error: Can't find ')' to match '('.
+                        ElevatedButton.icon(
+                                           ^
+lib/widgets/admin/user_profile_detail_dialog.dart:338:35: Error: Can't find ')' to match '('.
+                        const Text(\"L'aper├ºu est bloqu├® par la s├®curit├® du navigateur (CORS) ou le fichier n'est pas une image.\", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+                                  ^
+lib/widgets/admin/booking_detail_dialog.dart:307:3: Error: Expected a declaration, but got '}'.
+  }
+  ^
+lib/widgets/admin/booking_detail_dialog.dart:308:1: Error: Expected a declaration, but got '}'.
+}
+^
+lib/widgets/admin/user_profile_detail_dialog.dart:220:33: Error: Expected an identifier, but got '\'.
+Try inserting an identifier before '\'.
+                          html: \"<div style='font-family: sans-serif; color: #333;'><p>${bodyController.text.replaceAll('\n', '<br>')}</p><br><p>Cordialement,<br><strong>L'├®quipe Marketplace</strong></p></div>\",
+                                ^
+lib/widgets/admin/user_profile_detail_dialog.dart:220:34: Error: Expected ',' before this.
+                          html: \"<div style='font-family: sans-serif; color: #333;'><p>${bodyController.text.replaceAll('\n', '<br>')}</p><br><p>Cordialement,<br><strong>L'├®quipe Marketplace</strong></p></div>\",
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:217:58: Error: Too many positional arguments: 0 allowed, but 1 found.
+Try removing the extra positional arguments.
+                        await _service.sendAutomaticEmail(
+                                                         ^
+lib/widgets/admin/user_profile_detail_dialog.dart:277:46: Error: Expected an identifier, but got '\'.
+Try inserting an identifier before '\'.
+    final displayValue = (isLong || isUrl) ? \"Document fourni\" : strValue;
+                                             ^
+lib/widgets/admin/user_profile_detail_dialog.dart:277:47: Error: Expected ':' before this.
+    final displayValue = (isLong || isUrl) ? \"Document fourni\" : strValue;
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:277:47: Error: Expected ';' after this.
+    final displayValue = (isLong || isUrl) ? \"Document fourni\" : strValue;
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:338:36: Error: Expected an identifier, but got '\'.
+Try inserting an identifier before '\'.
+                        const Text(\"L'aper├ºu est bloqu├® par la s├®curit├® du navigateur (CORS) ou le fichier n'est pas une image.\", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+                                   ^
+lib/widgets/admin/user_profile_detail_dialog.dart:338:37: Error: Expected ',' before this.
+                        const Text(\"L'aper├ºu est bloqu├® par la s├®curit├® du navigateur (CORS) ou le fichier n'est pas une image.\", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:339:25: Error: Expected ',' before this.
+                        const SizedBox(height: 16),
+                        ^^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:341:63: Error: Not a constant expression.
+                          onPressed: () => _launchExternalUrl(value),
+                                                              ^^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:341:44: Error: Not a constant expression.
+                          onPressed: () => _launchExternalUrl(value),
+                                           ^^^^^^^^^^^^^^^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:341:38: Error: Not a constant expression.
+                          onPressed: () => _launchExternalUrl(value),
+                                     ^^
+lib/widgets/admin/user_profile_detail_dialog.dart:343:45: Error: Expected an identifier, but got '\'.
+Try inserting an identifier before '\'.
+                          label: const Text(\"Ouvrir dans un nouvel onglet\"),
+                                            ^
+lib/widgets/admin/user_profile_detail_dialog.dart:343:46: Error: Expected ',' before this.
+                          label: const Text(\"Ouvrir dans un nouvel onglet\"),
+                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:343:44: Error: Too many positional arguments: 1 allowed, but 2 found.
+Try removing the extra positional arguments.
+                          label: const Text(\"Ouvrir dans un nouvel onglet\"),
+                                           ^
+/D:/flutter/packages/flutter/lib/src/widgets/text.dart:507:9: Context: Found this candidate, but the arguments don't match.
+  const Text(
+        ^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:340:40: Error: Cannot invoke a non-'const' constructor where a const expression is expected.
+Try using a constructor or factory that is 'const'.
+                        ElevatedButton.icon(
+                                       ^^^^
+lib/widgets/admin/user_profile_detail_dialog.dart:338:35: Error: Too many positional arguments: 1 allowed, but 4 found.
+Try removing the extra positional arguments.
+                        const Text(\"L'aper├ºu est bloqu├® par la s├®curit├® du navigateur (CORS) ou le fichier n'est pas une image.\", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+                                  ^
+/D:/flutter/packages/flutter/lib/src/widgets/text.dart:507:9: Context: Found this candidate, but the arguments don't match.
+  const Text(
+        ^^^^
+Waiting for connection from debug service on Chrome...             34,5s
+Failed to compile application.
