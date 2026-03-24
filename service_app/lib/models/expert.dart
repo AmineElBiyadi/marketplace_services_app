@@ -8,6 +8,7 @@ class ExpertModel {
   final String experience;
   final int rayonTravaille;
   final bool casierJudiciaire;
+  final String? casierJudiciaireUrl;
   final String? carteNationale;
   final String? carteNationaleVerso;
   final String? certificatDocs;
@@ -26,6 +27,7 @@ class ExpertModel {
     required this.experience,
     required this.rayonTravaille,
     required this.casierJudiciaire,
+    this.casierJudiciaireUrl,
     this.carteNationale,
     this.carteNationaleVerso,
     this.certificatDocs,
@@ -45,7 +47,8 @@ class ExpertModel {
       etatCompte: data['etatCompte'] ?? 'ACTIVE',
       experience: data['Experience'] ?? '',
       rayonTravaille: data['rayonTravaille'] ?? 0,
-      casierJudiciaire: data['CasierJudiciaire'] ?? false,
+      casierJudiciaire: data['CasierJudiciaire'] == true || (data['CasierJudiciaire'] is String && data['CasierJudiciaire'].toString().isNotEmpty),
+      casierJudiciaireUrl: data['CasierJudiciaire'] is String ? data['CasierJudiciaire'] : null,
       carteNationale: data['CarteNationale'],
       carteNationaleVerso: data['CarteNationaleVerso'],
       certificatDocs: data['CertificatDocs'],
@@ -62,7 +65,7 @@ class ExpertModel {
       'etatCompte': etatCompte,
       'Experience': experience,
       'rayonTravaille': rayonTravaille,
-      'CasierJudiciaire': casierJudiciaire,
+      'CasierJudiciaire': casierJudiciaireUrl ?? casierJudiciaire,
       'CarteNationale': carteNationale,
       'CarteNationaleVerso': carteNationaleVerso,
       'CertificatDocs': certificatDocs,

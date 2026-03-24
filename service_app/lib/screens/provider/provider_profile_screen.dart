@@ -392,13 +392,6 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           },
         ),
         _buildMenuItem(
-          icon: LucideIcons.bell,
-          title: "Notifications",
-          onTap: () {
-            context.push('/provider/${widget.expertId}/notifications');
-          },
-        ),
-        _buildMenuItem(
           icon: LucideIcons.barChart2,
           title: "Statistics",
           onTap: () {
