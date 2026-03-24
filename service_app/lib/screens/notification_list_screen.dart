@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import '../models/notification_model.dart';
+import '../models/expert.dart';
 import '../services/notification_service.dart';
+import '../services/firestore_service.dart';
 import '../theme/app_colors.dart';
 
 class NotificationListScreen extends StatelessWidget {
@@ -222,7 +224,13 @@ class NotificationListScreen extends StatelessWidget {
       case 'review':
         if (role == 'Expert' || role.toLowerCase() == 'expert') {
            if (expertId != null) {
-             context.push('/experts/$expertId');
+             final fs = FirestoreService();
+             final expert = await fs.getExpertDetailed(expertId);
+             if (expert != null && context.mounted) {
+               context.push('/experts/$expertId', extra: expert);
+             } else if (context.mounted) {
+               context.push('/provider/profile');
+             }
            } else {
              context.push('/provider/profile');
            }
