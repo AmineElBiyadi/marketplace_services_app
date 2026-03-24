@@ -23,6 +23,7 @@ import '../screens/provider/provider_subscription_screen.dart';
 import '../screens/provider/provider_profile_screen.dart';
 import '../screens/provider/provider_personal_info_screen.dart';
 import '../screens/provider/provider_documents_screen.dart';
+import '../screens/provider/provider_reclamations_screen.dart';
 import '../screens/provider/provider_statistics_screen.dart';
 import '../screens/provider/provider_cgu_screen.dart';
 import '../navigation/main_navigation.dart';
@@ -64,6 +65,7 @@ class AppRoutes {
   static const String providerSubscription = '/provider/:expertId/subscription';
   static const String providerSettings = '/provider/:expertId/settings';
   static const String providerMessages = '/provider/:expertId/messages';
+  static const String providerReclamations = '/provider/:expertId/profile/reclamations';
   static const String providerDeactivated = '/provider/deactivated';
   static const String notifications = '/notifications';
 
@@ -304,6 +306,13 @@ class AppRouter {
             builder: (context, state) {
               final expertId = state.pathParameters['expertId'] ?? '';
               return ProviderCguScreen(expertId: expertId);
+            },
+          ),
+          GoRoute(
+            path: 'reclamations',
+            builder: (context, state) {
+              final expertId = state.pathParameters['expertId'] ?? '';
+              return ProviderReclamationsScreen(expertId: expertId);
             },
           ),
         ],

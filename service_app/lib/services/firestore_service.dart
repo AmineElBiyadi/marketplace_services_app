@@ -1222,6 +1222,54 @@ class FirestoreService {
     }
   }
 
+  Future<List<Map<String, dynamic>>> getExpertComplaints(String expertId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('reclamations')
+          .where('idExpert', isEqualTo: expertId)
+          .get();
+
+      final results = await Future.wait(snapshot.docs.map((doc) async {
+        final data = doc.data();
+        String clientNom = 'Client';
+        final idClient = data['idClient'] as String?;
+
+        if (idClient != null && idClient.isNotEmpty) {
+          try {
+            final clientDoc = await _firestore.collection('clients').doc(idClient).get();
+            final idUtilisateur = clientDoc.data()?['idUtilisateur'];
+            if (idUtilisateur != null) {
+              final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
+              clientNom = userDoc.data()?['nom'] ?? 'Client';
+            }
+          } catch (_) {}
+        }
+
+        return {
+          'id': doc.id,
+          'clientNom': clientNom,
+          'description': data['description'] ?? '',
+          'etat': data['etatReclamation'] ?? 'EN_ATTENTE',
+          'date': data['createdAt'],
+          'idIntervention': data['idIntervention'] ?? '',
+        };
+      }).toList());
+
+      results.sort((a, b) {
+        final aDate = a['date'];
+        final bDate = b['date'];
+        if (aDate == null && bDate == null) return 0;
+        if (aDate == null) return 1;
+        if (bDate == null) return -1;
+        return bDate.compareTo(aDate);
+      });
+      return results;
+    } catch (e) {
+      debugPrint('Error fetching expert complaints: $e');
+      return [];
+    }
+  }
+
 
   /// Récupère toutes les images de portfolio d'un expert.
   Future<List<String>> getExpertPortfolioImages(String expertId) async {

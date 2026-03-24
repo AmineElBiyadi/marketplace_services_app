@@ -471,6 +471,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           },
         ),
         _buildMenuItem(
+          icon: LucideIcons.alertCircle,
+          title: "Mes Réclamations",
+          onTap: () {
+            context.push('/provider/${widget.expertId}/profile/reclamations');
+          },
+        ),
+        _buildMenuItem(
           icon: LucideIcons.alertTriangle,
           title: "Désactiver mon compte",
           onTap: () => _showDeactivateDialog(context),
