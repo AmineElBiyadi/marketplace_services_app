@@ -1134,7 +1134,7 @@ class AdminDashboardService {
         
         if (status == 'ACTIVE') {
           subject = "🎉 Votre compte a été activé !";
-          title = "Bienvenue sur Marketplace";
+          title = "Bienvenue sur Presto";
           desc = "Félicitations <b>${profile['name']}</b>,<br><br>Votre compte est désormais entièrement vérifié et actif sur notre plateforme. Vous pouvez dès à présent profiter de toutes les fonctionnalités et commencer à interagir avec notre communauté.";
           color = "#10B981"; // success green
         } else if (status == 'SUSPENDUE') {
@@ -1150,18 +1150,14 @@ class AdminDashboardService {
         }
 
         final htmlBody = '''
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 40px 20px; border-radius: 8px;">
-          <div style="background-color: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 6px solid $color;">
-            <h2 style="color: #111827; font-size: 24px; margin-top: 0; margin-bottom: 24px;">$title</h2>
-            <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 32px;">
-              $desc
-            </p>
-            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
-            <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              Cordialement,<br>
-              <strong>L'équipe d'administration Marketplace</strong>
-            </p>
-          </div>
+        <div>
+          <h2>$title</h2>
+          <p>$desc</p>
+          <hr>
+          <p>
+            Cordialement,<br>
+            <strong>L'équipe d'administration Presto</strong>
+          </p>
         </div>
         ''';
 
@@ -1194,13 +1190,13 @@ class AdminDashboardService {
     try {
       final response = await http.post(
         Uri.parse(scriptUrl),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
           'to': to,
           'subject': subject,
           'text': text ?? '',
           'html': html ?? '',
-        },
+        }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 302) {
