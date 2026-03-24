@@ -235,7 +235,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _kpiItem('Total Clients', s.totalClients.toString(), LucideIcons.users, _primary.withOpacity(0.1), _primary, s.userGrowth),
         _kpiItem('Réservations du mois', s.reservationsThisMonth.toString(), LucideIcons.calendarDays, Colors.blue.withOpacity(0.1), Colors.blue, ''),
         _kpiItem('Revenus totaux', '${NumberFormat("#,##0", "fr_FR").format(s.totalRevenue)} DH', LucideIcons.dollarSign, Colors.green.withOpacity(0.1), Colors.green, s.revenueGrowth),
-        _kpiItem('En attente', s.pendingProviders.toString(), LucideIcons.clock, Colors.amber.withOpacity(0.1), Colors.amber, ''),
+        _kpiItem('Total Pros', s.totalProviders.toString(), LucideIcons.briefcase, Colors.amber.withOpacity(0.1), Colors.amber, ''),
         _kpiItem('Terminées', s.totalFinishedReservations.toString(), LucideIcons.checkSquare, Colors.teal.withOpacity(0.1), Colors.teal, ''),
         _kpiItem('Taux d\'annulation', '${cancellationRate.toStringAsFixed(1)}%', LucideIcons.ban, Colors.red.withOpacity(0.1), Colors.red, ''),
       ],
