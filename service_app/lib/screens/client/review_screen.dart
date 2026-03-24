@@ -88,13 +88,19 @@ class _ReviewScreenState extends State<ReviewScreen> {
 
       // Notify Expert
       if (_intervention?.idExpert != null) {
-        await _notificationService.sendNotification(
-          idUtilisateur: _intervention!.idExpert,
-          titre: "Nvel Avis Client",
-          corps: "Un client a laissé un avis de $_rating étoiles sur votre prestation.",
-          type: 'review',
-          relatedId: widget.interventionId,
-        );
+        final expertDoc = await FirebaseFirestore.instance.collection('experts').doc(_intervention!.idExpert).get();
+        if (expertDoc.exists) {
+          final idUtilisateur = (expertDoc.data() as Map<String, dynamic>?)?['idUtilisateur'];
+          if (idUtilisateur != null) {
+            await _notificationService.sendNotification(
+              idUtilisateur: idUtilisateur,
+              titre: "Nvel Avis Client",
+              corps: "Un client a laissé un avis de $_rating étoiles sur votre prestation.",
+              type: 'review',
+              relatedId: widget.interventionId,
+            );
+          }
+        }
       }
 
       // Optionally update the intervention to mark it as reviewed if you have such a field

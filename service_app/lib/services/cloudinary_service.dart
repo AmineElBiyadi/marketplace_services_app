@@ -6,7 +6,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 
 class CloudinaryService {
-  static String get cloudName => dotenv.get('CLOUDINARY_CLOUD_NAME', fallback: 'dt0swlkte');
+  static String get cloudName => dotenv.get('CLOUDINARY_CLOUD_NAME', fallback: 'dt0swikte');
   static String get uploadPreset => dotenv.get('CLOUDINARY_UPLOAD_PRESET', fallback: 'services_app_preset');
 
   /// EXEMPLE D'UTILISATION POUR L'ÉQUIPE :
@@ -23,10 +23,12 @@ class CloudinaryService {
   
   static Future<String?> uploadImage(dynamic imageSource) async {
     try {
-      final uri = Uri.parse("https://api.cloudinary.com/v1_1/$cloudName/image/upload");
+      final name = cloudName;
+      final preset = uploadPreset;
+      final uri = Uri.parse("https://api.cloudinary.com/v1_1/$name/image/upload");
       
       var request = http.MultipartRequest("POST", uri);
-      request.fields['upload_preset'] = uploadPreset;
+      request.fields['upload_preset'] = preset;
 
       if (imageSource is String) {
         // If it's a base64 string
@@ -43,7 +45,7 @@ class CloudinaryService {
           filename: 'upload_${DateTime.now().millisecondsSinceEpoch}.jpg',
         ));
       } else {
-        debugPrint("[CloudinaryService] Unsupported image source type");
+        debugPrint("[CloudinaryService] Unsupported image source type: ${imageSource.runtimeType}");
         return null;
       }
 
@@ -54,11 +56,11 @@ class CloudinaryService {
         final data = jsonDecode(response.body);
         return data['secure_url'] as String?;
       } else {
-        debugPrint("[CloudinaryService] Upload failed: ${response.body}");
+        debugPrint("[CloudinaryService] Upload failed (Status ${response.statusCode}): ${response.body}");
         return null;
       }
     } catch (e) {
-      debugPrint("[CloudinaryService] Error: $e");
+      debugPrint("[CloudinaryService] Exception during upload: $e");
       return null;
     }
   }
