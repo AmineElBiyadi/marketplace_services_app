@@ -444,7 +444,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         ),
         _buildMenuItem(
           icon: LucideIcons.fileImage,
-          title: "Mes Documents",
+          title: "My Documents",
           onTap: () {
             context.push('/provider/${widget.expertId}/profile/documents');
           },
@@ -468,6 +468,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           title: "Terms of Service / Privacy Policy",
           onTap: () {
             context.push('/provider/${widget.expertId}/profile/cgu');
+          },
+        ),
+        _buildMenuItem(
+          icon: LucideIcons.alertCircle,
+          title: "My Claims",
+          onTap: () {
+            context.push('/provider/${widget.expertId}/profile/reclamations');
           },
         ),
         _buildMenuItem(

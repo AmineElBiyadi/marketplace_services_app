@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
@@ -57,7 +58,7 @@ class NotificationListScreen extends StatelessWidget {
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final n = notifications[index];
-              return _buildNotificationCard(context, n, _service, role);
+              return _buildNotificationCard(context, n, _service, role, idUtilisateur);
             },
           );
         },
@@ -84,14 +85,14 @@ class NotificationListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildNotificationCard(BuildContext context, NotificationModel n, NotificationService _service, String role) {
+  Widget _buildNotificationCard(BuildContext context, NotificationModel n, NotificationService _service, String role, String idUtilisateur) {
     final bool isUnread = !n.estLue;
     final timeStr = DateFormat('dd/MM HH:mm').format(n.createdAt);
 
     return InkWell(
-      onTap: () {
+      onTap: () async {
         _service.markAsRead(n.id);
-        _handleRedirection(context, n, role);
+        await _handleRedirection(context, n, role, idUtilisateur);
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -171,51 +172,84 @@ class NotificationListScreen extends StatelessWidget {
     }
   }
 
-  void _handleRedirection(BuildContext context, NotificationModel n, String role) {
+  Future<void> _handleRedirection(BuildContext context, NotificationModel n, String role, String idUtilisateur) async {
     debugPrint('DEBUG: Redirection for type ${n.type} and role $role');
     
+    // Resolve expertId if role is Expert (needed for many paths)
+    String? expertId;
+    if (role == 'Expert' || role.toLowerCase() == 'expert' || role == 'Prestataire') {
+      try {
+        final expertSnap = await FirebaseFirestore.instance
+            .collection('experts')
+            .where('idUtilisateur', isEqualTo: idUtilisateur)
+            .limit(1)
+            .get();
+        if (expertSnap.docs.isNotEmpty) {
+          expertId = expertSnap.docs.first.id;
+        }
+      } catch (e) {
+        debugPrint("Error resolving expertId: $e");
+      }
+    }
+
+    if (!context.mounted) return;
+
     switch (n.type) {
       case 'booking':
       case 'booking_status':
         if (role == 'Client' || role.toLowerCase() == 'client') {
-          context.push('/bookings');
-        } else if (role == 'Expert' || role.toLowerCase() == 'expert' || role == 'Prestataire') {
-          // Si on a l'userId dans la notification, on l'utilise, sinon on redirige vers l'accueil provider
-          context.push('/provider/reservations');
+          if (n.relatedId != null && n.relatedId!.isNotEmpty) {
+            context.push('/booking-detail/${n.relatedId}');
+          } else {
+            context.push('/bookings-list');
+          }
+        } else if (expertId != null) {
+          context.push('/provider/$expertId/bookings');
         }
         break;
+
       case 'claim':
       case 'claim_response':
         if (role == 'Admin') {
-          // L'admin gère les réclams dans l'onglet reviews/claims
           context.go('/admin/reviews');
         } else if (role == 'Client' || role.toLowerCase() == 'client') {
-          // Pas encore d'écran historique réclamation client, on envoie vers bookings ou home
-          context.push('/bookings');
-        } else if (role == 'Expert' || role.toLowerCase() == 'expert') {
-          context.push('/provider/reservations');
+          context.push('/reclamations');
+        } else if (expertId != null) {
+          context.push('/provider/$expertId/profile/reclamations');
         }
         break;
+
       case 'review':
         if (role == 'Expert' || role.toLowerCase() == 'expert') {
-           context.push('/provider/profile');
+           if (expertId != null) {
+             context.push('/experts/$expertId');
+           } else {
+             context.push('/provider/profile');
+           }
         } else if (role == 'Admin') {
            context.go('/admin/reviews');
+        } else if (role == 'Client' || role.toLowerCase() == 'client') {
+           context.push('/my-reviews');
         }
         break;
+
       case 'account':
       case 'account_status':
-        if (role == 'Expert' || role.toLowerCase() == 'expert' || role == 'Prestataire') {
+        if (expertId != null) {
+          context.push('/provider/$expertId/profile');
+        } else if (role == 'Expert' || role.toLowerCase() == 'expert' || role == 'Prestataire') {
           context.push('/provider/profile');
         }
         break;
+
       case 'registration':
         if (role == 'Admin') {
           context.go('/admin/providers');
         }
         break;
+
       default:
-        // Fallback redirection logic if needed
+        // No redirection for unknown types
         break;
     }
   }

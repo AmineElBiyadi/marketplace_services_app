@@ -23,6 +23,7 @@ import '../screens/provider/provider_subscription_screen.dart';
 import '../screens/provider/provider_profile_screen.dart';
 import '../screens/provider/provider_personal_info_screen.dart';
 import '../screens/provider/provider_documents_screen.dart';
+import '../screens/provider/provider_reclamations_screen.dart';
 import '../screens/provider/provider_statistics_screen.dart';
 import '../screens/provider/provider_cgu_screen.dart';
 import '../navigation/main_navigation.dart';
@@ -30,6 +31,8 @@ import '../screens/client/booking_detail_screen.dart';
 import '../screens/client/bookings_screen.dart';
 import '../screens/client/review_screen.dart';
 import '../screens/client/complaint_screen.dart';
+import '../screens/client/my_complaints_screen.dart';
+import '../screens/client/my_reviews_screen.dart';
 import '../screens/splash_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -64,6 +67,7 @@ class AppRoutes {
   static const String providerSubscription = '/provider/:expertId/subscription';
   static const String providerSettings = '/provider/:expertId/settings';
   static const String providerMessages = '/provider/:expertId/messages';
+  static const String providerReclamations = '/provider/:expertId/profile/reclamations';
   static const String providerDeactivated = '/provider/deactivated';
   static const String notifications = '/notifications';
 
@@ -219,6 +223,15 @@ class AppRouter {
       ),
 
       GoRoute(
+        path: '/reclamations',
+        builder: (context, state) => MyComplaintsScreen(),
+      ),
+      GoRoute(
+        path: '/my-reviews',
+        builder: (context, state) => MyReviewsScreen(),
+      ),
+
+      GoRoute(
         path: AppRoutes.expertProfile,
         builder: (context, state) {
           final expert = state.extra as Expert;
@@ -304,6 +317,13 @@ class AppRouter {
             builder: (context, state) {
               final expertId = state.pathParameters['expertId'] ?? '';
               return ProviderCguScreen(expertId: expertId);
+            },
+          ),
+          GoRoute(
+            path: 'reclamations',
+            builder: (context, state) {
+              final expertId = state.pathParameters['expertId'] ?? '';
+              return ProviderReclamationsScreen(expertId: expertId);
             },
           ),
         ],

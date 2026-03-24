@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LocationService {
   /// Cache en mémoire pour les coordonnées des villes
@@ -43,6 +44,11 @@ class LocationService {
   /// Demande la permission et retourne la position actuelle.
   /// Retourne null si la permission est refusée ou en cas d'erreur.
   Future<Position?> getCurrentPosition() async {
+    // Check user preference before proceeding
+    final prefs = await SharedPreferences.getInstance();
+    final bool useLocation = prefs.getBool('use_location') ?? true;
+    if (!useLocation) return null;
+
     bool serviceEnabled;
     LocationPermission permission;
 

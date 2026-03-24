@@ -26,11 +26,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _clientData;
   bool _isLoading = true;
   int _bookingsCount = 0;
+  bool _useLocation = true;
 
   @override
   void initState() {
     super.initState();
     _loadProfileData();
+    _loadLocationPreference();
+  }
+
+  Future<void> _loadLocationPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _useLocation = prefs.getBool('use_location') ?? true;
+    });
+  }
+
+  Future<void> _toggleLocationPreference(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('use_location', value);
+    setState(() {
+      _useLocation = value;
+    });
   }
 
   Future<void> _loadProfileData() async {
@@ -362,6 +379,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onTap: () => Navigator.push(
               context, MaterialPageRoute(builder: (_) => const ClientCguScreen())),
         ),
+        _buildToggleItem(
+          icon: LucideIcons.mapPin,
+          title: 'Utiliser ma localisation',
+          value: _useLocation,
+          onChanged: _toggleLocationPreference,
+        ),
         const SizedBox(height: 16),
         _menuItem(
           icon: LucideIcons.logOut,
@@ -372,6 +395,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onTap: _handleLogout,
         ),
       ],
+    );
+  }
+
+  Widget _buildToggleItem({
+    required IconData icon,
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 22, color: const Color(0xFF64748B)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: () => onChanged(!value),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: 44,
+              height: 22,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                color: value ? const Color(0xFF2E335A) : const Color(0xFFCBD5E1),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 250),
+                alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 1,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
