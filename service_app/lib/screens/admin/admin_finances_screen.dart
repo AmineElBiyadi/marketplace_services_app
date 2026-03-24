@@ -141,81 +141,87 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 1024;
     return AdminLayout(
       activeRoute: '/admin/finances',
-      child: _isLoading 
-          ? const Center(child: CircularProgressIndicator(color: AppColors.foreground))
-          : SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 24),
-                    _buildKPIGrid(),
-                    const SizedBox(height: 32),
-                    _buildPremiumPricingCard(),
-                    const SizedBox(height: 32),
-                    _buildChartCard(),
-                    const SizedBox(height: 32),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: _buildTabsIndicator(),
+      child: Column(
+        children: [
+          _buildTopBar(isMobile),
+          Expanded(
+            child: _isLoading 
+                ? const Center(child: CircularProgressIndicator(color: AppColors.foreground))
+                : SingleChildScrollView(
+                    child: Padding(
+                      padding: EdgeInsets.all(isMobile ? 12.0 : 24.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildKPIGrid(),
+                          const SizedBox(height: 32),
+                          _buildPremiumPricingCard(),
+                          const SizedBox(height: 32),
+                          _buildChartCard(),
+                          const SizedBox(height: 32),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: _buildTabsIndicator(),
+                          ),
+                          const SizedBox(height: 16),
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: _tabController.index == 0
+                                ? KeyedSubtree(
+                                    key: const ValueKey('tab0'),
+                                    child: _buildSubscriptionsTable(),
+                                  )
+                                : KeyedSubtree(
+                                    key: const ValueKey('tab1'),
+                                    child: _buildFailedPaymentsTable(),
+                                  ),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: _tabController.index == 0
-                          ? KeyedSubtree(
-                              key: const ValueKey('tab0'),
-                              child: _buildSubscriptionsTable(),
-                            )
-                          : KeyedSubtree(
-                              key: const ValueKey('tab1'),
-                              child: _buildFailedPaymentsTable(),
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
   // ── HEADER ──────────────────────────────────────────────────────────────────
-  Widget _buildHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Finances',
-                style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.foreground,
-                    letterSpacing: -0.5)),
-            SizedBox(height: 4),
-            Text('Suivi des revenus et abonnements premium',
-                style: TextStyle(fontSize: 14, color: AppColors.mutedForeground)),
-          ],
-        ),
-        ElevatedButton.icon(
-          onPressed: _exportFinances,
-          icon: const Icon(LucideIcons.fileText, size: 14),
-          label: const Text('Exporter PDF',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.foreground,
-            foregroundColor: AppColors.card,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            elevation: 0,
+  Widget _buildTopBar(bool isMobile) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: AppColors.border))),
+      child: Row(
+        children: [
+          if (isMobile)
+            Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(LucideIcons.menu, color: AppColors.foreground),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+          const Text('Finances', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.foreground)),
+          const Spacer(),
+          ElevatedButton.icon(
+            onPressed: _exportFinances,
+            icon: const Icon(LucideIcons.fileText, size: 14),
+            label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.foreground,
+              foregroundColor: AppColors.card,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
           ),
-        ),
-      ],
+          const SizedBox(width: 12),
+          IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: AppColors.mutedForeground)),
+        ],
+      ),
     );
   }
 
@@ -632,23 +638,27 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                 style: const TextStyle(
                     color: AppColors.mutedForeground, fontSize: 13)),
             _AttemptsIndicator(count: (f['attempts'] as int?) ?? 1),
-            Row(children: [
-              _ActionButton(
-                label: 'Relancer',
-                icon: LucideIcons.refreshCw,
-                color: AppColors.primary,
-                bg: const Color(0xFFEFF6FF),
-                onTap: () => _confirmReactivate(subId),
-              ),
-              const SizedBox(width: 8),
-              _ActionButton(
-                label: 'Suspendre',
-                icon: LucideIcons.ban,
-                color: AppColors.destructive,
-                bg: const Color(0xFFFEF2F2),
-                onTap: () => _confirmSuspend(subId),
-              ),
-            ]),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(children: [
+                _ActionButton(
+                  label: 'Relancer',
+                  icon: LucideIcons.refreshCw,
+                  color: AppColors.primary,
+                  bg: const Color(0xFFEFF6FF),
+                  onTap: () => _confirmReactivate(subId),
+                ),
+                const SizedBox(width: 8),
+                _ActionButton(
+                  label: 'Suspendre',
+                  icon: LucideIcons.ban,
+                  color: AppColors.destructive,
+                  bg: const Color(0xFFFEF2F2),
+                  onTap: () => _confirmSuspend(subId),
+                ),
+              ]),
+            ),
           ],
         );
       }).toList(),
@@ -1018,24 +1028,28 @@ class _PackBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-          color: const Color(0xFFFEF9C3).withOpacity(0.6),
-          borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: const Color(0xFFFEF08A))),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(LucideIcons.crown, size: 12, color: Color(0xFFCA8A04)),
-          const SizedBox(width: 6),
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFFCA8A04),
-                  letterSpacing: 0.5)),
-        ],
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+            color: const Color(0xFFFEF9C3).withOpacity(0.6),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: const Color(0xFFFEF08A))),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(LucideIcons.crown, size: 12, color: Color(0xFFCA8A04)),
+            const SizedBox(width: 6),
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFCA8A04),
+                    letterSpacing: 0.5)),
+          ],
+        ),
       ),
     );
   }
@@ -1066,22 +1080,26 @@ class _StatusChip extends StatelessWidget {
       text = const Color(0xFF991B1B);
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(25)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: dot),
-          ),
-          const SizedBox(width: 6),
-          Text(status,
-              style: TextStyle(
-                  fontSize: 11, fontWeight: FontWeight.w800, color: text)),
-        ],
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(25)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: dot),
+            ),
+            const SizedBox(width: 6),
+            Text(status,
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w800, color: text)),
+          ],
+        ),
       ),
     );
   }

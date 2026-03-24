@@ -172,57 +172,69 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
 
   @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 1024;
+
     return AdminLayout(
       activeRoute: '/admin/settings',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 32),
-            _buildTabsSectionHeader(),
-            const SizedBox(height: 24),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
+      child: Column(
+        children: [
+          _buildTopBar(isMobile),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.all(isMobile ? 12.0 : 24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   _buildCguTab(),
-                   _buildMaintenanceTab(),
-                   _buildServicesTab(),
+                  _buildTabsSectionHeader(),
+                  const SizedBox(height: 24),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                         _buildCguTab(),
+                         _buildMaintenanceTab(),
+                         _buildServicesTab(),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return const Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Paramètres',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w900,
-            color: AppColors.foreground,
-            letterSpacing: -0.5,
+  Widget _buildTopBar(bool isMobile) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: AppColors.border))),
+      child: Row(
+        children: [
+          if (isMobile)
+            Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(LucideIcons.menu, color: AppColors.foreground),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+          const Text('Paramètres', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.foreground)),
+          const Spacer(),
+          IconButton(
+            onPressed: () {
+              _loadSettings();
+              _loadServices();
+            },
+            icon: const Icon(LucideIcons.refreshCw, size: 18, color: AppColors.mutedForeground),
           ),
-        ),
-        SizedBox(height: 4),
-        Text(
-          'Configuration globale et gestion de la plateforme',
-          style: TextStyle(
-            fontSize: 14,
-            color: AppColors.mutedForeground,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
+
+// _buildHeader completely removed because Top Bar replaces it
 
   Widget _buildCguTab() {
     if (_isLoading) {
@@ -618,48 +630,31 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
       return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
 
+    final bool isMobile = MediaQuery.of(context).size.width < 1024;
+
+    if (isMobile) {
+      return Column(
+        children: [
+          SizedBox(
+            height: 250,
+            child: _buildServiceListColumn(),
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: _selectedService == null
+                ? const Center(child: Text("Sélectionnez un service pour voir les tâches"))
+                : _buildServiceDetailCard(_selectedService!),
+          ),
+        ],
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Left Column: Services List
         SizedBox(
           width: 300,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text("Services", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  IconButton(
-                    icon: const Icon(LucideIcons.plusCircle, size: 20, color: AppColors.primary),
-                    onPressed: () => _showServiceDialog(),
-                    tooltip: "Ajouter un service",
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.muted.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.border.withOpacity(0.3)),
-                  ),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(8),
-                    itemCount: _services.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 4),
-                    itemBuilder: (context, index) {
-                      final service = _services[index];
-                      final isSelected = _selectedService?['id'] == service['id'];
-                      return _buildServiceItem(service, isSelected);
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
+          child: _buildServiceListColumn(),
         ),
         const SizedBox(width: 24),
         // Right Column: Service Details & Tasks
@@ -667,6 +662,45 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
           child: _selectedService == null
               ? const Center(child: Text("Sélectionnez un service pour voir les tâches"))
               : _buildServiceDetailCard(_selectedService!),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildServiceListColumn() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text("Services", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            IconButton(
+              icon: const Icon(LucideIcons.plusCircle, size: 20, color: AppColors.primary),
+              onPressed: () => _showServiceDialog(),
+              tooltip: "Ajouter un service",
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.muted.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border.withOpacity(0.3)),
+            ),
+            child: ListView.separated(
+              padding: const EdgeInsets.all(8),
+              itemCount: _services.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 4),
+              itemBuilder: (context, index) {
+                final service = _services[index];
+                final isSelected = _selectedService?['id'] == service['id'];
+                return _buildServiceItem(service, isSelected);
+              },
+            ),
+          ),
         ),
       ],
     );
