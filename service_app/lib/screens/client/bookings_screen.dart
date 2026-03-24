@@ -8,6 +8,8 @@ import '../../models/booking.dart';
 import '../../models/chat_model.dart';
 import '../chat/chat_screen.dart';
 import '../../routes/routes.dart';
+import '../../services/firestore_service.dart';
+
 
 const _tabs = ["Pending", "Confirmed", "Completed", "Cancelled", "Refused"];
 const _tabStatusMap = {
@@ -28,7 +30,36 @@ class BookingsScreen extends StatefulWidget {
 }
 
 class _BookingsScreenState extends State<BookingsScreen> {
+  final FirestoreService _firestoreService = FirestoreService();
   int _selectedTab = 0;
+  List<String> _clientIds = [];
+  bool _initializingIds = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _initClientIds();
+  }
+
+  Future<void> _initClientIds() async {
+    final List<String> ids = [widget.clientId];
+    try {
+      final data = await _firestoreService.getClientByUid(widget.clientId);
+      final legacyId = data?['clientId'];
+      if (legacyId != null && legacyId != widget.clientId) {
+        ids.add(legacyId);
+      }
+    } catch (e) {
+      debugPrint("Error fetching legacy clientId: $e");
+    }
+    if (mounted) {
+      setState(() {
+        _clientIds = ids;
+        _initializingIds = false;
+      });
+    }
+  }
+
 
   Color _statusColor(String status) {
     switch (status) {
@@ -654,12 +685,9 @@ class _BookingsScreenState extends State<BookingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.clientId.isEmpty) {
+    if (_initializingIds) {
       return const Scaffold(
-        backgroundColor: Color(0xFFFBFBFB),
-        body: SafeArea(
-          child: Center(child: Text("User not authenticated")),
-        ),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -752,8 +780,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('interventions')
-                  .where('idClient', isEqualTo: widget.clientId)
-                  .where('statut', isEqualTo: currentStatus)
+                  .where('idClient', whereIn: _clientIds)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -765,8 +792,10 @@ class _BookingsScreenState extends State<BookingsScreen> {
                 
                 final docs = snapshot.data?.docs ?? [];
                 
+                // Filter by status in memory for robustness
                 List<InterventionModel> interventions = docs
                     .map((doc) => InterventionModel.fromFirestore(doc))
+                    .where((i) => i.statut == currentStatus)
                     .toList();
                 
                 interventions.sort((a, b) {

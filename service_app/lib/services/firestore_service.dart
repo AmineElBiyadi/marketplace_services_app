@@ -667,26 +667,27 @@ class FirestoreService {
   }
 
   /// Fetch client snapshot data from Firestore using the clientId from an intervention.
+  /// Fetch client snapshot data from Firestore using the clientId from an intervention.
   Future<Map<String, dynamic>?> getClientSnapshot(String clientId) async {
     try {
-      // First get the client doc to find idUtilisateur
+      // 1. Check if clientId is a direct Auth UID (standardized way)
+      final directUserDoc = await _firestore.collection('utilisateurs').doc(clientId).get();
+      if (directUserDoc.exists) {
+        return directUserDoc.data();
+      }
+
+      // 2. Fallback: Check if clientId belongs to the 'clients' collection (old way)
       final clientDoc = await _firestore.collection('clients').doc(clientId).get();
-      if (!clientDoc.exists) return null;
-
-      final idUtilisateur = clientDoc.data()?['idUtilisateur'];
-      if (idUtilisateur == null) return null;
-
-      // Fetch user data
-      final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
-      if (!userDoc.exists) return null;
-
-      final data = userDoc.data()!;
-      return {
-        'nom': data['nom'] ?? 'Client',
-        'telephone': data['telephone'] ?? '',
-        'photo': data['image_profile'],
-      };
+      if (clientDoc.exists) {
+        final idUtilisateur = clientDoc.data()?['idUtilisateur'];
+        if (idUtilisateur != null) {
+          final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
+          return userDoc.data();
+        }
+      }
+      return null;
     } catch (e) {
+      debugPrint("Error fetching client snapshot: $e");
       return null;
     }
   }
@@ -1064,12 +1065,18 @@ class FirestoreService {
 
         if (idClient != null && idClient.isNotEmpty) {
           try {
-            final clientDoc = await _firestore.collection('clients').doc(idClient).get();
-            final idUtilisateur = clientDoc.data()?['idUtilisateur'];
-            
-            if (idUtilisateur != null) {
-              final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
+            // Standardized way: direct lookup
+            final userDoc = await _firestore.collection('utilisateurs').doc(idClient).get();
+            if (userDoc.exists) {
               clientNom = userDoc.data()?['nom'] ?? 'Client';
+            } else {
+              // Fallback: check clients collection
+              final clientDoc = await _firestore.collection('clients').doc(idClient).get();
+              final idU = clientDoc.data()?['idUtilisateur'];
+              if (idU != null) {
+                final userDoc2 = await _firestore.collection('utilisateurs').doc(idU).get();
+                clientNom = userDoc2.data()?['nom'] ?? 'Client';
+              }
             }
           } catch (e) {
             debugPrint('Error resolving client name for review: $e');
@@ -1093,11 +1100,16 @@ class FirestoreService {
   }
 
   /// Fetches all reviews (evaluations) left BY a client with expert names resolved.
-  Future<List<Map<String, dynamic>>> getClientReviews(String clientId) async {
+  Future<List<Map<String, dynamic>>> getClientReviews(String clientId, {String? authUid}) async {
     try {
+      final List<String> clientIds = [clientId];
+      if (authUid != null && authUid != clientId) {
+        clientIds.add(authUid);
+      }
+
       final snapshot = await _firestore
           .collection('evaluations')
-          .where('idClient', isEqualTo: clientId)
+          .where('idClient', whereIn: clientIds)
           .get();
 
       final results = await Future.wait(snapshot.docs.map((doc) async {
@@ -1117,7 +1129,7 @@ class FirestoreService {
               expertPhoto = userDoc.data()?['image_profile'] ?? '';
             }
           } catch (e) {
-            debugPrint('Error resolving expert name for client review: \$e');
+            debugPrint('Error resolving expert name for client review: $e');
           }
         }
 
@@ -1151,17 +1163,22 @@ class FirestoreService {
       });
       return results;
     } catch (e) {
-      debugPrint('Error fetching client reviews: \$e');
+      debugPrint('Error fetching client reviews: $e');
       return [];
     }
   }
 
   /// Fetches all complaints (reclamations) made BY a client, with expert names resolved.
-  Future<List<Map<String, dynamic>>> getClientComplaints(String clientId) async {
+  Future<List<Map<String, dynamic>>> getClientComplaints(String clientId, {String? authUid}) async {
     try {
+      final List<String> clientIds = [clientId];
+      if (authUid != null && authUid != clientId) {
+        clientIds.add(authUid);
+      }
+
       final snapshot = await _firestore
           .collection('reclamations')
-          .where('idClient', isEqualTo: clientId)
+          .where('idClient', whereIn: clientIds)
           .get();
 
       final results = await Future.wait(snapshot.docs.map((doc) async {
@@ -1200,7 +1217,7 @@ class FirestoreService {
       });
       return results;
     } catch (e) {
-      debugPrint('Error fetching client complaints: \$e');
+      debugPrint('Error fetching client complaints: $e');
       return [];
     }
   }
