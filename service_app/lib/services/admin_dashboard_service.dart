@@ -1079,6 +1079,16 @@ class AdminDashboardService {
     if (collection == 'experts') {
       if (status == 'DESACTIVE' || status == 'SUSPENDUE') {
         updates['desactiveParAdmin'] = true;
+
+        // Automatically suspend premium plan if active
+        final activeSubs = await _db.collection('abonnements')
+            .where('idExpert', isEqualTo: docRef.id)
+            .where('statut', whereIn: ['ACTIVE', 'GRACE'])
+            .get();
+            
+        for (var subDoc in activeSubs.docs) {
+          await suspendSubscription(subDoc.id);
+        }
       } else if (status == 'ACTIVE') {
         updates['desactiveParAdmin'] = false;
       }
@@ -1380,6 +1390,45 @@ class AdminDashboardService {
 
   Future<void> updateService(String id, Map<String, dynamic> data) async {
     await _db.collection('services').doc(id).update(data);
+
+    // Si on désactive le service, on désactive uniquement les tâches catalogue (idExpert == "").
+    // Les tâches créées par les experts (idExpert != "") ne sont PAS touchées,
+    // car elles ont leur propre cycle de vie et ne peuvent pas être "débloquées" lors de la réactivation.
+    if (data.containsKey('estActive') && data['estActive'] == false) {
+      final batch = _db.batch();
+
+      // 1. Désactiver uniquement les tâches catalogue (idExpert == "" ou null)
+      // On filtre en Dart pour éviter d'avoir besoin d'un index composite Firestore
+      final tasksSnap = await _db
+          .collection('taches')
+          .where('idService', isEqualTo: id)
+          .get();
+      for (var doc in tasksSnap.docs) {
+        final expertId = doc.data()['idExpert'] ?? '';
+        if (expertId == '') {
+          batch.update(doc.reference, {
+            'estActive': false,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      // 2. Désactiver les instances tacheExperts liées à ce service
+      final tacheExpertsSnap = await _db
+          .collection('tacheExperts')
+          .where('idService', isEqualTo: id)
+          .get();
+      for (var doc in tacheExpertsSnap.docs) {
+        batch.update(doc.reference, {
+          'estActive': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (tasksSnap.docs.isNotEmpty || tacheExpertsSnap.docs.isNotEmpty) {
+        await batch.commit();
+      }
+    }
   }
 
   Future<void> deleteService(String id) async {
@@ -1424,6 +1473,28 @@ class AdminDashboardService {
       ...data,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    // If deactivating a catalog task, cascade to all expert task instances (tacheExperts)
+    if (data.containsKey('estActive')) {
+      final bool isActive = data['estActive'];
+      if (!isActive) {
+        final tacheExpertsSnap = await _db
+            .collection('tacheExperts')
+            .where('idTache', isEqualTo: id)
+            .get();
+
+        if (tacheExpertsSnap.docs.isNotEmpty) {
+          final batch = _db.batch();
+          for (var doc in tacheExpertsSnap.docs) {
+            batch.update(doc.reference, {
+              'estActive': false,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+          await batch.commit();
+        }
+      }
+    }
   }
 
   Future<void> deleteTask(String id) async {

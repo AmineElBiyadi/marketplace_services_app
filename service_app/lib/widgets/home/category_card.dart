@@ -75,26 +75,32 @@ class CategoryCard extends StatelessWidget {
   }
 
   Widget _buildImage(String path) {
+    final bool isNetwork = path.startsWith('http');
+
     ImageProvider provider;
     if (path.startsWith('assets/')) {
       provider = AssetImage(path);
-    } else if (path.startsWith('http')) {
+    } else if (isNetwork) {
       provider = NetworkImage(path);
     } else {
       try {
         provider = MemoryImage(base64Decode(path));
       } catch (e) {
-        provider = const AssetImage('assets/logo.png'); // Fallback
+        provider = const AssetImage('assets/logo.png');
       }
     }
 
     return Image(
       image: provider,
-      fit: BoxFit.contain,
-      color: isSelected
-          ? const Color(0xFF3D5A99)
-          : _getPastelColor(label),
-      colorBlendMode: BlendMode.multiply,
+      fit: BoxFit.cover,
+      // Don't apply tint for real Cloudinary photos — only for asset icons
+      color: isNetwork ? null : (isSelected ? const Color(0xFF3D5A99) : _getPastelColor(label)),
+      colorBlendMode: isNetwork ? null : BlendMode.multiply,
+      errorBuilder: (_, __, ___) => Icon(
+        icon,
+        color: isSelected ? Colors.white : _getIconColor(label),
+        size: 32,
+      ),
     );
   }
 
