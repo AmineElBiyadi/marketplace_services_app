@@ -476,7 +476,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         final dist = _distanceTo(expert);
                                         return NearbyProviderCard(
                                           name: expert.nom,
-                                          service: expert.services.isNotEmpty ? expert.services.first : '',
+                                          service: expert.services.join(', '),
                                           rating: expert.noteMoyenne,
                                           distance: dist ?? 0.0,
                                           imageUrl: expert.photo,

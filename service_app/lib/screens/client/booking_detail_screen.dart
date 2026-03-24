@@ -140,7 +140,7 @@ class BookingDetailScreen extends StatelessWidget {
                 _buildSectionCard(
                   title: 'Service Details',
                   children: [
-                    _buildDetailRow('Service', serviceName),
+                    _buildDetailRow('Tache', serviceName),
                     _buildDetailRow('Date', _formatDate(intervention.dateDebutIntervention)),
                     _buildDetailRow('Address', fullAddress),
                     if (status == 'ANNULEE' && (intervention.motifeAnnulation?.isNotEmpty ?? false))
