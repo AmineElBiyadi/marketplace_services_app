@@ -39,7 +39,7 @@ class _MyComplaintsScreenState extends State<MyComplaintsScreen> {
         return;
       }
       final clientId = clientQuery.docs.first.id;
-      final complaints = await _firestoreService.getClientComplaints(clientId);
+      final complaints = await _firestoreService.getClientComplaints(clientId, authUid: uid);
       if (mounted) {
         setState(() {
           _allComplaints = complaints;
