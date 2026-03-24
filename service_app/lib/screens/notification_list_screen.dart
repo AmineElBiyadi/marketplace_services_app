@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
@@ -89,9 +90,9 @@ class NotificationListScreen extends StatelessWidget {
     final timeStr = DateFormat('dd/MM HH:mm').format(n.createdAt);
 
     return InkWell(
-      onTap: () {
+      onTap: () async {
         _service.markAsRead(n.id);
-        _handleRedirection(context, n, role);
+        await _handleRedirection(context, n, role, idUtilisateur);
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -171,7 +172,7 @@ class NotificationListScreen extends StatelessWidget {
     }
   }
 
-  void _handleRedirection(BuildContext context, NotificationModel n, String role) {
+  Future<void> _handleRedirection(BuildContext context, NotificationModel n, String role, String idUtilisateur) async {
     debugPrint('DEBUG: Redirection for type ${n.type} and role $role');
     
     switch (n.type) {
@@ -180,17 +181,14 @@ class NotificationListScreen extends StatelessWidget {
         if (role == 'Client' || role.toLowerCase() == 'client') {
           context.push('/bookings');
         } else if (role == 'Expert' || role.toLowerCase() == 'expert' || role == 'Prestataire') {
-          // Si on a l'userId dans la notification, on l'utilise, sinon on redirige vers l'accueil provider
           context.push('/provider/reservations');
         }
         break;
       case 'claim':
       case 'claim_response':
         if (role == 'Admin') {
-          // L'admin gère les réclams dans l'onglet reviews/claims
           context.go('/admin/reviews');
         } else if (role == 'Client' || role.toLowerCase() == 'client') {
-          // Pas encore d'écran historique réclamation client, on envoie vers bookings ou home
           context.push('/bookings');
         } else if (role == 'Expert' || role.toLowerCase() == 'expert') {
           context.push('/provider/reservations');
@@ -198,7 +196,23 @@ class NotificationListScreen extends StatelessWidget {
         break;
       case 'review':
         if (role == 'Expert' || role.toLowerCase() == 'expert') {
-           context.push('/provider/profile');
+           try {
+             final expertSnap = await FirebaseFirestore.instance
+                 .collection('experts')
+                 .where('idUtilisateur', isEqualTo: idUtilisateur)
+                 .limit(1)
+                 .get();
+             if (expertSnap.docs.isNotEmpty) {
+               final expertId = expertSnap.docs.first.id;
+               if (context.mounted) {
+                 context.push('/experts/$expertId');
+               }
+             } else {
+                if (context.mounted) context.push('/provider/profile');
+             }
+           } catch (e) {
+             if (context.mounted) context.push('/provider/profile');
+           }
         } else if (role == 'Admin') {
            context.go('/admin/reviews');
         }
@@ -215,7 +229,6 @@ class NotificationListScreen extends StatelessWidget {
         }
         break;
       default:
-        // Fallback redirection logic if needed
         break;
     }
   }
