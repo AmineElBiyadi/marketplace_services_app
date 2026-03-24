@@ -31,6 +31,8 @@ import '../screens/client/booking_detail_screen.dart';
 import '../screens/client/bookings_screen.dart';
 import '../screens/client/review_screen.dart';
 import '../screens/client/complaint_screen.dart';
+import '../screens/client/my_complaints_screen.dart';
+import '../screens/client/my_reviews_screen.dart';
 import '../screens/splash_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -218,6 +220,15 @@ class AppRouter {
           final interventionId = state.pathParameters['interventionId'] ?? '';
           return ComplaintScreen(interventionId: interventionId);
         },
+      ),
+
+      GoRoute(
+        path: '/reclamations',
+        builder: (context, state) => MyComplaintsScreen(),
+      ),
+      GoRoute(
+        path: '/my-reviews',
+        builder: (context, state) => MyReviewsScreen(),
       ),
 
       GoRoute(
