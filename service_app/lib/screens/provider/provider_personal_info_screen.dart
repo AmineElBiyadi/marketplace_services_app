@@ -186,9 +186,9 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
                       ],
                     ),
                     const SizedBox(height: 20),
-                    _buildTextField("Phone", LucideIcons.phone, _phoneCtrl),
+                    _buildTextField("Phone", LucideIcons.phone, _phoneCtrl, enabled: false),
                     const SizedBox(height: 20),
-                    _buildTextField("Email", LucideIcons.mail, _emailCtrl),
+                    _buildTextField("Email", LucideIcons.mail, _emailCtrl, enabled: false),
                     const SizedBox(height: 32),
                     
                     const Text("Address & Location", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
@@ -280,7 +280,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
     );
   }
 
-  Widget _buildTextField(String label, IconData? icon, TextEditingController controller, {bool isLabeled = false, int maxLines = 1}) {
+  Widget _buildTextField(String label, IconData? icon, TextEditingController controller, {bool isLabeled = false, int maxLines = 1, bool enabled = true}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -304,8 +304,14 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
         TextField(
           controller: controller,
           maxLines: maxLines,
+          enabled: enabled,
+          style: TextStyle(
+            color: enabled ? Colors.black : const Color(0xFF94A3B8), // Griser le texte si désactivé
+          ),
           decoration: InputDecoration(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            filled: !enabled,
+            fillColor: enabled ? Colors.transparent : const Color(0xFFF1F5F9), // Fond grisé
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -313,6 +319,10 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
               borderSide: const BorderSide(color: AppColors.primary),
+            ),
+            disabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(20),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
           ),
         ),
