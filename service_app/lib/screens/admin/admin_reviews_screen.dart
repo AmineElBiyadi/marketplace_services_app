@@ -309,7 +309,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             children: [
               Text(review['date'], style: const TextStyle(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.bold)),
               const Spacer(),
-              _miniIconAction(isHidden ? LucideIcons.eye : LucideIcons.eyeOff, isHidden ? Colors.green : _primary, () => _toggleVisibility(review)),
+              _miniIconAction(isHidden ? LucideIcons.eyeOff : LucideIcons.eye, isHidden ? Colors.orange : Colors.green, () => _toggleVisibility(review)),
               const SizedBox(width: 8),
               _miniIconAction(LucideIcons.trash2, Colors.redAccent, () => _deleteReview(review)),
             ],
@@ -768,7 +768,11 @@ class _ClaimDetailModalState extends State<_ClaimDetailModal> {
   Future<void> _submit() async {
     setState(() => _submitting = true);
     try {
-      await _service.updateClaim(widget.claim['id'], response: _responseController.text);
+      await _service.updateClaim(
+        widget.claim['id'], 
+        response: _responseController.text, 
+        status: 'TRAITEE' // Automatically mark as processed
+      );
       
       // Notify the person who made the claim
       final String? userId = widget.claim['typeReclamateur'] == 'EXPERT' 

@@ -567,10 +567,14 @@ class AdminDashboardService {
         'zone': (services.isNotEmpty ? services.first : (data['region'] ?? 'N/A')),
         // New detailed fields
         'CarteNationale': data['CarteNationale'] ?? 'Non fourni',
+        'CarteNationaleVerso': data['CarteNationaleVerso'] ?? 'Non fourni',
         'CasierJudiciaire': data['CasierJudiciaire'] ?? 'Non fourni',
+        'CertificatDocs': data['CertificatDocs'] ?? 'Non fourni',
         'Experience': data['Experience'] ?? 'Non fourni',
         'profileViews': data['profileViews'] ?? 0,
         'rayonTravaille': data['rayonTravaille'] ?? 0,
+        'zoneTexte': data['zoneTexte'] ?? 'Non fourni',
+        'updatedAt': data['updatedAt'] is Timestamp ? DateFormat('dd/MM/yyyy HH:mm').format((data['updatedAt'] as Timestamp).toDate()) : 'N/A',
       });
     }
     return result;
@@ -1039,11 +1043,16 @@ class AdminDashboardService {
       'region': ville,
       // Professional Docs and Stats (for Experts)
       'CarteNationale': data['CarteNationale'] ?? 'N/A',
+      'CarteNationaleVerso': data['CarteNationaleVerso'] ?? 'N/A',
       'CasierJudiciaire': data['CasierJudiciaire'] ?? 'N/A',
+      'CertificatDocs': data['CertificatDocs'] ?? 'N/A',
       'Experience': data['Experience'] ?? 'N/A',
       'rating': (data['rating'] ?? 0.0) as double,
       'interventionsCount': data['interventionsCount'] ?? 0,
-      'rayonTravaille': data['rayonTravaille'],
+      'rayonTravaille': data['rayonTravaille'] ?? 0,
+      'profileViews': data['profileViews'] ?? 0,
+      'zoneTexte': data['zoneTexte'] ?? 'N/A',
+      'updatedAt': data['updatedAt'] is Timestamp ? DateFormat('dd/MM/yyyy HH:mm').format((data['updatedAt'] as Timestamp).toDate()) : 'N/A',
       'services': data['services'] ?? [],
       'tasks': data['tasks'] ?? [],
     };

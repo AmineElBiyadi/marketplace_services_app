@@ -5,11 +5,14 @@ import 'package:flutter/material.dart';
 
 /// Web version of the PDF viewer registration.
 void registerPdfView(String viewId, String url) {
+  // Use Google Docs viewer to embed the PDF reliably
+  final String embedUrl = 'https://docs.google.com/gview?embedded=true&url=${Uri.encodeComponent(url)}';
+  
   ui_web.platformViewRegistry.registerViewFactory(
     viewId,
     (int _) {
       final iframe = html.IFrameElement()
-        ..src = url
+        ..src = embedUrl
         ..style.border = 'none'
         ..style.height = '100%'
         ..style.width = '100%';
