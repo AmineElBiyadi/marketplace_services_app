@@ -94,8 +94,8 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
           const Spacer(),
           ElevatedButton.icon(
             onPressed: _exportData,
-            icon: const Icon(LucideIcons.download, size: 14),
-            label: const Text('Export Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            icon: const Icon(LucideIcons.fileText, size: 14),
+            label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
               backgroundColor: _textPrimary,
               foregroundColor: Colors.white,
@@ -309,7 +309,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             children: [
               Text(review['date'], style: const TextStyle(fontSize: 10, color: _textSecondary, fontWeight: FontWeight.bold)),
               const Spacer(),
-              _miniIconAction(isHidden ? LucideIcons.eye : LucideIcons.eyeOff, isHidden ? Colors.green : _primary, () => _toggleVisibility(review)),
+              _miniIconAction(isHidden ? LucideIcons.eyeOff : LucideIcons.eye, isHidden ? Colors.orange : Colors.green, () => _toggleVisibility(review)),
               const SizedBox(width: 8),
               _miniIconAction(LucideIcons.trash2, Colors.redAccent, () => _deleteReview(review)),
             ],
@@ -534,30 +534,32 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   void _viewClaimDetail(Map<String, dynamic> claim) => showDialog(context: context, builder: (context) => _ClaimDetailModal(claim: claim, onUpdate: _loadData));
 
   void _exportData() async {
-    final headers = ['Type', 'Client', 'Sujet / Expert', 'Date', 'Info / Note'];
+    final headers = ['Type', 'Client', 'Expert / Sujet', 'Date', 'Statut / Info'];
     final reviewRows = _allReviews.map((r) => [
       'AVIS',
-      r['userName'] ?? '',
+      r['clientName'] ?? '',
       r['expertName'] ?? '',
       r['date'] ?? '',
-      'Note: ${r['rating']}',
+      'Note: ${(r['note'] ?? 0).toStringAsFixed(1)}/5',
     ]).toList();
 
     final claimRows = _allClaims.map((c) => [
-      'LITIGE',
-      c['plaintifName'] ?? '',
-      c['subject'] ?? '',
+      'RÉCLAMATION',
+      c['clientName'] ?? '',
+      c['description'] ?? '',
       c['date'] ?? '',
-      c['status'] ?? '',
+      c['status'] ?? 'EN ATTENTE',
     ]).toList();
 
     await AdminExportUtil.exportPageToPdf(
-      filename: 'avis_et_litiges_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-      title: 'Avis et Réclamations',
-      subtitle: 'Rapport complet des retours utilisateurs et litiges',
+      filename: 'avis_et_reclamations_presto_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+      title: 'Avis & Réclamations',
+      subtitle: 'Synthèse des retours clients et réclamations de la plateforme Presto',
       kpis: [
         {'label': 'Total Avis', 'value': _allReviews.length.toString()},
-        {'label': 'Total Litiges', 'value': _allClaims.length.toString()},
+        {'label': 'Note Moyenne', 'value': _stats != null ? '${_stats!.averageRating.toStringAsFixed(1)}/5' : 'N/A'},
+        {'label': 'Réclamations', 'value': _allClaims.length.toString()},
+        {'label': 'Note Globale', 'value': _stats != null ? _stats!.averageRating.toStringAsFixed(1) : '0.0'},
       ],
       tableHeaders: headers,
       tableRows: [...reviewRows, ...claimRows],
@@ -766,7 +768,11 @@ class _ClaimDetailModalState extends State<_ClaimDetailModal> {
   Future<void> _submit() async {
     setState(() => _submitting = true);
     try {
-      await _service.updateClaim(widget.claim['id'], response: _responseController.text);
+      await _service.updateClaim(
+        widget.claim['id'], 
+        response: _responseController.text, 
+        status: 'TRAITEE' // Automatically mark as processed
+      );
       
       // Notify the person who made the claim
       final String? userId = widget.claim['typeReclamateur'] == 'EXPERT' 

@@ -567,10 +567,14 @@ class AdminDashboardService {
         'zone': (services.isNotEmpty ? services.first : (data['region'] ?? 'N/A')),
         // New detailed fields
         'CarteNationale': data['CarteNationale'] ?? 'Non fourni',
+        'CarteNationaleVerso': data['CarteNationaleVerso'] ?? 'Non fourni',
         'CasierJudiciaire': data['CasierJudiciaire'] ?? 'Non fourni',
+        'CertificatDocs': data['CertificatDocs'] ?? 'Non fourni',
         'Experience': data['Experience'] ?? 'Non fourni',
         'profileViews': data['profileViews'] ?? 0,
         'rayonTravaille': data['rayonTravaille'] ?? 0,
+        'zoneTexte': data['zoneTexte'] ?? 'Non fourni',
+        'updatedAt': data['updatedAt'] is Timestamp ? DateFormat('dd/MM/yyyy HH:mm').format((data['updatedAt'] as Timestamp).toDate()) : 'N/A',
       });
     }
     return result;
@@ -1039,11 +1043,16 @@ class AdminDashboardService {
       'region': ville,
       // Professional Docs and Stats (for Experts)
       'CarteNationale': data['CarteNationale'] ?? 'N/A',
+      'CarteNationaleVerso': data['CarteNationaleVerso'] ?? 'N/A',
       'CasierJudiciaire': data['CasierJudiciaire'] ?? 'N/A',
+      'CertificatDocs': data['CertificatDocs'] ?? 'N/A',
       'Experience': data['Experience'] ?? 'N/A',
       'rating': (data['rating'] ?? 0.0) as double,
       'interventionsCount': data['interventionsCount'] ?? 0,
-      'rayonTravaille': data['rayonTravaille'],
+      'rayonTravaille': data['rayonTravaille'] ?? 0,
+      'profileViews': data['profileViews'] ?? 0,
+      'zoneTexte': data['zoneTexte'] ?? 'N/A',
+      'updatedAt': data['updatedAt'] is Timestamp ? DateFormat('dd/MM/yyyy HH:mm').format((data['updatedAt'] as Timestamp).toDate()) : 'N/A',
       'services': data['services'] ?? [],
       'tasks': data['tasks'] ?? [],
     };
@@ -1079,6 +1088,16 @@ class AdminDashboardService {
     if (collection == 'experts') {
       if (status == 'DESACTIVE' || status == 'SUSPENDUE') {
         updates['desactiveParAdmin'] = true;
+
+        // Automatically suspend premium plan if active
+        final activeSubs = await _db.collection('abonnements')
+            .where('idExpert', isEqualTo: docRef.id)
+            .where('statut', whereIn: ['ACTIVE', 'GRACE'])
+            .get();
+            
+        for (var subDoc in activeSubs.docs) {
+          await suspendSubscription(subDoc.id);
+        }
       } else if (status == 'ACTIVE') {
         updates['desactiveParAdmin'] = false;
       }
@@ -1115,7 +1134,7 @@ class AdminDashboardService {
         
         if (status == 'ACTIVE') {
           subject = "🎉 Votre compte a été activé !";
-          title = "Bienvenue sur Marketplace";
+          title = "Bienvenue sur Presto";
           desc = "Félicitations <b>${profile['name']}</b>,<br><br>Votre compte est désormais entièrement vérifié et actif sur notre plateforme. Vous pouvez dès à présent profiter de toutes les fonctionnalités et commencer à interagir avec notre communauté.";
           color = "#10B981"; // success green
         } else if (status == 'SUSPENDUE') {
@@ -1131,25 +1150,21 @@ class AdminDashboardService {
         }
 
         final htmlBody = '''
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 40px 20px; border-radius: 8px;">
-          <div style="background-color: white; padding: 40px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-top: 6px solid $color;">
-            <h2 style="color: #111827; font-size: 24px; margin-top: 0; margin-bottom: 24px;">\$title</h2>
-            <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 32px;">
-              \$desc
-            </p>
-            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
-            <p style="color: #6b7280; font-size: 14px; margin: 0;">
-              Cordialement,<br>
-              <strong>L'équipe d'administration Marketplace</strong>
-            </p>
-          </div>
+        <div>
+          <h2>$title</h2>
+          <p>$desc</p>
+          <hr>
+          <p>
+            Cordialement,<br>
+            <strong>L'équipe d'administration Presto</strong>
+          </p>
         </div>
         ''';
 
         await sendAutomaticEmail(
           to: profile['email'],
           subject: subject,
-          html: htmlBody.replaceAll('\$', ''), // Remove literal escape
+          html: htmlBody,
         );
       } else {
         debugPrint('DEBUG: No email found for user $id');
@@ -1175,19 +1190,21 @@ class AdminDashboardService {
     try {
       final response = await http.post(
         Uri.parse(scriptUrl),
-        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-        body: {
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
           'to': to,
           'subject': subject,
           'text': text ?? '',
           'html': html ?? '',
-        },
+        }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 302) {
-        debugPrint('Google Bridge: Email sent successfully');
+        debugPrint('Google Bridge: Email request sent (Status: ${response.statusCode})');
+        debugPrint('Google Bridge Response: ${response.body}');
       } else {
         debugPrint('Google Bridge Error: ${response.statusCode}');
+        debugPrint('Google Bridge Error Body: ${response.body}');
       }
     } catch (e) {
       debugPrint("Error calling Google Email Bridge: $e");
@@ -1380,6 +1397,45 @@ class AdminDashboardService {
 
   Future<void> updateService(String id, Map<String, dynamic> data) async {
     await _db.collection('services').doc(id).update(data);
+
+    // Si on désactive le service, on désactive uniquement les tâches catalogue (idExpert == "").
+    // Les tâches créées par les experts (idExpert != "") ne sont PAS touchées,
+    // car elles ont leur propre cycle de vie et ne peuvent pas être "débloquées" lors de la réactivation.
+    if (data.containsKey('estActive') && data['estActive'] == false) {
+      final batch = _db.batch();
+
+      // 1. Désactiver uniquement les tâches catalogue (idExpert == "" ou null)
+      // On filtre en Dart pour éviter d'avoir besoin d'un index composite Firestore
+      final tasksSnap = await _db
+          .collection('taches')
+          .where('idService', isEqualTo: id)
+          .get();
+      for (var doc in tasksSnap.docs) {
+        final expertId = doc.data()['idExpert'] ?? '';
+        if (expertId == '') {
+          batch.update(doc.reference, {
+            'estActive': false,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
+
+      // 2. Désactiver les instances tacheExperts liées à ce service
+      final tacheExpertsSnap = await _db
+          .collection('tacheExperts')
+          .where('idService', isEqualTo: id)
+          .get();
+      for (var doc in tacheExpertsSnap.docs) {
+        batch.update(doc.reference, {
+          'estActive': false,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      if (tasksSnap.docs.isNotEmpty || tacheExpertsSnap.docs.isNotEmpty) {
+        await batch.commit();
+      }
+    }
   }
 
   Future<void> deleteService(String id) async {
@@ -1424,6 +1480,28 @@ class AdminDashboardService {
       ...data,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    // If deactivating a catalog task, cascade to all expert task instances (tacheExperts)
+    if (data.containsKey('estActive')) {
+      final bool isActive = data['estActive'];
+      if (!isActive) {
+        final tacheExpertsSnap = await _db
+            .collection('tacheExperts')
+            .where('idTache', isEqualTo: id)
+            .get();
+
+        if (tacheExpertsSnap.docs.isNotEmpty) {
+          final batch = _db.batch();
+          for (var doc in tacheExpertsSnap.docs) {
+            batch.update(doc.reference, {
+              'estActive': false,
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+          await batch.commit();
+        }
+      }
+    }
   }
 
   Future<void> deleteTask(String id) async {

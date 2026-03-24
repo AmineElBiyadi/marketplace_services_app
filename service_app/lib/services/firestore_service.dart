@@ -184,7 +184,7 @@ class FirestoreService {
       }
 
       final expertDoc = await _firestore.collection('experts').doc(expertId).get();
-      final views = expertDoc.data()?['views'] ?? 0;
+      final views = expertDoc.data()?['profileViews'] ?? 0;
 
       return {
         'reservations_today': reservationsToday.toString(),
@@ -667,26 +667,27 @@ class FirestoreService {
   }
 
   /// Fetch client snapshot data from Firestore using the clientId from an intervention.
+  /// Fetch client snapshot data from Firestore using the clientId from an intervention.
   Future<Map<String, dynamic>?> getClientSnapshot(String clientId) async {
     try {
-      // First get the client doc to find idUtilisateur
+      // 1. Check if clientId is a direct Auth UID (standardized way)
+      final directUserDoc = await _firestore.collection('utilisateurs').doc(clientId).get();
+      if (directUserDoc.exists) {
+        return directUserDoc.data();
+      }
+
+      // 2. Fallback: Check if clientId belongs to the 'clients' collection (old way)
       final clientDoc = await _firestore.collection('clients').doc(clientId).get();
-      if (!clientDoc.exists) return null;
-
-      final idUtilisateur = clientDoc.data()?['idUtilisateur'];
-      if (idUtilisateur == null) return null;
-
-      // Fetch user data
-      final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
-      if (!userDoc.exists) return null;
-
-      final data = userDoc.data()!;
-      return {
-        'nom': data['nom'] ?? 'Client',
-        'telephone': data['telephone'] ?? '',
-        'photo': data['image_profile'],
-      };
+      if (clientDoc.exists) {
+        final idUtilisateur = clientDoc.data()?['idUtilisateur'];
+        if (idUtilisateur != null) {
+          final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
+          return userDoc.data();
+        }
+      }
+      return null;
     } catch (e) {
+      debugPrint("Error fetching client snapshot: $e");
       return null;
     }
   }
@@ -770,8 +771,15 @@ class FirestoreService {
 
     Future<List<ServiceModel>> getServices() async {
     try {
-      final snapshot = await _firestore.collection('services').orderBy('nom').get();
-      return snapshot.docs.map((doc) => ServiceModel.fromFirestore(doc)).toList();
+      // Fetch all, then filter in Dart so legacy docs without 'estActive' field are treated as active
+      final snapshot = await _firestore
+          .collection('services')
+          .orderBy('nom')
+          .get();
+      return snapshot.docs
+          .map((doc) => ServiceModel.fromFirestore(doc))
+          .where((s) => s.estActive)
+          .toList();
     } catch (e) {
       debugPrint("Error fetching services: $e");
       return [];
@@ -847,7 +855,7 @@ class FirestoreService {
             (se) => _firestore.collection('services').doc(se.data()['idService']).get()
           ));
           for (var sDoc in serviceDocs) {
-            if (sDoc.exists) {
+            if (sDoc.exists && (sDoc.data()?['estActive'] ?? true) == true) {
               services.add(sDoc.data()?['nom'] ?? '');
             }
           }
@@ -978,7 +986,7 @@ class FirestoreService {
           (se) => _firestore.collection('services').doc(se.data()['idService']).get()
         ));
         for (var sDoc in serviceDocs) {
-          if (sDoc.exists) {
+          if (sDoc.exists && (sDoc.data()?['estActive'] ?? true) == true) {
             services.add(sDoc.data()?['nom'] ?? '');
           }
         }
@@ -1057,12 +1065,18 @@ class FirestoreService {
 
         if (idClient != null && idClient.isNotEmpty) {
           try {
-            final clientDoc = await _firestore.collection('clients').doc(idClient).get();
-            final idUtilisateur = clientDoc.data()?['idUtilisateur'];
-            
-            if (idUtilisateur != null) {
-              final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
+            // Standardized way: direct lookup
+            final userDoc = await _firestore.collection('utilisateurs').doc(idClient).get();
+            if (userDoc.exists) {
               clientNom = userDoc.data()?['nom'] ?? 'Client';
+            } else {
+              // Fallback: check clients collection
+              final clientDoc = await _firestore.collection('clients').doc(idClient).get();
+              final idU = clientDoc.data()?['idUtilisateur'];
+              if (idU != null) {
+                final userDoc2 = await _firestore.collection('utilisateurs').doc(idU).get();
+                clientNom = userDoc2.data()?['nom'] ?? 'Client';
+              }
             }
           } catch (e) {
             debugPrint('Error resolving client name for review: $e');
@@ -1086,11 +1100,16 @@ class FirestoreService {
   }
 
   /// Fetches all reviews (evaluations) left BY a client with expert names resolved.
-  Future<List<Map<String, dynamic>>> getClientReviews(String clientId) async {
+  Future<List<Map<String, dynamic>>> getClientReviews(String clientId, {String? authUid}) async {
     try {
+      final List<String> clientIds = [clientId];
+      if (authUid != null && authUid != clientId) {
+        clientIds.add(authUid);
+      }
+
       final snapshot = await _firestore
           .collection('evaluations')
-          .where('idClient', isEqualTo: clientId)
+          .where('idClient', whereIn: clientIds)
           .get();
 
       final results = await Future.wait(snapshot.docs.map((doc) async {
@@ -1110,7 +1129,7 @@ class FirestoreService {
               expertPhoto = userDoc.data()?['image_profile'] ?? '';
             }
           } catch (e) {
-            debugPrint('Error resolving expert name for client review: \$e');
+            debugPrint('Error resolving expert name for client review: $e');
           }
         }
 
@@ -1144,17 +1163,22 @@ class FirestoreService {
       });
       return results;
     } catch (e) {
-      debugPrint('Error fetching client reviews: \$e');
+      debugPrint('Error fetching client reviews: $e');
       return [];
     }
   }
 
   /// Fetches all complaints (reclamations) made BY a client, with expert names resolved.
-  Future<List<Map<String, dynamic>>> getClientComplaints(String clientId) async {
+  Future<List<Map<String, dynamic>>> getClientComplaints(String clientId, {String? authUid}) async {
     try {
+      final List<String> clientIds = [clientId];
+      if (authUid != null && authUid != clientId) {
+        clientIds.add(authUid);
+      }
+
       final snapshot = await _firestore
           .collection('reclamations')
-          .where('idClient', isEqualTo: clientId)
+          .where('idClient', whereIn: clientIds)
           .get();
 
       final results = await Future.wait(snapshot.docs.map((doc) async {
@@ -1193,7 +1217,7 @@ class FirestoreService {
       });
       return results;
     } catch (e) {
-      debugPrint('Error fetching client complaints: \$e');
+      debugPrint('Error fetching client complaints: $e');
       return [];
     }
   }
@@ -1428,8 +1452,12 @@ class FirestoreService {
 
   Future<List<ServiceModel>> getServiceCategories() async {
     try {
+      // Fetch all, then filter in Dart so legacy docs without 'estActive' field are treated as active
       final snapshot = await _firestore.collection('services').get();
-      return snapshot.docs.map((doc) => ServiceModel.fromFirestore(doc)).toList();
+      return snapshot.docs
+          .map((doc) => ServiceModel.fromFirestore(doc))
+          .where((s) => s.estActive)
+          .toList();
     } catch (e) {
       return [];
     }
@@ -1437,26 +1465,37 @@ class FirestoreService {
 
   Future<List<TaskModel>> getTasksForCategory(String serviceId, {String? expertId}) async {
     try {
-      // Fetch standard tasks (idExpert == "")
-      final standardSnapshot = await _firestore
+      // Fetch ALL tasks for this service with a single where clause (no composite index needed)
+      final allSnapshot = await _firestore
           .collection('taches')
           .where('idService', isEqualTo: serviceId)
-          .where('idExpert', isEqualTo: "")
           .get();
-      
-      List<TaskModel> tasks = standardSnapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
 
-      // Fetch expert's specific tasks if id is provided
-      if (expertId != null) {
-        final expertSnapshot = await _firestore
-            .collection('taches')
-            .where('idService', isEqualTo: serviceId)
-            .where('idExpert', isEqualTo: expertId)
-            .get();
-        tasks.addAll(expertSnapshot.docs.map((doc) => TaskModel.fromFirestore(doc)));
-      }
+      // Filter in Dart: active standard tasks (idExpert == "" or null)
+      final standardTasks = allSnapshot.docs
+          .where((doc) {
+            final data = doc.data();
+            final isActive = data['estActive'] ?? true;
+            final docExpertId = data['idExpert'] ?? '';
+            return isActive && docExpertId == '';
+          })
+          .map((doc) => TaskModel.fromFirestore(doc))
+          .toList();
 
-      return tasks;
+      // Filter in Dart: active expert-specific tasks
+      final expertTasks = expertId != null
+          ? allSnapshot.docs
+              .where((doc) {
+                final data = doc.data();
+                final isActive = data['estActive'] ?? true;
+                final docExpertId = data['idExpert'] ?? '';
+                return isActive && docExpertId == expertId;
+              })
+              .map((doc) => TaskModel.fromFirestore(doc))
+              .toList()
+          : <TaskModel>[];
+
+      return [...standardTasks, ...expertTasks];
     } catch (e) {
       print("Error fetching tasks for category: $e");
       return [];
@@ -1479,6 +1518,10 @@ class FirestoreService {
         // Get service category details
         final serviceDoc = await _firestore.collection('services').doc(serviceId).get();
         final serviceData = serviceDoc.data();
+        
+        // Skip services that have been deactivated by admin
+        if (serviceData != null && (serviceData['estActive'] ?? true) == false) continue;
+        
         final serviceName = serviceData != null ? (serviceData['nom'] ?? 'Unknown Service') : 'Unknown Service';
         final serviceImage = serviceData != null ? serviceData['image'] : null;
 
@@ -1503,6 +1546,9 @@ class FirestoreService {
         for (var tDoc in tasksSnapshot.docs) {
           final task = TaskExpertModel.fromFirestore(tDoc);
           final tid = tDoc.id;
+
+          // Skip tasks that have been deactivated (cascade from catalog task deactivation)
+          if ((tDoc.data()['estActive'] ?? true) == false) continue;
 
           // Fallback context: In older versions, images were saved per idTacheExpert
           if (serviceImages.isEmpty) {
@@ -2157,6 +2203,17 @@ class FirestoreService {
       'desactiveParAdmin': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    // Automatically suspend premium plan if active
+    final activeSubs = await _firestore
+        .collection('abonnements')
+        .where('idExpert', isEqualTo: expertId)
+        .where('statut', whereIn: ['ACTIVE', 'GRACE'])
+        .get();
+
+    for (var subDoc in activeSubs.docs) {
+      await cancelSubscription(subDoc.id);
+    }
 
     if (idUtilisateur != null) {
       await _notificationService.sendNotification(

@@ -6,6 +6,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
 import '../../services/admin_dashboard_service.dart';
 import '../../theme/app_colors.dart';
+import 'pdf_viewer_stub.dart'
+    if (dart.library.js_util) 'pdf_viewer_web.dart' as pdf_viewer;
+// ignore: avoid_web_libraries_in_flutter
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class UserProfileDetailDialog extends StatefulWidget {
   final String id;
@@ -116,12 +120,20 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                       const SizedBox(height: 24),
                       const Text('Profil Professionnel', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary, letterSpacing: 0.5)),
                       const SizedBox(height: 16),
-                      _docTile(LucideIcons.contact, 'Carte Nationale', _user!['CarteNationale']?.toString() ?? 'Non fourni'),
-                      _docTile(LucideIcons.fileText, 'Casier Judiciaire', _user!['CasierJudiciaire']?.toString() ?? 'Non fourni'),
                       _modernInfoTile(LucideIcons.briefcase, 'Expérience', _user!['Experience']?.toString() ?? 'Non précisée'),
+                      _modernInfoTile(LucideIcons.map, 'Zone (Texte)', _user!['zoneTexte']?.toString() ?? 'Non précisée'),
+                      _modernInfoTile(LucideIcons.navigation, 'Rayon d\'action', '${_user!['rayonTravaille']} km'),
                       if (_user!['services'] != null && (_user!['services'] as List).isNotEmpty)
-                        _modernInfoTile(LucideIcons.settings, 'Services', (_user!['services'] as List).join(", ")),
+                        _modernInfoTile(LucideIcons.settings, 'Services', (_user!['services'] as List).map((s) => s.toString()).join(", ")),
+                      
+                      const SizedBox(height: 24),
+                      const Text('Documents & Justificatifs', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary, letterSpacing: 0.5)),
+                      const SizedBox(height: 16),
+                      _buildDocumentsGrid(),
                     ],
+                    
+                    const SizedBox(height: 16),
+                    _modernInfoTile(LucideIcons.clock, 'Dernière mise à jour', _user!['updatedAt'] ?? 'N/A'),
                     
                     const SizedBox(height: 24),
                     const Divider(height: 1, color: Color(0xFFE2E8F0)),
@@ -312,8 +324,41 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
   void _showFullDocument(String label, String value) {
     final bool isPdf = value.toLowerCase().endsWith('.pdf');
     final bool isUrl = value.startsWith('http');
+    final bool isCloudinary = value.contains('cloudinary.com');
 
-    if (isPdf && isUrl) {
+    String displayUrl = value;
+    if (isPdf && isUrl && isCloudinary) {
+      // Convert .pdf extension to .jpg for Cloudinary preview
+      displayUrl = value.substring(0, value.length - 4) + '.jpg';
+    } else if (isPdf && isUrl && kIsWeb) {
+      // For non-Cloudinary PDFs on web, use Google Docs iframe
+      final String viewId = 'pdf-view-${DateTime.now().millisecondsSinceEpoch}';
+      pdf_viewer.registerPdfView(viewId, value);
+      
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(label),
+          content: SizedBox(
+            width: MediaQuery.of(context).size.width * 0.8,
+            height: MediaQuery.of(context).size.height * 0.8,
+            child: pdf_viewer.getPdfView(viewId),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => _launchExternalUrl(value),
+              child: const Text('Ouvrir l\'original (PDF)'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Fermer'),
+            ),
+          ],
+        ),
+      );
+      return;
+    } else if (isPdf && isUrl) {
+      // Mobile handling for non-Cloudinary PDFs
       _launchExternalUrl(value);
       return;
     }
@@ -329,13 +374,14 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
               ? Image.memory(base64Decode(value.split(',').last))
               : isUrl 
                 ? Image.network(
-                    value,
+                    displayUrl,
+                    fit: BoxFit.contain,
                     errorBuilder: (context, error, stackTrace) => Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(LucideIcons.fileWarning, size: 48, color: Colors.orange),
                         const SizedBox(height: 16),
-                        const Text("L'aperçu est bloqué par la sécurité du navigateur (CORS) ou le fichier n'est pas une image.", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+                        const Text("L'aperçu n'est pas disponible pour ce format de fichier.", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
                           onPressed: () => _launchExternalUrl(value),
@@ -348,7 +394,14 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                 : Text(value),
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer'))],
+        actions: [
+          if (isPdf || isUrl)
+            TextButton(
+              onPressed: () => _launchExternalUrl(value),
+              child: const Text('Ouvrir l\'original (URL)'),
+            ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+        ],
       ),
     );
   }
@@ -417,6 +470,126 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
           borderRadius: BorderRadius.circular(8),
           side: BorderSide(color: isActive ? color : const Color(0xFFE2E8F0)),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDocumentsGrid() {
+    List<Widget> cards = [];
+
+    void addCard(String label, dynamic value) {
+      final String url = value?.toString() ?? '';
+      if (url.isNotEmpty && url != 'N/A' && url != 'Non fourni') {
+        cards.add(_buildDocumentCard(label, url));
+      }
+    }
+
+    addCard('CNI (Recto)', _user!['CarteNationale']);
+    addCard('CNI (Verso)', _user!['CarteNationaleVerso']);
+    addCard('Casier Judiciaire', _user!['CasierJudiciaire']);
+
+    if (cards.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text('Aucun document fourni', style: TextStyle(color: _textSecondary, fontStyle: FontStyle.italic)),
+      );
+    }
+
+    List<Widget> rows = [];
+    for (int i = 0; i < cards.length; i += 2) {
+      rows.add(
+        Row(
+          children: [
+            Expanded(child: cards[i]),
+            const SizedBox(width: 12),
+            if (i + 1 < cards.length) 
+              Expanded(child: cards[i + 1])
+            else 
+              const Expanded(child: SizedBox()),
+          ],
+        ),
+      );
+      if (i + 2 < cards.length) {
+        rows.add(const SizedBox(height: 12));
+      }
+    }
+
+    return Column(children: rows);
+  }
+
+  Widget _buildDocumentCard(String label, String url) {
+    final bool isPdf = url.toLowerCase().endsWith('.pdf');
+    final bool isCloudinary = url.contains('cloudinary.com');
+    
+    // Determine the preview URL
+    String previewUrl = url;
+    bool showAsImage = isCloudinary && !isPdf;
+    
+    // Cloudinary magic: Convert PDF to JPG for thumbnail
+    if (isCloudinary && isPdf) {
+      previewUrl = url.substring(0, url.length - 4) + '.jpg';
+      showAsImage = true; // We can now render it as an image!
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary)),
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: () => _showFullDocument(label, url),
+            child: Container(
+              height: 80,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFF1F5F9)),
+              ),
+              child: showAsImage
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            previewUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Center(child: Icon(isPdf ? LucideIcons.fileText : LucideIcons.image, color: Colors.grey)),
+                          ),
+                          if (isPdf)
+                            Positioned(
+                              top: 4,
+                              right: 4,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
+                                child: const Text('PDF', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                        ],
+                      ),
+                    )
+                  : Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(isPdf ? LucideIcons.fileText : LucideIcons.file, color: isPdf ? Colors.red[400] : Colors.blue[400]),
+                          const SizedBox(height: 4),
+                          const Text('VOIR DOCUMENT', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.blue)),
+                        ],
+                      ),
+                    ),
+            ),
+          ),
+        ],
       ),
     );
   }

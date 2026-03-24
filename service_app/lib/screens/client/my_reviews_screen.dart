@@ -38,7 +38,7 @@ class _MyReviewsScreenState extends State<MyReviewsScreen> {
         return;
       }
       final clientId = clientQuery.docs.first.id;
-      final reviews = await _firestoreService.getClientReviews(clientId);
+      final reviews = await _firestoreService.getClientReviews(clientId, authUid: uid);
       if (mounted) setState(() { _reviews = reviews; _isLoading = false; });
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);

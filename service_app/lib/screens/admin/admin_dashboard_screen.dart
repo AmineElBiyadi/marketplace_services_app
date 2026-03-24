@@ -235,7 +235,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _kpiItem('Total Clients', s.totalClients.toString(), LucideIcons.users, _primary.withOpacity(0.1), _primary, s.userGrowth),
         _kpiItem('Réservations du mois', s.reservationsThisMonth.toString(), LucideIcons.calendarDays, Colors.blue.withOpacity(0.1), Colors.blue, ''),
         _kpiItem('Revenus totaux', '${NumberFormat("#,##0", "fr_FR").format(s.totalRevenue)} DH', LucideIcons.dollarSign, Colors.green.withOpacity(0.1), Colors.green, s.revenueGrowth),
-        _kpiItem('En attente', s.pendingProviders.toString(), LucideIcons.clock, Colors.amber.withOpacity(0.1), Colors.amber, ''),
+        _kpiItem('Total Pros', s.totalProviders.toString(), LucideIcons.briefcase, Colors.amber.withOpacity(0.1), Colors.amber, ''),
         _kpiItem('Terminées', s.totalFinishedReservations.toString(), LucideIcons.checkSquare, Colors.teal.withOpacity(0.1), Colors.teal, ''),
         _kpiItem('Taux d\'annulation', '${cancellationRate.toStringAsFixed(1)}%', LucideIcons.ban, Colors.red.withOpacity(0.1), Colors.red, ''),
       ],
@@ -731,15 +731,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       // 1. Prepare KPIs
       final kpis = [
-        {'label': 'Total Clients', 'value': s.totalClients.toString()},
-        {'label': 'Réservations du mois', 'value': s.reservationsThisMonth.toString()},
+        {'label': 'Clients', 'value': s.totalClients.toString()},
+        {'label': 'Prestataires', 'value': s.totalProviders.toString()},
+        {'label': 'Réservations/Mois', 'value': s.reservationsThisMonth.toString()},
         {'label': 'Revenus totaux', 'value': '${NumberFormat("#,##0", "fr_FR").format(s.totalRevenue)} DH'},
-        {'label': 'En attente', 'value': s.pendingProviders.toString()},
         {'label': 'Terminées', 'value': s.totalFinishedReservations.toString()},
+        {'label': 'Note Moyenne', 'value': s.averageRating.toStringAsFixed(1)},
+        {'label': 'En attente', 'value': s.pendingProviders.toString()},
+        {'label': 'Réclamations', 'value': s.openClaims.toString()},
         {'label': 'Taux d\'annulation', 'value': '${cancellationRate.toStringAsFixed(1)}%'},
       ];
 
-      // 2. Capture Charts
+      // 2. Fetch full lists for the report (literally everything)
+      final results = await Future.wait([
+        _service.getPendingProviders(limit: 100),
+        _service.getRecentUsers(limit: 100),
+        _service.getOpenClaims(limit: 100),
+      ]);
+      final fullPending = results[0] as List<Map<String, dynamic>>;
+      final fullUsers = results[1] as List<Map<String, dynamic>>;
+      final fullClaims = results[2] as List<Map<String, dynamic>>;
+
+      // 3. Capture Charts
       final chartImages = await Future.wait([
         _inscriptionController.capture(pixelRatio: 2.0).then((img) => img!),
         _categoryController.capture(pixelRatio: 2.0).then((img) => img!),
@@ -747,19 +760,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _revenueController.capture(pixelRatio: 2.0).then((img) => img!),
       ]);
 
-      // 3. Prepare Recent Context Table
+      // 4. Prepare Context Table
       final tableHeaders = ['Type', 'Nom / Sujet', 'Date', 'Statut / Info'];
       final tableRows = [
-        ..._pendingProviders.map((p) => ['EN ATTENTE', p['name'] ?? '', p['date'] ?? '', p['category'] ?? '']),
-        ..._recentUsers.map((u) => ['NOUVEAU', u['name'] ?? '', u['date'] ?? '', u['type'] ?? '']),
-        ..._openClaims.map((c) => ['LITIGE', c['subject'] ?? '', c['date'] ?? '', c['priority'] ?? '']),
+        ...fullPending.map((p) => ['EN ATTENTE', p['name'] ?? '', p['date'] ?? '', p['category'] ?? '']),
+        ...fullUsers.map((u) => ['NOUVEAU CLIENT', u['name'] ?? '', u['date'] ?? '', u['type'] ?? '']),
+        ...fullClaims.map((c) => ['RÉCLAMATION', c['subject'] ?? '', c['date'] ?? '', c['priority'] ?? '']),
       ];
 
-      // 4. Export
+      // 5. Export
       await AdminExportUtil.exportPageToPdf(
-        filename: 'dashboard_report_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-        title: 'Rapport Tableau de Bord',
-        subtitle: 'Vue d\'ensemble de la plateforme Marketplace',
+        filename: 'dashboard_presto_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+        title: 'Tableau de Bord Presto',
+        subtitle: 'Synthèse globale de l\'activité sur la plateforme',
         kpis: kpis,
         chartImages: chartImages,
         tableHeaders: tableHeaders,

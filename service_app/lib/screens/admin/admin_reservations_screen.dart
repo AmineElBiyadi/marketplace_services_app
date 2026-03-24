@@ -155,8 +155,8 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
           const Spacer(),
           ElevatedButton.icon(
             onPressed: _exportReservations,
-            icon: const Icon(LucideIcons.download, size: 14),
-            label: const Text('Export Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            icon: const Icon(LucideIcons.fileText, size: 14),
+            label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
               backgroundColor: _textPrimary,
               foregroundColor: Colors.white,
@@ -702,23 +702,31 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
   }
 
   void _exportReservations() async {
-    final headers = ['Client', 'Expert', 'Service', 'Date', 'Montant', 'Statut'];
+    final headers = ['Client', 'Expert', 'Service', 'Date', 'Heure', 'Montant (DH)', 'Statut'];
     final rows = _filteredReservations.map((r) => [
       r['clientName'] ?? '',
       r['expertName'] ?? '',
       r['service'] ?? '',
-      '${r['date']} ${r['hour']}',
-      '${r['price']} DH',
+      r['date'] ?? '',
+      r['time'] ?? '',
+      '${r['amount'] ?? 0} DH',
       r['status'] ?? '',
     ]).toList();
+
+    final double totalAmount = _filteredReservations.fold(
+      0.0, (sum, r) => sum + ((r['amount'] as num?) ?? 0).toDouble());
+    final terminees = _filteredReservations.where((r) => r['status'] == 'TERMINEE').length;
+    final enAttente = _filteredReservations.where((r) => r['status'] == 'EN_ATTENTE').length;
 
     await AdminExportUtil.exportPageToPdf(
       filename: 'reservations_${DateFormat('yyyyMMdd').format(DateTime.now())}',
       title: 'Rapport des Réservations',
       subtitle: 'Liste des interventions et réservations filtrées',
       kpis: [
-        {'label': 'Total filtré', 'value': _filteredReservations.length.toString()},
-        {'label': 'Montant Total', 'value': '${_filteredReservations.fold(0.0, (sum, item) => sum + (item['price'] ?? 0)).toStringAsFixed(0)} DH'},
+        {'label': 'Total Réservations', 'value': _filteredReservations.length.toString()},
+        {'label': 'Terminées', 'value': terminees.toString()},
+        {'label': 'En Attente', 'value': enAttente.toString()},
+        {'label': 'Montant Total', 'value': '${totalAmount.toStringAsFixed(0)} DH'},
       ],
       tableHeaders: headers,
       tableRows: rows,

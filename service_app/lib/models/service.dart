@@ -5,6 +5,7 @@ class ServiceModel {
   final String nom;
   final String description;
   final String? image;
+  final bool estActive;
   final DateTime? createdAt;
 
   ServiceModel({
@@ -12,6 +13,7 @@ class ServiceModel {
     required this.nom,
     required this.description,
     this.image,
+    this.estActive = true,
     this.createdAt,
   });
 
@@ -22,6 +24,7 @@ class ServiceModel {
       nom: data['nom'] ?? '',
       description: data['description'] ?? '',
       image: data['image'],
+      estActive: data['estActive'] ?? true,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
     );
   }
@@ -31,6 +34,7 @@ class ServiceModel {
       'nom': nom,
       'description': description,
       'image': image,
+      'estActive': estActive,
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
     };
   }

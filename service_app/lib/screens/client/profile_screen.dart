@@ -38,12 +38,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final user = _authService.currentUser;
       if (user != null) {
         final data = await _firestoreService.getClientByUid(user.uid);
-        
+        final clientId = data?['clientId'];
+        final List<String> clientIds = [user.uid];
+        if (clientId != null) clientIds.add(clientId);
+
         int bookingsCount = 0;
         try {
           final querySnapshot = await _firestoreService.getFirestoreInstance()
               .collection('interventions')
-              .where('idClient', isEqualTo: user.uid)
+              .where('idClient', whereIn: clientIds)
               .get();
           bookingsCount = querySnapshot.docs.length;
         } catch (e) {

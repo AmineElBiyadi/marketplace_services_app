@@ -222,7 +222,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
                         icon: _detectingLoc
                             ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                             : const Icon(LucideIcons.mapPin, size: 18),
-                        label: Text(_detectingLoc ? 'Detecting...' : '📍 Detect on Map Automatically'),
+                        label: Text(_detectingLoc ? 'Detecting...' : 'Detect on Map Automatically'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.primary,
                           side: const BorderSide(color: AppColors.primary),
