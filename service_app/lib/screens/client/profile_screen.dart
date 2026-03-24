@@ -26,11 +26,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _clientData;
   bool _isLoading = true;
   int _bookingsCount = 0;
+  bool _useLocation = true;
 
   @override
   void initState() {
     super.initState();
     _loadProfileData();
+    _loadLocationPreference();
+  }
+
+  Future<void> _loadLocationPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _useLocation = prefs.getBool('use_location') ?? true;
+    });
+  }
+
+  Future<void> _toggleLocationPreference(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('use_location', value);
+    setState(() {
+      _useLocation = value;
+    });
   }
 
   Future<void> _loadProfileData() async {
@@ -371,7 +388,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
           hideArrow: true,
           onTap: _handleLogout,
         ),
+        const SizedBox(height: 16),
+        _buildToggleItem(
+          icon: LucideIcons.mapPin,
+          title: 'Utiliser ma localisation',
+          value: _useLocation,
+          onChanged: _toggleLocationPreference,
+        ),
       ],
+    );
+  }
+
+  Widget _buildToggleItem({
+    required IconData icon,
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 22, color: const Color(0xFF64748B)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: AppColors.primary,
+          ),
+        ],
+      ),
     );
   }
 
