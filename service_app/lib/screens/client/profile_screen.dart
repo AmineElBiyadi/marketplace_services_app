@@ -379,6 +379,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onTap: () => Navigator.push(
               context, MaterialPageRoute(builder: (_) => const ClientCguScreen())),
         ),
+        _buildToggleItem(
+          icon: LucideIcons.mapPin,
+          title: 'Utiliser ma localisation',
+          value: _useLocation,
+          onChanged: _toggleLocationPreference,
+        ),
         const SizedBox(height: 16),
         _menuItem(
           icon: LucideIcons.logOut,
@@ -387,13 +393,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           iconColor: const Color(0xFFEF4444),
           hideArrow: true,
           onTap: _handleLogout,
-        ),
-        const SizedBox(height: 16),
-        _buildToggleItem(
-          icon: LucideIcons.mapPin,
-          title: 'Utiliser ma localisation',
-          value: _useLocation,
-          onChanged: _toggleLocationPreference,
         ),
       ],
     );
@@ -406,7 +405,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required ValueChanged<bool> onChanged,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
       child: Row(
         children: [
           Icon(icon, size: 22, color: const Color(0xFF64748B)),
@@ -421,10 +420,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: AppColors.primary,
+          GestureDetector(
+            onTap: () => onChanged(!value),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: 44,
+              height: 22,
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                color: value ? const Color(0xFF2E335A) : const Color(0xFFCBD5E1),
+              ),
+              child: AnimatedAlign(
+                duration: const Duration(milliseconds: 250),
+                alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+                child: Container(
+                  width: 18,
+                  height: 18,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black26,
+                        blurRadius: 1,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),

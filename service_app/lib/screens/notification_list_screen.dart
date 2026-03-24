@@ -58,7 +58,7 @@ class NotificationListScreen extends StatelessWidget {
             separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final n = notifications[index];
-              return _buildNotificationCard(context, n, _service, role);
+              return _buildNotificationCard(context, n, _service, role, idUtilisateur);
             },
           );
         },
@@ -85,7 +85,7 @@ class NotificationListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildNotificationCard(BuildContext context, NotificationModel n, NotificationService _service, String role) {
+  Widget _buildNotificationCard(BuildContext context, NotificationModel n, NotificationService _service, String role, String idUtilisateur) {
     final bool isUnread = !n.estLue;
     final timeStr = DateFormat('dd/MM HH:mm').format(n.createdAt);
 

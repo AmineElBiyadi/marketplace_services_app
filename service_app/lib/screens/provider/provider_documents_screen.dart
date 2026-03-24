@@ -40,7 +40,7 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur lors du chargement des documents : $e')),
+          SnackBar(content: Text('Error loading documents: $e')),
         );
       }
     }
@@ -162,7 +162,7 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
                   children: [
                     const Icon(LucideIcons.fileText, size: 48, color: AppColors.primary),
                     const SizedBox(height: 12),
-                    const Text("Fichier PDF", style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+                    const Text("PDF File", style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
                     const SizedBox(height: 12),
                     ElevatedButton.icon(
                       onPressed: () async {
@@ -171,12 +171,12 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
                           await launchUrl(uri, mode: LaunchMode.externalApplication);
                         } else {
                           if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Impossible d'ouvrir le fichier PDF")));
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Could not open PDF file")));
                           }
                         }
                       },
                       icon: const Icon(LucideIcons.externalLink, size: 16, color: Colors.white),
-                      label: const Text("Ouvrir le PDF", style: TextStyle(color: Colors.white)),
+                      label: const Text("Open PDF", style: TextStyle(color: Colors.white)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -211,7 +211,7 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
                           children: [
                             Icon(LucideIcons.imageOff, size: 40, color: Color(0xFF94A3B8)),
                             SizedBox(height: 8),
-                            Text("Image non disponible", style: TextStyle(color: Color(0xFF94A3B8))),
+                            Text("Image not available", style: TextStyle(color: Color(0xFF94A3B8))),
                           ],
                         ),
                       ),
@@ -232,7 +232,7 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
               ),
               child: const Center(
                 child: Text(
-                  "Aucun document fourni",
+                  "No document provided",
                   style: TextStyle(color: Color(0xFF94A3B8), fontSize: 14),
                 ),
               ),
@@ -250,7 +250,7 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text(
-          "Mes Documents",
+          "My Documents",
           style: TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.bold, fontSize: 18),
         ),
         leading: IconButton(
@@ -266,7 +266,7 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    "Documents professionnels",
+                    "Professional Documents",
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -275,25 +275,25 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    "Retrouvez ici les documents que vous avez soumis lors de votre inscription.",
+                    "View the documents you submitted during registration.",
                     style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
                   ),
                   const SizedBox(height: 24),
                   
                   _buildDocumentCard(
-                    "Carte Nationale d'Identité (Recto)",
+                    "National ID Card (Front)",
                     _expertModel?.carteNationale,
                   ),
                   _buildDocumentCard(
-                    "Carte Nationale d'Identité (Verso)",
+                    "National ID Card (Back)",
                     _expertModel?.carteNationaleVerso,
                   ),
                   _buildDocumentCard(
-                    "Casier Judiciaire",
+                    "Criminal Record",
                     _expertModel?.casierJudiciaireUrl,
                   ),
                   _buildDocumentCard(
-                    "Certificat / Diplôme",
+                    "Certificate / Diploma",
                     _expertModel?.certificatDocs,
                   ),
                   

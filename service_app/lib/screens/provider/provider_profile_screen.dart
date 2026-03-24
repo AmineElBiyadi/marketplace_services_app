@@ -444,7 +444,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         ),
         _buildMenuItem(
           icon: LucideIcons.fileImage,
-          title: "Mes Documents",
+          title: "My Documents",
           onTap: () {
             context.push('/provider/${widget.expertId}/profile/documents');
           },
@@ -472,7 +472,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         ),
         _buildMenuItem(
           icon: LucideIcons.alertCircle,
-          title: "Mes Réclamations",
+          title: "My Claims",
           onTap: () {
             context.push('/provider/${widget.expertId}/profile/reclamations');
           },
