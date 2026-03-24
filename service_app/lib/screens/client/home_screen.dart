@@ -118,16 +118,13 @@ class _HomeScreenState extends State<HomeScreen> {
         // Map Firestore services to UI format
         _categories = serviceModels.map((s) {
           final label = s.nom;
-          // Check if we have hardcoded assets for this service name
-          final assets = _categoryAssets[label] ?? _categoryAssets.values.firstWhere(
-            (val) => label.toLowerCase().contains(val['image'].toString().split('/').last.split('.').first),
-            orElse: () => {'icon': Icons.business_center, 'image': s.image},
-          );
-          
+          final hardcoded = _categoryAssets[label];
           return {
             'label': label,
-            'icon': assets['icon'] ?? Icons.business_center,
-            'image': s.image ?? assets['image'],
+            // Use Cloudinary image from Firestore first, fallback to local asset
+            'image': (s.image != null && s.image!.isNotEmpty) ? s.image : hardcoded?['image'],
+            // Use hardcoded icon if available, fallback to a generic one
+            'icon': hardcoded?['icon'] ?? Icons.business_center,
           };
         }).toList();
 
