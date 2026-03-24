@@ -129,8 +129,8 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
           const Spacer(),
           ElevatedButton.icon(
             onPressed: _exportProviders,
-            icon: const Icon(LucideIcons.download, size: 14),
-            label: const Text('Export Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            icon: const Icon(LucideIcons.fileText, size: 14),
+            label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
               backgroundColor: _textPrimary,
               foregroundColor: Colors.white,
@@ -480,63 +480,6 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     );
   }
 
-  void _showDetailsDialog(Map<String, dynamic> p) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            CircleAvatar(
-              backgroundImage: p['imageUrl'] != null ? NetworkImage(p['imageUrl']) : null,
-              child: p['imageUrl'] == null ? const Icon(LucideIcons.user) : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(child: Text(p['name'] ?? 'Détails du Prestataire')),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _detailRow('Carte Nationale:', p['CarteNationale']),
-              _detailRow('Casier Judiciaire:', p['CasierJudiciaire']),
-              _detailRow('Expérience:', p['Experience']),
-              _detailRow('Rayon de travail:', '${p['rayonTravaille']} km'),
-              _detailRow('Vues du profil:', p['profileViews'].toString()),
-              _detailRow('Note moyenne:', '${p['rating'].toStringAsFixed(1)} / 5'),
-              _detailRow('Interventions:', p['interventionsCount'].toString()),
-              const Divider(),
-              const Text('Services:', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text((p['services'] as List).join(', ')),
-              const SizedBox(height: 8),
-              const Text('Tâches:', style: TextStyle(fontWeight: FontWeight.bold)),
-              Text((p['tasks'] as List).join(', ')),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
-        ],
-      ),
-    );
-  }
-
-  Widget _detailRow(String label, dynamic value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: RichText(
-        text: TextSpan(
-          style: const TextStyle(color: _textPrimary, fontSize: 14),
-          children: [
-            TextSpan(text: '$label ', style: const TextStyle(fontWeight: FontWeight.bold)),
-            TextSpan(text: value?.toString() ?? 'N/A'),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildProviderCard(Map<String, dynamic> p) {
     final status = p['status'] ?? 'DESACTIVE';
     return InkWell(
@@ -616,7 +559,12 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
               children: [
                 IconButton(
                   icon: const Icon(LucideIcons.eye, size: 20, color: _primary),
-                  onPressed: () => _showDetailsDialog(p),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => UserProfileDetailDialog(id: p['id'], role: 'Prestataire'),
+                    );
+                  },
                 ),
                 const Spacer(),
                 if (status != 'ACTIVE')
@@ -653,12 +601,13 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     ]).toList();
 
     await AdminExportUtil.exportPageToPdf(
-      filename: 'prestataires_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-      title: 'Liste des Prestataires',
-      subtitle: 'Extraction de la liste des experts et prestataires de services',
+      filename: 'providers_presto_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+      title: 'Registre des Prestataires',
+      subtitle: 'Liste des experts et professionnels inscrits sur Presto',
       kpis: [
-        {'label': 'Total Prestataires', 'value': _filteredProviders.length.toString()},
-        {'label': 'Experts Premium', 'value': _filteredProviders.where((p) => p['pack'] == 'PREMIUM').length.toString()},
+        {'label': 'Total Experts', 'value': _allProviders.length.toString()},
+        {'label': 'Premium', 'value': _allProviders.where((p) => p['pack'] == 'Premium').length.toString()},
+        {'label': 'En Attente', 'value': _allProviders.where((p) => p['status'] == 'EN_ATTENTE' || p['status'] == 'En attente').length.toString()},
       ],
       tableHeaders: headers,
       tableRows: rows,

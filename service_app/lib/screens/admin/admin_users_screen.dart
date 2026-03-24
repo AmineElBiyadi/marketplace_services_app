@@ -127,8 +127,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           const Spacer(),
           ElevatedButton.icon(
             onPressed: _exportUsers,
-            icon: const Icon(LucideIcons.download, size: 14),
-            label: const Text('Export Excel', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            icon: const Icon(LucideIcons.fileText, size: 14),
+            label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
               backgroundColor: _textPrimary,
               foregroundColor: Colors.white,
@@ -556,12 +556,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     ]).toList();
 
     await AdminExportUtil.exportPageToPdf(
-      filename: 'clients_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-      title: 'Liste des Clients',
-      subtitle: 'Extraction de la liste des utilisateurs de type Client',
+      filename: 'users_presto_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+      title: 'Registre des Clients',
+      subtitle: 'Liste complète des utilisateurs enregistrés sur la plateforme Presto',
       kpis: [
-        {'label': 'Total Clients', 'value': _filteredUsers.length.toString()},
-        {'label': 'Actifs', 'value': _filteredUsers.where((u) => u['status'] == 'ACTIVE').length.toString()},
+        {'label': 'Total Clients', 'value': _allUsers.length.toString()},
+        {'label': 'Filtre Actuel', 'value': _filteredUsers.length.toString()},
+        {'label': 'Actifs', 'value': _allUsers.where((u) => u['status'] == 'ACTIVE').length.toString()},
       ],
       tableHeaders: headers,
       tableRows: rows,
