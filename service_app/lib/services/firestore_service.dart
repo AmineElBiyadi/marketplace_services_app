@@ -79,6 +79,20 @@ class FirestoreService {
     }
   }
 
+  Future<Map<String, dynamic>?> getAddressForUser(String userId) async {
+    try {
+      final snap = await _firestore.collection('adresses')
+          .where('idUtilisateur', isEqualTo: userId)
+          .limit(1).get();
+      if (snap.docs.isNotEmpty) {
+        return snap.docs.first.data();
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // ─── Interventions / Bookings ──────────────────────────────
 
   Stream<List<InterventionModel>> getPendingInterventions(String expertId) {
@@ -170,7 +184,7 @@ class FirestoreService {
       }
 
       final expertDoc = await _firestore.collection('experts').doc(expertId).get();
-      final views = expertDoc.data()?['views'] ?? 0;
+      final views = expertDoc.data()?['profileViews'] ?? 0;
 
       return {
         'reservations_today': reservationsToday.toString(),
@@ -691,7 +705,12 @@ class FirestoreService {
     required String telephone,
     required String email,
     required String ville,
-    required String adresse,
+    required String pays,
+    required String numBatiment,
+    required String rue,
+    required String quartier,
+    required String codePostal,
+    GeoPoint? location,
     required double rayonTravaille,
     required String experience,
   }) async {
@@ -700,29 +719,41 @@ class FirestoreService {
     // 1. Update user
     final fullName = '$prenom $nom'.trim();
     final userRef = _firestore.collection('utilisateurs').doc(userId);
-    batch.update(userRef, {
+    
+    final Map<String, dynamic> userUpdates = {
       'nom': fullName,
       'telephone': telephone,
       'email': email,
       'updated_At': FieldValue.serverTimestamp(),
-    });
+    };
+    if (location != null) {
+      userUpdates['location'] = location;
+    }
+    batch.update(userRef, userUpdates);
 
     // 2. Update address
     final adressesSnap = await _firestore.collection('adresses').where('idUtilisateur', isEqualTo: userId).limit(1).get();
+    
+    final Map<String, dynamic> addrData = {
+      'Ville': ville,
+      'Pays': pays,
+      'NumBatiment': numBatiment,
+      'Rue': rue,
+      'Quartier': quartier,
+      'CodePostal': codePostal,
+    };
+    if (location != null) {
+      addrData['location'] = location;
+    }
+
     if (adressesSnap.docs.isNotEmpty) {
       final addrRef = _firestore.collection('adresses').doc(adressesSnap.docs.first.id);
-      batch.update(addrRef, {
-        'Ville': ville,
-        'Rue': adresse,
-      });
+      batch.update(addrRef, addrData);
     } else {
       final addrRef = _firestore.collection('adresses').doc();
-      batch.set(addrRef, {
-        'idUtilisateur': userId,
-        'Ville': ville,
-        'Rue': adresse,
-        'Pays': 'Maroc',
-      });
+      addrData['idUtilisateur'] = userId;
+      addrData['createdAt'] = FieldValue.serverTimestamp();
+      batch.set(addrRef, addrData);
     }
 
     // 3. Update expert
@@ -739,8 +770,15 @@ class FirestoreService {
 
     Future<List<ServiceModel>> getServices() async {
     try {
-      final snapshot = await _firestore.collection('services').orderBy('nom').get();
-      return snapshot.docs.map((doc) => ServiceModel.fromFirestore(doc)).toList();
+      // Fetch all, then filter in Dart so legacy docs without 'estActive' field are treated as active
+      final snapshot = await _firestore
+          .collection('services')
+          .orderBy('nom')
+          .get();
+      return snapshot.docs
+          .map((doc) => ServiceModel.fromFirestore(doc))
+          .where((s) => s.estActive)
+          .toList();
     } catch (e) {
       debugPrint("Error fetching services: $e");
       return [];
@@ -767,11 +805,9 @@ class FirestoreService {
 
   Future<List<Expert>> getExperts({bool onlyAvailable = false}) async {
     try {
-      Query query = _firestore.collection('experts');
-      if (onlyAvailable) {
-        query = query.where('estDisponible', isEqualTo: true);
-      }
-      final expertsSnapshot = await query.get();
+      final expertsSnapshot = await _firestore.collection('experts')
+          .where('etatCompte', isEqualTo: 'ACTIVE')
+          .get();
       
       // Fetch all experts' data in parallel
       List<Expert> experts = await Future.wait(expertsSnapshot.docs.map((expertDoc) async {
@@ -818,7 +854,7 @@ class FirestoreService {
             (se) => _firestore.collection('services').doc(se.data()['idService']).get()
           ));
           for (var sDoc in serviceDocs) {
-            if (sDoc.exists) {
+            if (sDoc.exists && (sDoc.data()?['estActive'] ?? true) == true) {
               services.add(sDoc.data()?['nom'] ?? '');
             }
           }
@@ -949,7 +985,7 @@ class FirestoreService {
           (se) => _firestore.collection('services').doc(se.data()['idService']).get()
         ));
         for (var sDoc in serviceDocs) {
-          if (sDoc.exists) {
+          if (sDoc.exists && (sDoc.data()?['estActive'] ?? true) == true) {
             services.add(sDoc.data()?['nom'] ?? '');
           }
         }
@@ -1399,8 +1435,12 @@ class FirestoreService {
 
   Future<List<ServiceModel>> getServiceCategories() async {
     try {
+      // Fetch all, then filter in Dart so legacy docs without 'estActive' field are treated as active
       final snapshot = await _firestore.collection('services').get();
-      return snapshot.docs.map((doc) => ServiceModel.fromFirestore(doc)).toList();
+      return snapshot.docs
+          .map((doc) => ServiceModel.fromFirestore(doc))
+          .where((s) => s.estActive)
+          .toList();
     } catch (e) {
       return [];
     }
@@ -1408,26 +1448,37 @@ class FirestoreService {
 
   Future<List<TaskModel>> getTasksForCategory(String serviceId, {String? expertId}) async {
     try {
-      // Fetch standard tasks (idExpert == "")
-      final standardSnapshot = await _firestore
+      // Fetch ALL tasks for this service with a single where clause (no composite index needed)
+      final allSnapshot = await _firestore
           .collection('taches')
           .where('idService', isEqualTo: serviceId)
-          .where('idExpert', isEqualTo: "")
           .get();
-      
-      List<TaskModel> tasks = standardSnapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
 
-      // Fetch expert's specific tasks if id is provided
-      if (expertId != null) {
-        final expertSnapshot = await _firestore
-            .collection('taches')
-            .where('idService', isEqualTo: serviceId)
-            .where('idExpert', isEqualTo: expertId)
-            .get();
-        tasks.addAll(expertSnapshot.docs.map((doc) => TaskModel.fromFirestore(doc)));
-      }
+      // Filter in Dart: active standard tasks (idExpert == "" or null)
+      final standardTasks = allSnapshot.docs
+          .where((doc) {
+            final data = doc.data();
+            final isActive = data['estActive'] ?? true;
+            final docExpertId = data['idExpert'] ?? '';
+            return isActive && docExpertId == '';
+          })
+          .map((doc) => TaskModel.fromFirestore(doc))
+          .toList();
 
-      return tasks;
+      // Filter in Dart: active expert-specific tasks
+      final expertTasks = expertId != null
+          ? allSnapshot.docs
+              .where((doc) {
+                final data = doc.data();
+                final isActive = data['estActive'] ?? true;
+                final docExpertId = data['idExpert'] ?? '';
+                return isActive && docExpertId == expertId;
+              })
+              .map((doc) => TaskModel.fromFirestore(doc))
+              .toList()
+          : <TaskModel>[];
+
+      return [...standardTasks, ...expertTasks];
     } catch (e) {
       print("Error fetching tasks for category: $e");
       return [];
@@ -1450,6 +1501,10 @@ class FirestoreService {
         // Get service category details
         final serviceDoc = await _firestore.collection('services').doc(serviceId).get();
         final serviceData = serviceDoc.data();
+        
+        // Skip services that have been deactivated by admin
+        if (serviceData != null && (serviceData['estActive'] ?? true) == false) continue;
+        
         final serviceName = serviceData != null ? (serviceData['nom'] ?? 'Unknown Service') : 'Unknown Service';
         final serviceImage = serviceData != null ? serviceData['image'] : null;
 
@@ -1474,6 +1529,9 @@ class FirestoreService {
         for (var tDoc in tasksSnapshot.docs) {
           final task = TaskExpertModel.fromFirestore(tDoc);
           final tid = tDoc.id;
+
+          // Skip tasks that have been deactivated (cascade from catalog task deactivation)
+          if ((tDoc.data()['estActive'] ?? true) == false) continue;
 
           // Fallback context: In older versions, images were saved per idTacheExpert
           if (serviceImages.isEmpty) {
@@ -1976,9 +2034,7 @@ class FirestoreService {
     final expertRef = await _firestore.collection('experts').add({
       'CarteNationale': cinFrontUrl ?? '',
       'CarteNationaleVerso': cinBackUrl ?? '',
-      'CasierJudiciaire':
-          certificateUrl != null && certificateUrl.isNotEmpty,
-      'CertificatDocs': certificateUrl ?? '',
+      'CasierJudiciaire': certificateUrl ?? '',
       'Experience': description,
       'etatCompte': 'PENDING',
       'idUtilisateur': uid,
@@ -2108,25 +2164,56 @@ class FirestoreService {
   }
 
   Future<void> deactivateExpertSelf(String expertId) async {
+    // 1. Check for active interventions
+    final activeInterventionQuery = await _firestore.collection('interventions')
+        .where('idExpert', isEqualTo: expertId)
+        .where('statut', whereIn: ['EN_ATTENTE', 'ACCEPTEE', 'EN_COURS'])
+        .limit(1)
+        .get();
+
+    if (activeInterventionQuery.docs.isNotEmpty) {
+      throw Exception("Vous avez des interventions en cours ou en attente. Vous ne pouvez pas désactiver votre compte pour le moment.");
+    }
+
+    final doc = await _firestore.collection('experts').doc(expertId).get();
+    if (!doc.exists) return;
+    
+    final data = doc.data() as Map<String, dynamic>?;
+    final idUtilisateur = data?['idUtilisateur'];
+
     await _firestore.collection('experts').doc(expertId).update({
       'etatCompte': 'DESACTIVE',
       'desactiveParAdmin': false,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    await _notificationService.sendNotification(
-      idUtilisateur: expertId,
-      titre: "Compte Désactivé",
-      corps: "Vous avez désactivé votre compte. Votre profil n'est plus visible.",
-      type: 'account',
-      relatedId: expertId,
-    );
+    // Automatically suspend premium plan if active
+    final activeSubs = await _firestore
+        .collection('abonnements')
+        .where('idExpert', isEqualTo: expertId)
+        .where('statut', whereIn: ['ACTIVE', 'GRACE'])
+        .get();
+
+    for (var subDoc in activeSubs.docs) {
+      await cancelSubscription(subDoc.id);
+    }
+
+    if (idUtilisateur != null) {
+      await _notificationService.sendNotification(
+        idUtilisateur: idUtilisateur,
+        titre: "Compte Désactivé",
+        corps: "Vous avez désactivé votre compte. Votre profil n'est plus visible par les clients.",
+        type: 'account',
+        relatedId: expertId,
+      );
+    }
   }
 
   Future<void> reactivateExpertSelf(String expertId) async {
     // Only reactivate if not disabled by admin
     final doc = await _firestore.collection('experts').doc(expertId).get();
-    if (doc.exists && (doc.data()?['desactiveParAdmin'] ?? false) == true) {
+    final data = doc.data() as Map<String, dynamic>?;
+    if (doc.exists && (data?['desactiveParAdmin'] ?? false) == true) {
       throw Exception("Compte désactivé par l'administrateur. Veuillez contacter le support.");
     }
 
@@ -2136,12 +2223,14 @@ class FirestoreService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    await _notificationService.sendNotification(
-      idUtilisateur: expertId,
-      titre: "Compte Réactivé",
-      corps: "Bon retour ! Votre compte est à nouveau actif et visible.",
-      type: 'account',
-      relatedId: expertId,
-    );
+    if (data?['idUtilisateur'] != null) {
+      await _notificationService.sendNotification(
+        idUtilisateur: data!['idUtilisateur'],
+        titre: "Compte Réactivé",
+        corps: "Bon retour ! Votre compte est à nouveau actif et visible.",
+        type: 'account',
+        relatedId: expertId,
+      );
+    }
   }
 }

@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../theme/app_colors.dart';
 import '../../layouts/admin_layout.dart';
 import '../../services/admin_dashboard_service.dart';
+import '../../services/cloudinary_service.dart';
 
 class AdminSettingsScreen extends StatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -760,13 +761,23 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                 ),
                 Row(
                   children: [
+                    const Text("Actif", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    Switch(
+                      value: service['estActive'] ?? true,
+                      activeColor: Colors.green,
+                      onChanged: (bool value) async {
+                        await _adminService.updateService(service['id'], {'estActive': value});
+                        setState(() {
+                          service['estActive'] = value;
+                        });
+                        // Reload tasks to reflect the cascaded status change
+                        _loadTasks(service['id']);
+                      },
+                    ),
+                    const SizedBox(width: 8),
                     IconButton(
                       icon: const Icon(LucideIcons.edit2, size: 18, color: AppColors.primary),
                       onPressed: () => _showServiceDialog(service: service),
-                    ),
-                    IconButton(
-                      icon: const Icon(LucideIcons.trash, size: 18, color: Colors.red),
-                      onPressed: () => _confirmDeleteService(service),
                     ),
                   ],
                 ),
@@ -846,13 +857,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
                     ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(LucideIcons.trash, size: 14, color: Colors.red),
-                      onPressed: () => _confirmDeleteTask(task),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
                   ],
                 )),
               ]);
@@ -867,10 +871,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
   void _showServiceDialog({Map<String, dynamic>? service}) {
     final nameController = TextEditingController(text: service?['nom'] ?? "");
     final descController = TextEditingController(text: service?['description'] ?? "");
-    String? base64Image = service?['image'];
+    String? currentImage = service?['image'];
+    bool isUploading = false;
+    dynamic pickedFileData; // Can be bytes or base64 for preview
 
     showDialog(
       context: context,
+      barrierDismissible: !isUploading,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(service == null ? "Ajouter un service" : "Modifier le service"),
@@ -878,13 +885,14 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
             mainAxisSize: MainAxisSize.min,
             children: [
               GestureDetector(
-                onTap: () async {
+                onTap: isUploading ? null : () async {
                   final picker = ImagePicker();
-                  final pickedFile = await picker.pickImage(source: ImageSource.gallery, maxWidth: 400, maxHeight: 400, imageQuality: 70);
+                  final pickedFile = await picker.pickImage(source: ImageSource.gallery, maxWidth: 800, maxHeight: 800, imageQuality: 80);
                   if (pickedFile != null) {
                     final bytes = await pickedFile.readAsBytes();
                     setDialogState(() {
-                      base64Image = base64Encode(bytes);
+                      pickedFileData = bytes;
+                      currentImage = base64Encode(bytes); // For preview via _buildDecorationImage
                     });
                   }
                 },
@@ -895,11 +903,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                     color: AppColors.muted.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.border.withOpacity(0.5)),
-                    image: base64Image != null && base64Image!.isNotEmpty
-                        ? _buildDecorationImage(base64Image!)
+                    image: currentImage != null && currentImage!.isNotEmpty
+                        ? _buildDecorationImage(currentImage!)
                         : null,
                   ),
-                  child: base64Image == null || base64Image!.isEmpty
+                  child: currentImage == null || currentImage!.isEmpty
                       ? const Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -908,40 +916,77 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                             Text("Cliquer pour ajouter une image", style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
                           ],
                         )
-                      : null,
+                      : isUploading 
+                          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                          : null,
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: nameController,
+                enabled: !isUploading,
                 decoration: const InputDecoration(labelText: "Nom du service"),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: descController,
+                enabled: !isUploading,
                 decoration: const InputDecoration(labelText: "Description"),
                 maxLines: 3,
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
+            TextButton(
+              onPressed: isUploading ? null : () => Navigator.pop(context), 
+              child: const Text("Annuler")
+            ),
             ElevatedButton(
-              onPressed: () async {
-                final data = {
-                  'nom': nameController.text,
-                  'description': descController.text,
-                  'image': base64Image,
-                };
-                if (service == null) {
-                  await _adminService.addService(data);
-                } else {
-                  await _adminService.updateService(service['id'], data);
+              onPressed: isUploading ? null : () async {
+                if (nameController.text.isEmpty) return;
+
+                setDialogState(() => isUploading = true);
+
+                try {
+                  String? imageUrl = service?['image'];
+                  String? publicId = service?['publicId'];
+
+                  // If a new image was picked, upload it
+                  if (pickedFileData != null) {
+                    final uploadedUrl = await CloudinaryService.uploadImage(pickedFileData);
+                    if (uploadedUrl != null) {
+                      imageUrl = uploadedUrl;
+                      // Extract publicId from URL: https://res.cloudinary.com/cloud/image/upload/v123/public_id.jpg
+                      publicId = uploadedUrl.split('/').last.split('.').first;
+                    } else {
+                      throw Exception("Échec du téléchargement de l'image sur Cloudinary");
+                    }
+                  }
+
+                  final data = {
+                    'nom': nameController.text,
+                    'description': descController.text,
+                    'image': imageUrl,
+                    'publicId': publicId,
+                    'storageType': imageUrl != null && imageUrl.startsWith('http') ? 'cloudinary' : null,
+                    if (service == null) 'estActive': true,
+                  };
+
+                  if (service == null) {
+                    await _adminService.addService(data);
+                  } else {
+                    await _adminService.updateService(service['id'], data);
+                  }
+                  Navigator.pop(context);
+                  _loadServices();
+                } catch (e) {
+                  setDialogState(() => isUploading = false);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Erreur : $e")),
+                  );
                 }
-                Navigator.pop(context);
-                _loadServices();
               },
-              child: const Text("Enregistrer"),
+              child: Text(isUploading ? "Enregistrement..." : "Enregistrer"),
             ),
           ],
         ),
