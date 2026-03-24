@@ -4,6 +4,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/app_colors.dart';
 import '../../layouts/provider_layout.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/cloudinary_service.dart';
 import '../../services/firestore_service.dart';
 import '../../models/expert.dart';
 
@@ -24,6 +27,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
   int _reviewsCount = 0;
   double _rayonValue = 20.0;
   bool _isSavingRayon = false;
+  bool _isUploadingPhoto = false;
 
   @override
   void initState() {
@@ -50,6 +54,54 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _updateProfilePicture() async {
+    if (_expertModel == null) return;
+    
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        withData: true,
+      );
+
+      if (result != null && result.files.single.bytes != null) {
+        setState(() => _isUploadingPhoto = true);
+        
+        final imageUrl = await CloudinaryService.uploadImage(result.files.single.bytes);
+        
+        if (imageUrl != null) {
+          await FirebaseFirestore.instance
+              .collection('utilisateurs')
+              .doc(_expertModel!.idUtilisateur)
+              .update({'photo': imageUrl, 'image_profile': imageUrl});
+              
+          // Ensure it's optionally updated on the expert document if your DB uses it there
+          await FirebaseFirestore.instance
+              .collection('experts')
+              .doc(widget.expertId)
+              .update({'photo': imageUrl}).catchError((_) => null); // Silently ignore if experts doesn't have photo
+              
+          await _loadProfileData();
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Image de profil mise à jour avec succès!"), backgroundColor: Colors.green),
+            );
+          }
+        } else {
+          throw Exception("Échec de l'upload sur Cloudinary.");
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Erreur: $e"), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingPhoto = false);
     }
   }
 
@@ -116,44 +168,50 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     return Column(
       children: [
         // Avatar
-        Stack(
-          children: [
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                shape: BoxShape.circle,
-                image: photoUrl.isNotEmpty
-                    ? DecorationImage(image: NetworkImage(photoUrl), fit: BoxFit.cover)
-                    : null,
-              ),
-              child: photoUrl.isEmpty
-                  ? Center(
-                      child: Text(
-                        fullName.isNotEmpty ? fullName[0].toUpperCase() : 'A',
-                        style: const TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            Positioned(
-              right: 0,
-              bottom: 0,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
+        GestureDetector(
+          onTap: _isUploadingPhoto ? null : _updateProfilePicture,
+          child: Stack(
+            children: [
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
                   shape: BoxShape.circle,
+                  image: photoUrl.isNotEmpty && !_isUploadingPhoto
+                      ? DecorationImage(image: NetworkImage(photoUrl), fit: BoxFit.cover)
+                      : null,
                 ),
-                child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                child: _isUploadingPhoto
+                    ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                    : photoUrl.isEmpty
+                        ? Center(
+                            child: Text(
+                              fullName.isNotEmpty ? fullName[0].toUpperCase() : 'A',
+                              style: const TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          )
+                        : null,
               ),
-            ),
-          ],
+              if (!_isUploadingPhoto)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                  ),
+                ),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
 
