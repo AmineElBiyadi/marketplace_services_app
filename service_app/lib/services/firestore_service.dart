@@ -79,6 +79,20 @@ class FirestoreService {
     }
   }
 
+  Future<Map<String, dynamic>?> getAddressForUser(String userId) async {
+    try {
+      final snap = await _firestore.collection('adresses')
+          .where('idUtilisateur', isEqualTo: userId)
+          .limit(1).get();
+      if (snap.docs.isNotEmpty) {
+        return snap.docs.first.data();
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // ─── Interventions / Bookings ──────────────────────────────
 
   Stream<List<InterventionModel>> getPendingInterventions(String expertId) {
@@ -691,7 +705,12 @@ class FirestoreService {
     required String telephone,
     required String email,
     required String ville,
-    required String adresse,
+    required String pays,
+    required String numBatiment,
+    required String rue,
+    required String quartier,
+    required String codePostal,
+    GeoPoint? location,
     required double rayonTravaille,
     required String experience,
   }) async {
@@ -700,29 +719,41 @@ class FirestoreService {
     // 1. Update user
     final fullName = '$prenom $nom'.trim();
     final userRef = _firestore.collection('utilisateurs').doc(userId);
-    batch.update(userRef, {
+    
+    final Map<String, dynamic> userUpdates = {
       'nom': fullName,
       'telephone': telephone,
       'email': email,
       'updated_At': FieldValue.serverTimestamp(),
-    });
+    };
+    if (location != null) {
+      userUpdates['location'] = location;
+    }
+    batch.update(userRef, userUpdates);
 
     // 2. Update address
     final adressesSnap = await _firestore.collection('adresses').where('idUtilisateur', isEqualTo: userId).limit(1).get();
+    
+    final Map<String, dynamic> addrData = {
+      'Ville': ville,
+      'Pays': pays,
+      'NumBatiment': numBatiment,
+      'Rue': rue,
+      'Quartier': quartier,
+      'CodePostal': codePostal,
+    };
+    if (location != null) {
+      addrData['location'] = location;
+    }
+
     if (adressesSnap.docs.isNotEmpty) {
       final addrRef = _firestore.collection('adresses').doc(adressesSnap.docs.first.id);
-      batch.update(addrRef, {
-        'Ville': ville,
-        'Rue': adresse,
-      });
+      batch.update(addrRef, addrData);
     } else {
       final addrRef = _firestore.collection('adresses').doc();
-      batch.set(addrRef, {
-        'idUtilisateur': userId,
-        'Ville': ville,
-        'Rue': adresse,
-        'Pays': 'Maroc',
-      });
+      addrData['idUtilisateur'] = userId;
+      addrData['createdAt'] = FieldValue.serverTimestamp();
+      batch.set(addrRef, addrData);
     }
 
     // 3. Update expert
@@ -774,11 +805,9 @@ class FirestoreService {
 
   Future<List<Expert>> getExperts({bool onlyAvailable = false}) async {
     try {
-      Query query = _firestore.collection('experts');
-      if (onlyAvailable) {
-        query = query.where('estDisponible', isEqualTo: true);
-      }
-      final expertsSnapshot = await query.get();
+      final expertsSnapshot = await _firestore.collection('experts')
+          .where('etatCompte', isEqualTo: 'ACTIVE')
+          .get();
       
       // Fetch all experts' data in parallel
       List<Expert> experts = await Future.wait(expertsSnapshot.docs.map((expertDoc) async {
@@ -2005,9 +2034,7 @@ class FirestoreService {
     final expertRef = await _firestore.collection('experts').add({
       'CarteNationale': cinFrontUrl ?? '',
       'CarteNationaleVerso': cinBackUrl ?? '',
-      'CasierJudiciaire':
-          certificateUrl != null && certificateUrl.isNotEmpty,
-      'CertificatDocs': certificateUrl ?? '',
+      'CasierJudiciaire': certificateUrl ?? '',
       'Experience': description,
       'etatCompte': 'PENDING',
       'idUtilisateur': uid,
@@ -2137,6 +2164,23 @@ class FirestoreService {
   }
 
   Future<void> deactivateExpertSelf(String expertId) async {
+    // 1. Check for active interventions
+    final activeInterventionQuery = await _firestore.collection('interventions')
+        .where('idExpert', isEqualTo: expertId)
+        .where('statut', whereIn: ['EN_ATTENTE', 'ACCEPTEE', 'EN_COURS'])
+        .limit(1)
+        .get();
+
+    if (activeInterventionQuery.docs.isNotEmpty) {
+      throw Exception("Vous avez des interventions en cours ou en attente. Vous ne pouvez pas désactiver votre compte pour le moment.");
+    }
+
+    final doc = await _firestore.collection('experts').doc(expertId).get();
+    if (!doc.exists) return;
+    
+    final data = doc.data() as Map<String, dynamic>?;
+    final idUtilisateur = data?['idUtilisateur'];
+
     await _firestore.collection('experts').doc(expertId).update({
       'etatCompte': 'DESACTIVE',
       'desactiveParAdmin': false,
@@ -2154,19 +2198,22 @@ class FirestoreService {
       await cancelSubscription(subDoc.id);
     }
 
-    await _notificationService.sendNotification(
-      idUtilisateur: expertId,
-      titre: "Compte Désactivé",
-      corps: "Vous avez désactivé votre compte. Votre profil n'est plus visible.",
-      type: 'account',
-      relatedId: expertId,
-    );
+    if (idUtilisateur != null) {
+      await _notificationService.sendNotification(
+        idUtilisateur: idUtilisateur,
+        titre: "Compte Désactivé",
+        corps: "Vous avez désactivé votre compte. Votre profil n'est plus visible par les clients.",
+        type: 'account',
+        relatedId: expertId,
+      );
+    }
   }
 
   Future<void> reactivateExpertSelf(String expertId) async {
     // Only reactivate if not disabled by admin
     final doc = await _firestore.collection('experts').doc(expertId).get();
-    if (doc.exists && (doc.data()?['desactiveParAdmin'] ?? false) == true) {
+    final data = doc.data() as Map<String, dynamic>?;
+    if (doc.exists && (data?['desactiveParAdmin'] ?? false) == true) {
       throw Exception("Compte désactivé par l'administrateur. Veuillez contacter le support.");
     }
 
@@ -2176,12 +2223,14 @@ class FirestoreService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    await _notificationService.sendNotification(
-      idUtilisateur: expertId,
-      titre: "Compte Réactivé",
-      corps: "Bon retour ! Votre compte est à nouveau actif et visible.",
-      type: 'account',
-      relatedId: expertId,
-    );
+    if (data?['idUtilisateur'] != null) {
+      await _notificationService.sendNotification(
+        idUtilisateur: data!['idUtilisateur'],
+        titre: "Compte Réactivé",
+        corps: "Bon retour ! Votre compte est à nouveau actif et visible.",
+        type: 'account',
+        relatedId: expertId,
+      );
+    }
   }
 }

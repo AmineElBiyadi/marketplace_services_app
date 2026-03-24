@@ -82,6 +82,13 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
     DocumentSnapshot chatDoc;
     if (chatQuery.docs.isNotEmpty) {
       chatDoc = chatQuery.docs.first;
+      
+      // Auto-close check
+      final bool shouldBeClosed = ['TERMINEE', 'ANNULEE', 'REFUSEE'].contains(intervention.statut);
+      if (shouldBeClosed && chatDoc['estOuvert'] == true) {
+        await chatDoc.reference.update({'estOuvert': false});
+        chatDoc = await chatDoc.reference.get(); // Refresh doc
+      }
     } else {
       final newChatRef = FirebaseFirestore.instance.collection('chats').doc();
       final data = {
@@ -120,7 +127,18 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
         'statut': newStatus,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+      
+      // Auto-close associated chat globally
+      if (['TERMINEE', 'ANNULEE', 'REFUSEE'].contains(newStatus)) {
+        try {
+          final chats = await FirebaseFirestore.instance.collection('chats').where('idIntervention', isEqualTo: interventionId).get();
+          for (var doc in chats.docs) {
+            await doc.reference.update({'estOuvert': false});
+          }
+        } catch (_) {}
+      }
 
+      // Send Push Notification Document
       if (clientId != null) {
         String titre = "";
         String corps = "";
@@ -163,6 +181,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
       }
     }
   }
+
 
   Future<void> _showDetailsDialog(InterventionModel intervention) async {
     final dateDebut = intervention.dateDebutIntervention;
@@ -243,7 +262,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
     );
   }
 
-  Future<void> _showCancelDialog(InterventionModel intervention) async {
+   Future<void> _showCancelDialog(InterventionModel intervention) async {
     TextEditingController reasonController = TextEditingController();
     String? errorText;
 
@@ -306,6 +325,15 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                               'updatedAt': FieldValue.serverTimestamp(),
                             });
                             
+                            // Auto-close chat globally
+                            try {
+                              final chats = await FirebaseFirestore.instance.collection('chats').where('idIntervention', isEqualTo: intervention.id).get();
+                              for (var doc in chats.docs) {
+                                await doc.reference.update({'estOuvert': false});
+                              }
+                            } catch (_) {}
+
+                            // Send Cancellation Notification to Client
                             await _notificationService.sendNotification(
                               idUtilisateur: intervention.idClient,
                               titre: "Intervention Annulée",
@@ -345,6 +373,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
     );
   }
 
+  
   Future<void> _showValidationCodeDialog(InterventionModel intervention) async {
     TextEditingController codeController = TextEditingController();
     String? errorText;
@@ -406,7 +435,16 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                                 'dateFinIntervention': FieldValue.serverTimestamp(),
                                 'updatedAt': FieldValue.serverTimestamp(),
                               });
+                              
+                              // Auto-close chat globally
+                              try {
+                                final chats = await FirebaseFirestore.instance.collection('chats').where('idIntervention', isEqualTo: intervention.id).get();
+                                for (var doc in chats.docs) {
+                                  await doc.reference.update({'estOuvert': false});
+                                }
+                              } catch (_) {}
 
+                              // Send Completion Notification to Client
                               await _notificationService.sendNotification(
                                 idUtilisateur: intervention.idClient,
                                 titre: "Intervention Terminée",

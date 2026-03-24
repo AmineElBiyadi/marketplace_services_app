@@ -385,10 +385,10 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           },
         ),
         _buildMenuItem(
-          icon: LucideIcons.bell,
-          title: "Notifications",
+          icon: LucideIcons.fileImage,
+          title: "Mes Documents",
           onTap: () {
-            context.push('/provider/${widget.expertId}/notifications');
+            context.push('/provider/${widget.expertId}/profile/documents');
           },
         ),
         _buildMenuItem(
