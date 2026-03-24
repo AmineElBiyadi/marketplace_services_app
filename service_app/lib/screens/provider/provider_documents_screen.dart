@@ -289,6 +289,10 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
                     _expertModel?.carteNationaleVerso,
                   ),
                   _buildDocumentCard(
+                    "Casier Judiciaire",
+                    _expertModel?.casierJudiciaireUrl,
+                  ),
+                  _buildDocumentCard(
                     "Certificat / Diplôme",
                     _expertModel?.certificatDocs,
                   ),
