@@ -393,17 +393,22 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                           BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
                         ],
                       ),
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             interv.tacheSnapshot?['serviceNom'] ?? 'Intervention',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: _getStatusColor(interv.statut)),
+                            style: TextStyle(
+                              fontSize: height < 40 ? 10 : 12,
+                              fontWeight: FontWeight.w800,
+                              color: _getStatusColor(interv.statut),
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (height > 30)
+                          if (height > 45)
                             Text(
                               interv.clientSnapshot?['nom'] ?? '',
                               style: TextStyle(fontSize: 10, color: _getStatusColor(interv.statut).withOpacity(0.9), fontWeight: FontWeight.bold),
