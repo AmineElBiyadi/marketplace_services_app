@@ -422,7 +422,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         return Column(
           children: [
             SizedBox(
-              height: 180,
+              height: 200,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: kpiItems.length,
@@ -431,7 +431,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   final kpi = kpiItems[index];
                   return Container(
                     margin: const EdgeInsets.only(right: 16),
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(32),
