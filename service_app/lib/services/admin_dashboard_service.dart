@@ -1378,6 +1378,36 @@ class AdminDashboardService {
     }, SetOptions(merge: true));
   }
 
+  Future<int> getFreePackLimit() async {
+    final doc = await _db.collection('settings').doc('global_config').get();
+    if (doc.exists) {
+      return doc.data()?['free_service_limit'] ?? 3;
+    }
+    return 3;
+  }
+
+  Future<void> updateFreePackLimit(int limit) async {
+    await _db.collection('settings').doc('global_config').set({
+      'free_service_limit': limit,
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<int> getFreePortfolioLimit() async {
+    final doc = await _db.collection('settings').doc('global_config').get();
+    if (doc.exists && doc.data() != null) {
+      return doc.data()!['free_portfolio_limit'] ?? 3;
+    }
+    return 3;
+  }
+
+  Future<void> updateFreePortfolioLimit(int limit) async {
+    await _db.collection('settings').doc('global_config').set({
+      'free_portfolio_limit': limit,
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   // ─── Services & Tasks Management ──────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getServices() async {

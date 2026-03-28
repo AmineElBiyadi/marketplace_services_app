@@ -786,6 +786,32 @@ class FirestoreService {
     }
   }
 
+  Future<int> getFreeServiceLimit() async {
+    try {
+      final doc = await _firestore.collection('settings').doc('global_config').get();
+      if (doc.exists) {
+        return doc.data()?['free_service_limit'] ?? 3;
+      }
+      return 3;
+    } catch (e) {
+      debugPrint("Error fetching free service limit: $e");
+      return 3;
+    }
+  }
+
+  Future<int> getFreePortfolioLimit() async {
+    try {
+      final doc = await _firestore.collection('settings').doc('global_config').get();
+      if (doc.exists) {
+        return doc.data()?['free_portfolio_limit'] ?? 3;
+      }
+      return 3;
+    } catch (e) {
+      debugPrint("Error fetching free portfolio limit: $e");
+      return 3;
+    }
+  }
+
   Future<Map<String, dynamic>?> getLatestExpertCGU() async {
     try {
       final snap = await _firestore.collection('cgu')

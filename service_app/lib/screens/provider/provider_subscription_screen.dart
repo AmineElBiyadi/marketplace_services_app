@@ -24,6 +24,8 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
   bool _isSubscribing = false;
   bool _isReactivating = false;
   bool _isLoading = false;
+  int _freeLimit = 3;
+  int _freePortfolioLimit = 3;
   Map<String, dynamic>? _suspendedSub; // cached suspended subscription for reactivation
 
   @override
@@ -52,6 +54,19 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
     if (mounted) {
       setState(() {
         _isPremiumStream = _firestoreService.isExpertPremium(_resolvedExpertId!);
+      });
+      // Load dynamic free limit
+      _loadFreeLimit();
+    }
+  }
+
+  Future<void> _loadFreeLimit() async {
+    final limit = await _firestoreService.getFreeServiceLimit();
+    final portfolioLimit = await _firestoreService.getFreePortfolioLimit();
+    if (mounted) {
+      setState(() {
+        _freeLimit = limit;
+        _freePortfolioLimit = portfolioLimit;
       });
     }
   }
@@ -391,8 +406,8 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
               try {
                 final services = await _firestoreService.getExpertServicesDetailed(_resolvedExpertId!);
                 
-                // 1. Check if services > 3
-                if (services.length > 3) {
+                // 1. Check if services > _freeLimit
+                if (services.length > _freeLimit) {
                   if (mounted) _showServiceSelectionDialog(subscriptionId, services);
                   return;
                 }
@@ -449,7 +464,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) {
-          final isSelectionValid = selectedIds.length == 3;
+          final isSelectionValid = selectedIds.length == _freeLimit;
           
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -463,11 +478,11 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                 borderRadius: const BorderRadius.only(topLeft: Radius.circular(16), topRight: Radius.circular(16)),
               ),
               child: Row(
-                children: const [
-                  Icon(LucideIcons.alertTriangle, color: Colors.orange, size: 22),
-                  SizedBox(width: 10),
+                children: [
+                  const Icon(LucideIcons.alertTriangle, color: Colors.orange, size: 22),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Text("Sélectionnez 3 services", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepOrange)),
+                    child: Text("Sélectionnez $_freeLimit services", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepOrange)),
                   ),
                 ],
               ),
@@ -487,13 +502,13 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                         border: Border.all(color: Colors.red.withOpacity(0.2)),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text(
-                        "En passant au plan gratuit, seuls 3 services resteront visibles. Les autres seront masqués pour vos clients.",
-                        style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w500, height: 1.4),
+                      child: Text(
+                        "En passant au plan gratuit, seuls $_freeLimit services resteront visibles. Les autres seront masqués pour vos clients.",
+                        style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w500, height: 1.4),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text("${selectedIds.length}/3 sélectionnés", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isSelectionValid ? Colors.green : AppColors.primary)),
+                    Text("${selectedIds.length}/$_freeLimit sélectionnés", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isSelectionValid ? Colors.green : AppColors.primary)),
                     const SizedBox(height: 8),
                     ListView.builder(
                       shrinkWrap: true,
@@ -515,7 +530,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                           onChanged: (val) {
                             setState(() {
                               if (val == true) {
-                                if (selectedIds.length < 3) selectedIds.add(id);
+                                if (selectedIds.length < _freeLimit) selectedIds.add(id);
                               } else {
                                 selectedIds.remove(id);
                               }
@@ -803,7 +818,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
   Widget _buildFreeAdvantages() {
     final advantages = [
       {"icon": LucideIcons.checkCircle, "text": "Visibilité basique sur la plateforme"},
-      {"icon": LucideIcons.checkCircle, "text": "Jusqu'à 3 services listés"},
+      {"icon": LucideIcons.checkCircle, "text": "Jusqu'à $_freeLimit services listés"},
       {"icon": LucideIcons.checkCircle, "text": "Statistiques simples dans le tableau de bord"},
       {"icon": LucideIcons.checkCircle, "text": "Notifications des nouvelles demandes"},
     ];
@@ -1132,7 +1147,8 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
 
   Widget _buildComparisonTable() {
     final features = [
-      {"name": "Nb services", "free": "3 max", "premium": "Illimité"},
+      {"name": "Nb services", "free": "$_freeLimit max", "premium": "Illimité"},
+      {"name": "Photos portfolio", "free": "$_freePortfolioLimit / service", "premium": "Illimité"},
       {"name": "Gestion d'agenda", "free": false, "premium": true},
       {"name": "Boost profil", "free": false, "premium": true},
       {"name": "Statistiques", "free": "Simples", "premium": "Avancées"},
@@ -1548,19 +1564,19 @@ void _showPhotoSelectionDialog(String subscriptionId, List<Map<String, dynamic>>
       groupedImages.putIfAbsent(seId, () => []).add(img);
     }
 
-    // 2. Identify services that have more than 3 photos
+    // 2. Identify services that have more than _freePortfolioLimit photos
     final Map<String, List<Map<String, dynamic>>> servicesToPickFor = {};
     final List<String> autoKeepImageIds = [];
 
     groupedImages.forEach((seId, serviceImgs) {
-      if (serviceImgs.length > 3) {
+      if (serviceImgs.length > _freePortfolioLimit) {
         servicesToPickFor[seId] = serviceImgs;
       } else {
         autoKeepImageIds.addAll(serviceImgs.map((img) => img['id'] as String));
       }
     });
 
-    // If no service has > 3 photos, we can just proceed with automatic keeping
+    // If no service has > _freePortfolioLimit photos, we can just proceed with automatic keeping
     if (servicesToPickFor.isEmpty) {
       _finishDowngrade(subscriptionId, keptServiceIds, autoKeepImageIds);
       return;
@@ -1577,7 +1593,7 @@ void _showPhotoSelectionDialog(String subscriptionId, List<Map<String, dynamic>>
         builder: (ctx, setState) {
           bool allSelectionsValid = true;
           servicesToPickFor.forEach((seId, _) {
-            if (selectionsPerService[seId]!.length != 3) allSelectionsValid = false;
+            if (selectionsPerService[seId]!.length != _freePortfolioLimit) allSelectionsValid = false;
           });
 
           return AlertDialog(
@@ -1616,9 +1632,9 @@ void _showPhotoSelectionDialog(String subscriptionId, List<Map<String, dynamic>>
                         border: Border.all(color: Colors.blue.withOpacity(0.2)),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Text(
-                        "En plan gratuit, vous pouvez garder 3 photos visibles par service. Sélectionnez vos meilleures réalisations !",
-                        style: TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.w500, height: 1.4),
+                      child: Text(
+                        "En plan gratuit, vous pouvez garder $_freePortfolioLimit photos visibles par service. Sélectionnez vos meilleures réalisations !",
+                        style: const TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.w500, height: 1.4),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -1642,7 +1658,7 @@ void _showPhotoSelectionDialog(String subscriptionId, List<Map<String, dynamic>>
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(serviceName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)),
-                                Text("$selectedCount / 3", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: selectedCount == 3 ? Colors.green : AppColors.primary)),
+                                Text("$selectedCount / $_freePortfolioLimit", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: selectedCount == _freePortfolioLimit ? Colors.green : AppColors.primary)),
                               ],
                             ),
                           ),
@@ -1673,7 +1689,7 @@ void _showPhotoSelectionDialog(String subscriptionId, List<Map<String, dynamic>>
                                         setState(() {
                                           if (isSelected) {
                                             selectionsPerService[seId]!.remove(id);
-                                          } else if (selectionsPerService[seId]!.length < 3) {
+                                          } else if (selectionsPerService[seId]!.length < _freePortfolioLimit) {
                                             selectionsPerService[seId]!.add(id);
                                           }
                                         });
