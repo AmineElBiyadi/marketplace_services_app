@@ -26,6 +26,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
   final TextEditingController _expertVersionController = TextEditingController();
   final TextEditingController _clientVersionController = TextEditingController();
   final TextEditingController _maintenanceMessageController = TextEditingController();
+  final TextEditingController _freeLimitController = TextEditingController();
+  final TextEditingController _portfolioLimitController = TextEditingController();
   bool _isLoading = false;
   bool _isMaintenance = false;
 
@@ -47,6 +49,55 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     _loadServices();
   }
 
+
+  Future<void> _saveFreeLimit() async {
+    final limit = int.tryParse(_freeLimitController.text);
+    if (limit == null || limit < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Veuillez entrer un nombre valide")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await _adminService.updateFreePackLimit(limit);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Limite du pack free mise à jour avec succès")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur : $e")),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _savePortfolioLimit() async {
+    final limit = int.tryParse(_portfolioLimitController.text);
+    if (limit == null || limit < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Veuillez entrer un nombre valide")),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await _adminService.updateFreePortfolioLimit(limit);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Limite de photos portfolio mise à jour avec succès")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur : $e")),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _loadSettings() async {
     setState(() => _isLoading = true);
     try {
@@ -66,11 +117,16 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
       _expertHistory = await _adminService.getCguHistory("EXPERT");
       _clientHistory = await _adminService.getCguHistory("CLIENT");
 
-      // Load Maintenance
+      // Load Maintenance & Limits
       final maint = await _adminService.getMaintenanceSettings();
       if (maint != null) {
         _isMaintenance = maint['is_maintenance'] ?? false;
         _maintenanceMessageController.text = maint['maintenance_message'] ?? "L'application est en maintenance. Nous serons bientôt de retour.";
+        _freeLimitController.text = (maint['free_service_limit'] ?? 3).toString();
+        _portfolioLimitController.text = (maint['free_portfolio_limit'] ?? 3).toString();
+      } else {
+        _freeLimitController.text = "3";
+        _portfolioLimitController.text = "3";
       }
     } catch (e) {
       debugPrint("Error loading settings: $e");
@@ -167,6 +223,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     _expertVersionController.dispose();
     _clientVersionController.dispose();
     _maintenanceMessageController.dispose();
+    _freeLimitController.dispose();
     super.dispose();
   }
 
@@ -548,19 +605,22 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Activer le mode maintenance",
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        "Bloque l'accès à l'application pour les utilisateurs",
-                        style: TextStyle(fontSize: 12, color: AppColors.mutedForeground.withOpacity(0.7)),
-                      ),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Activer le mode maintenance",
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          "Bloque l'accès à l'application pour les utilisateurs",
+                          style: TextStyle(fontSize: 12, color: AppColors.mutedForeground.withOpacity(0.7)),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Switch(
                     value: _isMaintenance,
                     onChanged: (v) => setState(() => _isMaintenance = v),
@@ -618,6 +678,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                 ),
               ),
             ),
+          const SizedBox(height: 32),
+          _buildFreeLimitConfig(),
         ],
       ),
     );
@@ -633,19 +695,19 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     final bool isMobile = MediaQuery.of(context).size.width < 1024;
 
     if (isMobile) {
-      return Column(
-        children: [
-          SizedBox(
-            height: 250,
-            child: _buildServiceListColumn(),
-          ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: _selectedService == null
-                ? const Center(child: Text("Sélectionnez un service pour voir les tâches"))
+      return SingleChildScrollView(
+        child: Column(
+          children: [
+            SizedBox(
+              height: 300,
+              child: _buildServiceListColumn(),
+            ),
+            const SizedBox(height: 24),
+            _selectedService == null
+                ? const Center(child: Padding(padding: EdgeInsets.all(48), child: Text("Sélectionnez un service pour voir les tâches")))
                 : _buildServiceDetailCard(_selectedService!),
-          ),
-        ],
+          ],
+        ),
       );
     }
 
@@ -793,9 +855,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                     ],
                   ),
                 ),
-                Row(
+                Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text("Actif", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     Switch(
                       value: service['estActive'] ?? true,
                       activeColor: Colors.green,
@@ -808,10 +870,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                         _loadTasks(service['id']);
                       },
                     ),
-                    const SizedBox(width: 8),
                     IconButton(
                       icon: const Icon(LucideIcons.edit2, size: 18, color: AppColors.primary),
                       onPressed: () => _showServiceDialog(service: service),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                   ],
                 ),
@@ -836,9 +899,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text("Tâches associées", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            _buildSaveButton(
-              label: "Ajouter une tâche",
+            IconButton(
+              icon: const Icon(LucideIcons.plusCircle, size: 20, color: AppColors.primary),
               onPressed: () => _showTaskDialog(serviceId: serviceId),
+              tooltip: "Ajouter une tâche",
             ),
           ],
         ),
@@ -1255,19 +1319,101 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 15, offset: const Offset(0, 6))],
       ),
       clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: double.infinity,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
         child: DataTable(
           headingRowHeight: 48,
           dataRowMaxHeight: 72,
           dividerThickness: 0.5,
           horizontalMargin: 20,
-          columnSpacing: 10,
+          columnSpacing: 20,
           showCheckboxColumn: false,
           columns: columns,
           rows: rows,
         ),
       ),
+    );
+  }
+
+  Widget _buildFreeLimitConfig() {
+    final bool isMobile = MediaQuery.of(context).size.width < 1024;
+    return _buildCard(
+      title: 'Gestion des Plans',
+      children: [
+        if (isMobile)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildInputFieldWithController(
+                label: 'Nombre max de services (Pack Free)',
+                controller: _freeLimitController,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 8),
+              _buildSaveButton(
+                label: 'Enregistrer la limite services',
+                onPressed: _saveFreeLimit,
+              ),
+              const SizedBox(height: 24),
+              _buildInputFieldWithController(
+                label: 'Nombre max de photos portfolio (Pack Free)',
+                controller: _portfolioLimitController,
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 8),
+              _buildSaveButton(
+                label: 'Enregistrer la limite photos',
+                onPressed: _savePortfolioLimit,
+              ),
+            ],
+          )
+        else
+          Column(
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: _buildInputFieldWithController(
+                      label: 'Nombre max de services (Pack Free)',
+                      controller: _freeLimitController,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: _buildSaveButton(
+                      label: 'Enregistrer la limite services',
+                      onPressed: _saveFreeLimit,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: _buildInputFieldWithController(
+                      label: 'Nombre max de photos portfolio (Pack Free)',
+                      controller: _portfolioLimitController,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: _buildSaveButton(
+                      label: 'Enregistrer la limite photos',
+                      onPressed: _savePortfolioLimit,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+      ],
     );
   }
 }
