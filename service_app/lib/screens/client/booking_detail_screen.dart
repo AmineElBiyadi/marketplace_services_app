@@ -211,7 +211,7 @@ class BookingDetailScreen extends StatelessWidget {
                     width: double.infinity,
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: () => context.go('/review/$bookingId'),
+                      onPressed: () => context.push('/review/$bookingId'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -219,6 +219,20 @@ class BookingDetailScreen extends StatelessWidget {
                         elevation: 0,
                       ),
                       child: const Text('Leave a Review', style: TextStyle(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: OutlinedButton(
+                      onPressed: () => context.push('/complaint/$bookingId'),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.orange),
+                        foregroundColor: Colors.orange,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      ),
+                      child: const Text('File a Complaint', style: TextStyle(fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
