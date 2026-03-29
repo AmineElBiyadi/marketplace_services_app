@@ -501,20 +501,20 @@ class FirestoreService {
       if (email.endsWith('@proxy.marketplace.app')) {
         final phonePart = email.split('@')[0];
         debugPrint("[FirestoreService] Phone-based proxy detected: $phonePart");
+
+        // Prepare variations: 212xxxx, +212xxxx, 0xxxx
+        String localFormat = phonePart;
+        if (phonePart.startsWith('212')) {
+          localFormat = '0${phonePart.substring(3)}';
+        }
         
+        final variations = {phonePart, '+$phonePart', localFormat}.toList();
+
         userQuery = await _firestore
             .collection('utilisateurs')
-            .where('telephone', isEqualTo: phonePart)
+            .where('telephone', whereIn: variations)
             .limit(1)
             .get();
-            
-        if (userQuery.docs.isEmpty) {
-          userQuery = await _firestore
-              .collection('utilisateurs')
-              .where('telephone', isEqualTo: '+$phonePart')
-              .limit(1)
-              .get();
-        }
       } else {
         userQuery = await _firestore
             .collection('utilisateurs')

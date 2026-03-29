@@ -99,19 +99,20 @@ class ChatService {
 
     if (email.endsWith('@proxy.marketplace.app')) {
       final phoneString = email.replaceAll('@proxy.marketplace.app', '');
+
+      // Prepare variations: 212xxxx, +212xxxx, 0xxxx
+      String localFormat = phoneString;
+      if (phoneString.startsWith('212')) {
+        localFormat = '0${phoneString.substring(3)}';
+      }
+      
+      final variations = {phoneString, '+$phoneString', localFormat}.toList();
+
       userQuery = await _db
           .collection('utilisateurs')
-          .where('telephone', isEqualTo: '+$phoneString')
+          .where('telephone', whereIn: variations)
           .limit(1)
           .get();
-
-      if (userQuery.docs.isEmpty) {
-        userQuery = await _db
-            .collection('utilisateurs')
-            .where('telephone', isEqualTo: phoneString)
-            .limit(1)
-            .get();
-      }
     } else {
       userQuery = await _db
           .collection('utilisateurs')
