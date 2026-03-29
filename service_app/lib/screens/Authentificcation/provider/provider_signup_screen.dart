@@ -62,6 +62,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
   List<ServiceModel> _services = [];
   bool _isLoadingServices = false;
   final List<String> _selectedServiceIds = [];
+  int _freeLimit = 3; // Default fallback
   final _descriptionController = TextEditingController();
   final _zoneController = TextEditingController();
 
@@ -134,8 +135,18 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
   Future<void> _loadServices() async {
     setState(() => _isLoadingServices = true);
     try {
-      final services = await _firestoreService.getServices();
-      if (mounted) setState(() => _services = services);
+      // Fetch services and global limits in parallel
+      final results = await Future.wait([
+        _firestoreService.getServices(),
+        _firestoreService.getFreeServiceLimit(),
+      ]);
+      
+      if (mounted) {
+        setState(() {
+          _services = results[0] as List<ServiceModel>;
+          _freeLimit = results[1] as int;
+        });
+      }
     } catch (_) {} finally {
       if (mounted) setState(() => _isLoadingServices = false);
     }
@@ -638,10 +649,10 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
                           setState(() {
                             if (selected) {
                               _selectedServiceIds.remove(id);
-                            } else if (_selectedServiceIds.length < 3) {
+                            } else if (_selectedServiceIds.length < _freeLimit) {
                               _selectedServiceIds.add(id);
                             } else {
-                              _showError('Maximum 3 services autorisés.');
+                              _showError('Maximum $_freeLimit services autorisés.');
                             }
                           });
                         },
