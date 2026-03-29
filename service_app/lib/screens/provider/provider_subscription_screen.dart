@@ -412,13 +412,14 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                   return;
                 }
                 
-                // 2. Check if any of these services has > 3 photos
+                // 2. Check if any of these services has > limit photos
+                final pLimit = await _firestoreService.getFreePortfolioLimit();
                 final allImages = await _firestoreService.getExpertPortfolioImagesWithDetails(_resolvedExpertId!);
                 final Map<String, List<Map<String, dynamic>>> grouped = {};
                 for (var img in allImages) {
                   grouped.putIfAbsent(img['idServiceExpert'], () => []).add(img);
                 }
-                final hasExceedingService = grouped.values.any((imgs) => imgs.length > 3);
+                final hasExceedingService = grouped.values.any((imgs) => imgs.length > pLimit);
 
                 if (hasExceedingService) {
                   if (mounted) _showPhotoSelectionDialog(subscriptionId, allImages);
@@ -571,7 +572,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                     await _firestoreService.cancelSubscriptionAndSetVisibility(subscriptionId, _resolvedExpertId!, selectedIds);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Abonnement suspendu. Vos 3 services ont été conservés."), backgroundColor: Colors.orange),
+                        SnackBar(content: Text("Abonnement suspendu. Vos $_freeLimit services ont été conservés."), backgroundColor: Colors.orange),
                       );
                     }
                   } catch (e) {
