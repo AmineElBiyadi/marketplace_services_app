@@ -325,6 +325,17 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(0, 8, 0, 32),
+                  child: Text(
+                    "My Statistics",
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ),
                 Row(
                   children: [
                     Expanded(child: _buildFakeStatCard(LucideIcons.eye, "Views", "1,2k")),
@@ -529,6 +540,17 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(0, 8, 0, 32),
+            child: Text(
+              "My Statistics",
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+          ),
           _buildPeriodSelector(),
           const SizedBox(height: 24),
           _buildTopCards(),
@@ -609,10 +631,37 @@ class _ProviderStatisticsScreenState extends State<ProviderStatisticsScreen> {
     return Column(
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(child: _buildRealStatCard(LucideIcons.eye, "Profile views", _profileViews.toString(), "${_profileViewsTrend >= 0 ? '+' : ''}${_profileViewsTrend.toStringAsFixed(0)}%", _profileViewsTrend >= 0)),
             const SizedBox(width: 16),
-            Expanded(child: _buildRealStatCard(LucideIcons.trendingUp, "Conversion rate", "${_conversionRate.toStringAsFixed(0)}%", "${_conversionRateTrend >= 0 ? '+' : ''}${_conversionRateTrend.toStringAsFixed(0)}%", _conversionRateTrend >= 0)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildRealStatCard(
+                    LucideIcons.trendingUp, 
+                    "Conversion rate", 
+                    "${_conversionRate.toStringAsFixed(0)}%", 
+                    "${_conversionRateTrend >= 0 ? '+' : ''}${_conversionRateTrend.toStringAsFixed(0)}%", 
+                    _conversionRateTrend >= 0
+                  ),
+                  const SizedBox(height: 8),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      "*Conversion rate*\n(count(interventions) / experts.profileViews) × 100",
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Color(0xFF94A3B8),
+                        fontStyle: FontStyle.italic,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 16),

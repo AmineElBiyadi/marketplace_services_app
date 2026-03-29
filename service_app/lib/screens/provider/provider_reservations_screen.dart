@@ -64,7 +64,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
 
   String _formatDate(DateTime? date) {
     if (date == null) return "Not defined";
-    final months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+    final months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     final month = months[date.month - 1];
     return "${date.day} $month, ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}";
   }
@@ -144,17 +144,17 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
         String corps = "";
         
         if (newStatus == 'REFUSEE') {
-          titre = "Demande Refusée";
-          corps = "Désolé, l'expert a dû refuser votre demande d'intervention.";
+          titre = "Request Rejected";
+          corps = "Sorry, the expert had to reject your intervention request.";
         } else if (newStatus == 'ACCEPTEE') {
-          titre = "Demande Acceptée !";
-          corps = "L'expert a accepté votre demande. Consultez les détails pour la date prévue.";
+          titre = "Request Accepted!";
+          corps = "The expert has accepted your request. Check details for the scheduled date.";
         } else if (newStatus == 'TERMINEE') {
-          titre = "Intervention Terminée";
-          corps = "Félicitations ! L'intervention est terminée. N'oubliez pas de laisser un avis.";
+          titre = "Intervention Completed";
+          corps = "Congratulations! The intervention is completed. Don't forget to leave a review.";
         } else if (newStatus == 'ANNULEE') {
-          titre = "Intervention Annulée";
-          corps = "L'expert a annulé l'intervention.";
+          titre = "Intervention Cancelled";
+          corps = "The expert has cancelled the intervention.";
         }
 
         if (titre.isNotEmpty) {
@@ -336,8 +336,8 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                             // Send Cancellation Notification to Client
                             await _notificationService.sendNotification(
                               idUtilisateur: intervention.idClient,
-                              titre: "Intervention Annulée",
-                              corps: "L'expert a annulé l'intervention : $inputReason",
+                              titre: "Intervention Cancelled",
+                              corps: "The expert has cancelled the intervention: $inputReason",
                               type: 'booking',
                               relatedId: intervention.id,
                             );
@@ -447,8 +447,8 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                               // Send Completion Notification to Client
                               await _notificationService.sendNotification(
                                 idUtilisateur: intervention.idClient,
-                                titre: "Intervention Terminée",
-                                corps: "Félicitations ! L'intervention est terminée. N'oubliez pas de laisser un avis.",
+                                titre: "Intervention Completed",
+                                corps: "Congratulations! The intervention is completed. Don't forget to leave a review.",
                                 type: 'booking',
                                 relatedId: intervention.id,
                               );
@@ -576,7 +576,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        "Cette donnée est utilisée uniquement pour améliorer votre expérience.",
+                        "This data is used only to improve your experience.",
                         style: TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic),
                       ),
                       const SizedBox(height: 32),
@@ -624,8 +624,8 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                               
                               await _notificationService.sendNotification(
                                 idUtilisateur: intervention.idClient,
-                                titre: "Demande Acceptée !",
-                                corps: "L'expert a accepté votre demande. Consultez les détails pour la date prévue.",
+                                titre: "Request Accepted!",
+                                corps: "The expert has accepted your request. Check details for the scheduled date.",
                                 type: 'booking',
                                 relatedId: intervention.id,
                               );
@@ -940,7 +940,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
                   const SizedBox(width: 8),
                   Expanded(
                     child: _buildActionButton(
-                      label: "Réclamer",
+                      label: "Complain",
                       icon: Icons.report_problem_outlined,
                       color: Colors.orange,
                       filled: false,
@@ -973,7 +973,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
               SizedBox(
                 width: double.infinity,
                 child: _buildActionButton(
-                  label: "Déposer une réclamation",
+                  label: "File a complaint",
                   icon: Icons.report_problem_outlined,
                   color: Colors.orange,
                   filled: false,
@@ -1048,8 +1048,8 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
           Padding(
             padding: EdgeInsets.fromLTRB(isWide ? 32 : 20, 32, 20, 0),
             child: const Text(
-              "Reservations",
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
+              "Bookings",
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
             ),
           ),
           Padding(

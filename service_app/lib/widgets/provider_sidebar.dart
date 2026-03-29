@@ -129,15 +129,10 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
             return;
           }
           if (route.contains('/messages')) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ChatListScreen(
-                  currentUserRole: 'expert',
-                  expertId: widget.expertId,
-                ),
-              ),
-            );
+            context.go('/provider/${widget.expertId}/messages');
+            if (widget.isMobile) {
+              Navigator.pop(context);
+            }
             return;
           }
           if (widget.activeRoute != route) {

@@ -122,18 +122,18 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "Mon abonnement",
+                      "My subscription",
                       style: TextStyle(
-                          fontSize: 24,
+                          fontSize: 28,
                           fontWeight: FontWeight.w900,
                           color: Color(0xFF1E293B)),
                     ),
                     Text(
                       isPremium
-                          ? "Découvrez votre impact et vos statistiques"
+                          ? "Discover your impact and statistics"
                           : isSuspended
-                              ? "Votre abonnement est suspendu"
-                              : "Gérez votre pack et vos paiements",
+                              ? "Your subscription is suspended"
+                              : "Manage your plan and payments",
                       style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                     const SizedBox(height: 24),
@@ -156,7 +156,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                       _buildPaymentMethodSection(),
                       const SizedBox(height: 24),
                       const Text(
-                        "Statistiques de performance",
+                        "Performance statistics",
                         style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -168,7 +168,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                       _buildCancelButton(subscription['id'] as String),
                     ] else if (!isSuspended) ...[
                       const Text(
-                        "Avantages du plan Gratuit",
+                        "Free plan benefits",
                         style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -178,7 +178,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                       _buildFreeAdvantages(),
                       const SizedBox(height: 32),
                       const Text(
-                        "Comparer les plans",
+                        "Compare plans",
                         style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -192,7 +192,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
 
                     const SizedBox(height: 32),
                     const Text(
-                      "Historique des paiements",
+                      "Payment history",
                       style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -250,7 +250,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
               Icon(isGrace ? LucideIcons.alertTriangle : LucideIcons.crown,
                   color: Colors.amber, size: 20),
               const SizedBox(width: 8),
-              Text('Abonnement $type',
+              Text('$type Subscription',
                   style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -263,7 +263,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                     color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20)),
                 child: Text(
-                  isGrace ? 'GRÂCE' : 'ACTIF',
+                  isGrace ? 'GRACE' : 'ACTIVE',
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 11,
@@ -276,11 +276,11 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _subDetailItem(LucideIcons.calendar, 'Début',
+              _subDetailItem(LucideIcons.calendar, 'Start',
                   dateTxt.isEmpty ? '--' : dateTxt),
               _subDetailItem(
-                  LucideIcons.banknote, 'Montant', '$montant DH/mois'),
-              _subDetailItem(LucideIcons.refreshCw, 'Renouvellement', 'Auto'),
+                  LucideIcons.banknote, 'Amount', '$montant DH/month'),
+              _subDetailItem(LucideIcons.refreshCw, 'Renewal', 'Auto'),
             ],
           ),
         ],
@@ -310,7 +310,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
       child: OutlinedButton.icon(
         onPressed: () => _showCancelModal(subscriptionId),
         icon: const Icon(LucideIcons.xCircle, size: 18, color: Colors.red),
-        label: const Text("Suspendre mon abonnement",
+        label: const Text("Suspend my subscription",
             style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Colors.red, width: 1.5),
@@ -330,7 +330,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
         }
 
         final card = snapshot.data;
-        final cardNumber = card?['CardNumber'] ?? 'Aucune carte enregistrée';
+        final cardNumber = card?['CardNumber'] ?? 'No card registered';
 
         return Container(
           width: double.infinity,
@@ -356,7 +356,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Moyen de paiement', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const Text('Payment method', style: TextStyle(fontSize: 12, color: Colors.grey)),
                     Text(
                       cardNumber,
                       style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
@@ -366,7 +366,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
               ),
               TextButton(
                 onPressed: () => _showPaymentModal(isUpdate: true),
-                child: const Text('Mettre à jour', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text('Update', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -385,18 +385,18 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
           Icon(LucideIcons.alertTriangle, color: Colors.orange, size: 20),
           SizedBox(width: 8),
           Expanded(
-            child: Text("Suspendre l'abonnement",
+            child: Text("Suspend subscription",
                 style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           ),
         ]),
         content: const Text(
-          "Votre accès Premium sera coupé.\nVos données sont conservées (réactivation possible sans carte).",
+          "Your Premium access will be cut.\nYour data is kept (reactivation possible without card).",
           style: TextStyle(fontSize: 12, color: Colors.grey, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text("Non, garder Premium",
+            child: const Text("No, keep Premium",
                 style: TextStyle(
                     color: AppColors.primary, fontWeight: FontWeight.bold)),
           ),
@@ -430,7 +430,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                        content: Text("Abonnement suspendu."),
+                        content: Text("Subscription suspended."),
                         backgroundColor: Colors.orange),
                   );
                 }
@@ -438,7 +438,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content: Text("Erreur: $e"),
+                        content: Text("Error: $e"),
                         backgroundColor: Colors.red),
                   );
                 }
@@ -450,7 +450,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text("Oui, suspendre"),
+            child: const Text("Yes, suspend"),
           ),
         ],
       ),
@@ -483,7 +483,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                   const Icon(LucideIcons.alertTriangle, color: Colors.orange, size: 22),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text("Sélectionnez $_freeLimit services", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepOrange)),
+                    child: Text("Select $_freeLimit services", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepOrange)),
                   ),
                 ],
               ),
@@ -504,12 +504,12 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        "En passant au plan gratuit, seuls $_freeLimit services resteront visibles. Les autres seront masqués pour vos clients.",
+                        "By switching to the free plan, only $_freeLimit services will remain visible. Others will be hidden from your clients.",
                         style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w500, height: 1.4),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text("${selectedIds.length}/$_freeLimit sélectionnés", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isSelectionValid ? Colors.green : AppColors.primary)),
+                    Text("${selectedIds.length}/$_freeLimit selected", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isSelectionValid ? Colors.green : AppColors.primary)),
                     const SizedBox(height: 8),
                     ListView.builder(
                       shrinkWrap: true,
@@ -547,7 +547,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text("Annuler", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                child: const Text("Cancel", style: TextStyle(color: Colors.grey, fontSize: 13)),
               ),
               ElevatedButton(
                 onPressed: isSelectionValid ? () async {
@@ -572,13 +572,13 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                     await _firestoreService.cancelSubscriptionAndSetVisibility(subscriptionId, _resolvedExpertId!, selectedIds);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Abonnement suspendu. Vos $_freeLimit services ont été conservés."), backgroundColor: Colors.orange),
+                        SnackBar(content: Text("Subscription suspended. Your $_freeLimit services have been kept."), backgroundColor: Colors.orange),
                       );
                     }
                   } catch (e) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Erreur: $e"), backgroundColor: Colors.red),
+                        SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
                       );
                     }
                   }
@@ -587,7 +587,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                 ),
-                child: const Text("Confirmer"),
+                child: const Text("Confirm"),
               ),
             ],
           );
@@ -605,17 +605,17 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
       accent = AppColors.accent;
       planLabel = 'Premium ⭐';
       emoji = '🌟';
-      price = '99 DH/mois';
+      price = '99 DH/month';
     } else if (isPremium && isGrace) {
       accent = const Color(0xFFD97706);
-      planLabel = 'Premium (Paiement en attente)';
+      planLabel = 'Premium (Payment pending)';
       emoji = '⏳';
-      price = '99 DH/mois';
+      price = '99 DH/month';
     } else {
       accent = AppColors.primary;
-      planLabel = 'Gratuit';
+      planLabel = 'Free';
       emoji = '📦';
-      price = '0 DH/mois';
+      price = '0 DH/month';
     }
 
     return Container(
@@ -646,7 +646,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  "Plan actuel",
+                  "Current plan",
                   style: TextStyle(
                       color: accent, fontSize: 10, fontWeight: FontWeight.bold),
                 ),
@@ -700,7 +700,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Text(
-                  "Plan actuel",
+                  "Current plan",
                   style: TextStyle(
                       color: Color(0xFFEF4444),
                       fontSize: 10,
@@ -715,7 +715,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
-                  'SUSPENDU',
+                  'SUSPENDED',
                   style: TextStyle(
                       color: Color(0xFFEF4444),
                       fontSize: 11,
@@ -732,14 +732,14 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Premium ⭐ — Suspendu',
+                    'Premium ⭐ — Suspended',
                     style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                         color: Color(0xFF1E293B)),
                   ),
                   Text(
-                    '$montant DH/mois',
+                    '$montant DH/month',
                     style: const TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                 ],
@@ -761,7 +761,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(LucideIcons.refreshCw, size: 16),
               label: Text(
-                _isReactivating ? 'Réactivation...' : 'Réactiver mon abonnement',
+                _isReactivating ? 'Reactivating...' : 'Reactivate my subscription',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
@@ -796,7 +796,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
                 Text(
-                  'Paiement en cours de traitement',
+                  'Payment processing',
                   style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -804,7 +804,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                 ),
                 SizedBox(height: 2),
                 Text(
-                  'Votre accès Premium est maintenu pendant 7 jours, le temps que Stripe réessaie le prélèvement (3 tentatives max).',
+                  'Your Premium access is maintained for 7 days while Stripe retries the charge (max 3 attempts).',
                   style:
                       TextStyle(fontSize: 11, color: Color(0xFFB45309), height: 1.4),
                 ),
@@ -818,10 +818,10 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
 
   Widget _buildFreeAdvantages() {
     final advantages = [
-      {"icon": LucideIcons.checkCircle, "text": "Visibilité basique sur la plateforme"},
-      {"icon": LucideIcons.checkCircle, "text": "Jusqu'à $_freeLimit services listés"},
-      {"icon": LucideIcons.checkCircle, "text": "Statistiques simples dans le tableau de bord"},
-      {"icon": LucideIcons.checkCircle, "text": "Notifications des nouvelles demandes"},
+      {"icon": LucideIcons.checkCircle, "text": "Basic platform visibility"},
+      {"icon": LucideIcons.checkCircle, "text": "Up to $_freeLimit services listed"},
+      {"icon": LucideIcons.checkCircle, "text": "Simple dashboard statistics"},
+      {"icon": LucideIcons.checkCircle, "text": "Notifications for new requests"},
     ];
 
     return Column(
@@ -936,8 +936,8 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: const [
-                              Text('Évolution des réservations', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                              Text('Impact sur les 6 derniers mois', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text('Booking evolution', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                              Text('Impact over the last 6 months', style: TextStyle(fontSize: 12, color: Colors.grey)),
                             ],
                           ),
                           const Icon(LucideIcons.barChart3, color: AppColors.primary, size: 24),
@@ -1053,8 +1053,8 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Coût mensuel de votre abonnement', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-                  const Text('Prélèvements de 99 DH/mois', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                  const Text('Monthly subscription cost', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+                  const Text('Charges of 99 DH/month', style: TextStyle(fontSize: 11, color: Colors.grey)),
                   const SizedBox(height: 20),
                   SizedBox(
                     height: 180,
@@ -1148,12 +1148,12 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
 
   Widget _buildComparisonTable() {
     final features = [
-      {"name": "Nb services", "free": "$_freeLimit max", "premium": "Illimité"},
-      {"name": "Photos portfolio", "free": "$_freePortfolioLimit / service", "premium": "Illimité"},
-      {"name": "Gestion d'agenda", "free": false, "premium": true},
-      {"name": "Boost profil", "free": false, "premium": true},
-      {"name": "Statistiques", "free": "Simples", "premium": "Avancées"},
-      {"name": "Prix", "free": "0 DH", "premium": "99 DH/mois"},
+      {"name": "Number of services", "free": "$_freeLimit max", "premium": "Unlimited"},
+      {"name": "Portfolio photos", "free": "$_freePortfolioLimit / service", "premium": "Unlimited"},
+      {"name": "Agenda management", "free": false, "premium": true},
+      {"name": "Profile boost", "free": false, "premium": true},
+      {"name": "Statistics", "free": "Simple", "premium": "Advanced"},
+      {"name": "Price", "free": "0 DH", "premium": "99 DH/month"},
     ];
 
     return Container(
@@ -1170,8 +1170,8 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
             color: const Color(0xFFF8FAFC),
             child: Row(
               children: const [
-                Expanded(flex: 2, child: Text("Fonctionnalité", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                Expanded(child: Text("Gratuit", textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
+                Expanded(flex: 2, child: Text("Feature", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                Expanded(child: Text("Free", textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey))),
                 Expanded(child: Text("Premium ⭐", textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary))),
               ],
             ),
@@ -1218,7 +1218,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
       child: ElevatedButton.icon(
         onPressed: _checkCardAndUpgrade,
         icon: const Icon(LucideIcons.crown, size: 20),
-        label: const Text("Passer Premium — 99 DH/mois",
+        label: const Text("Go Premium — 99 DH/month",
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
@@ -1242,7 +1242,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("Félicitations ! Vous êtes à nouveau Premium 🌟"),
+              content: Text("Congratulations! You are Premium again 🌟"),
               backgroundColor: Colors.green,
             ),
           );
@@ -1251,7 +1251,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text("Erreur: $e"), backgroundColor: Colors.red),
+                content: Text("Error: $e"), backgroundColor: Colors.red),
           );
         }
       } finally {
@@ -1275,7 +1275,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("Abonnement réactivé avec succès 🌟"),
+              content: Text("Subscription reactivated successfully 🌟"),
               backgroundColor: Colors.green,
             ),
           );
@@ -1286,7 +1286,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                  "Votre carte a expiré. Veuillez saisir une nouvelle carte."),
+                  "Your card has expired. Please enter a new card."),
               backgroundColor: Colors.orange,
             ),
           );
@@ -1319,7 +1319,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
             insetPadding: const EdgeInsets.symmetric(horizontal: 16),
             titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
             contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-            title: const Text("Paiement sécurisé", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            title: const Text("Secure Payment", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1327,8 +1327,8 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                 children: [
                   Text(
                     isUpdate 
-                      ? "Entrez les détails de votre nouvelle carte."
-                      : "Entrez vos informations de carte pour passer Premium (99 DH/mois).", 
+                      ? "Enter your new card details."
+                      : "Enter your card information to go Premium (99 DH/month).", 
                     style: const TextStyle(fontSize: 13, color: Colors.grey)
                   ),
                   const SizedBox(height: 20),
@@ -1336,7 +1336,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                     controller: cardNumberController,
                     style: const TextStyle(fontSize: 13),
                     decoration: InputDecoration(
-                      labelText: "Numéro de carte",
+                      labelText: "Card number",
                       hintText: "0000 0000 0000 0000",
                       prefixIcon: const Icon(LucideIcons.creditCard, size: 20),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -1383,7 +1383,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context), 
-                child: const Text("Annuler", style: TextStyle(color: Colors.grey))
+                child: const Text("Cancel", style: TextStyle(color: Colors.grey))
               ),
               if (_isSubscribing)
                 const Padding(
@@ -1422,7 +1422,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(isUpdate ? "Carte mise à jour avec succès ✅" : "Félicitations ! Vous êtes maintenant Premium 🌟"),
+                            content: Text(isUpdate ? "Card updated successfully ✅" : "Congratulations! You are now Premium 🌟"),
                             backgroundColor: Colors.green,
                           ),
                         );
@@ -1430,7 +1430,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                     } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text("Erreur lors du paiement: $e"), backgroundColor: Colors.red),
+                          SnackBar(content: Text("Error during payment: $e"), backgroundColor: Colors.red),
                         );
                       }
                     } finally {
@@ -1442,7 +1442,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text("Je Valide"),
+                  child: const Text("Confirm"),
                 ),
             ],
           );
@@ -1462,7 +1462,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
           border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
         child: const Center(
-          child: Text("Aucun paiement enregistré", style: TextStyle(color: Colors.grey, fontSize: 13)),
+          child: Text("No payments recorded", style: TextStyle(color: Colors.grey, fontSize: 13)),
         ),
       );
     }
@@ -1488,14 +1488,14 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
             child: const Center(
-              child: Text("Aucun paiement enregistré", style: TextStyle(color: Colors.grey, fontSize: 13)),
+              child: Text("No payments recorded", style: TextStyle(color: Colors.grey, fontSize: 13)),
             ),
           );
         }
 
         return Column(
           children: history.map((p) {
-            final isPaid = (p['status'] ?? '') == 'Payé';
+            final isPaid = (p['status'] ?? '') == 'Paid';
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
@@ -1524,7 +1524,7 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Abonnement Premium',
+                          'Premium Subscription',
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
                         ),
                         Text(p['date'] ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey)),
@@ -1613,7 +1613,7 @@ void _showPhotoSelectionDialog(String subscriptionId, List<Map<String, dynamic>>
                   Icon(LucideIcons.image, color: Colors.blue, size: 22),
                   SizedBox(width: 10),
                   Expanded(
-                    child: Text("Gestion du Portfolio", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueAccent)),
+                    child: Text("Portfolio Management", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.blueAccent)),
                   ),
                 ],
               ),
@@ -1634,7 +1634,7 @@ void _showPhotoSelectionDialog(String subscriptionId, List<Map<String, dynamic>>
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        "En plan gratuit, vous pouvez garder $_freePortfolioLimit photos visibles par service. Sélectionnez vos meilleures réalisations !",
+                        "In the free plan, you can keep $_freePortfolioLimit visible photos per service. Select your best work!",
                         style: const TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.w500, height: 1.4),
                       ),
                     ),
@@ -1741,7 +1741,7 @@ void _showPhotoSelectionDialog(String subscriptionId, List<Map<String, dynamic>>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text("Annuler", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                child: const Text("Cancel", style: TextStyle(color: Colors.grey, fontSize: 13)),
               ),
               ElevatedButton(
                 onPressed: allSelectionsValid ? () async {
@@ -1759,7 +1759,7 @@ void _showPhotoSelectionDialog(String subscriptionId, List<Map<String, dynamic>>
                   elevation: 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                child: const Text("Confirmer"),
+                child: const Text("Confirm"),
               ),
             ],
           );
@@ -1788,13 +1788,13 @@ void _showPhotoSelectionDialog(String subscriptionId, List<Map<String, dynamic>>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Abonnement suspendu. Vos choix ont été enregistrés."), backgroundColor: Colors.orange),
+          const SnackBar(content: Text("Subscription suspended. Your choices have been saved."), backgroundColor: Colors.orange),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erreur: $e"), backgroundColor: Colors.red),
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
         );
       }
     } finally {

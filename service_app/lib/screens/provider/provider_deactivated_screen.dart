@@ -55,7 +55,7 @@ class _ProviderDeactivatedScreenState extends State<ProviderDeactivatedScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = "Erreur de chargement: $e";
+        _errorMessage = "Loading error: $e";
         _isLoading = false;
       });
     }
@@ -106,7 +106,7 @@ class _ProviderDeactivatedScreenState extends State<ProviderDeactivatedScreen> {
               await FirebaseAuth.instance.signOut();
               if (mounted) context.go('/welcome');
             },
-            child: const Text("Déconnexion", style: TextStyle(color: Colors.red)),
+            child: const Text("Logout", style: TextStyle(color: Colors.red)),
           )
         ],
       ),
@@ -131,7 +131,7 @@ class _ProviderDeactivatedScreenState extends State<ProviderDeactivatedScreen> {
               ),
               const SizedBox(height: 32),
               Text(
-                isSuspended ? "Compte Suspendu" : "Compte Désactivé",
+                isSuspended ? "Account Suspended" : "Account Deactivated",
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
@@ -164,7 +164,7 @@ class _ProviderDeactivatedScreenState extends State<ProviderDeactivatedScreen> {
                     child: _isReactivating
                         ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
                         : const Text(
-                            "Réactiver mon compte",
+                            "Reactivate my account",
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                           ),
                   ),
@@ -182,7 +182,7 @@ class _ProviderDeactivatedScreenState extends State<ProviderDeactivatedScreen> {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
                     child: const Text(
-                      "Contacter le support",
+                      "Contact support",
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                     ),
                   ),
@@ -190,7 +190,7 @@ class _ProviderDeactivatedScreenState extends State<ProviderDeactivatedScreen> {
               const SizedBox(height: 16),
               TextButton(
                 onPressed: _loadStatus,
-                child: const Text("Actualiser le statut", style: TextStyle(color: AppColors.primary)),
+                child: const Text("Refresh status", style: TextStyle(color: AppColors.primary)),
               ),
             ],
           ),
@@ -201,11 +201,11 @@ class _ProviderDeactivatedScreenState extends State<ProviderDeactivatedScreen> {
 
   String _getMessage() {
     if (_status == 'SUSPENDUE') {
-      return "Votre compte a été suspendu par l'administration pour vérification. Veuillez contacter le support pour plus de détails.";
+      return "Your account has been suspended by administration for verification. Please contact support for more details.";
     }
     if (_desactiveParAdmin) {
-      return "Votre compte a été désactivé par un administrateur. Vous ne pouvez pas le réactiver vous-même. Veuillez contacter le support.";
+      return "Your account has been deactivated by an administrator. You cannot reactivate it yourself. Please contact support.";
     }
-    return "Vous avez désactivé votre compte. Vous pouvez le réactiver à tout moment pour reprendre votre activité.";
+    return "You have deactivated your account. You can reactivate it at any time to resume your activity.";
   }
 }
