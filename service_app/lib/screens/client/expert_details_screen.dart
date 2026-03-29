@@ -464,7 +464,7 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
             icon: const Icon(Icons.chat_bubble_outline,
                 color: Colors.white, size: 20),
             label: const Text(
-              'Contacter le prestataire',
+              'Contact provider',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -579,12 +579,12 @@ class _ServicesTab extends StatelessWidget {
                 if (tasks.isEmpty)
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: const Text("Service standard", style: TextStyle(fontSize: 14)),
+                    title: const Text("Standard service", style: TextStyle(fontSize: 14)),
                     trailing: _buildChatIcon(context, expert, serviceName, null),
                   )
                 else
                   ...tasks.map((t) {
-                    final taskTitle = t['nom'] ?? 'Tâche';
+                    final taskTitle = t['nom'] ?? 'Task';
                     final taskDesc = t['description'] ?? '';
                     final taskDuration = t['duree']?.toString() ?? t['prix']?.toString() ?? '';
                     
@@ -683,8 +683,8 @@ class _PortfolioTab extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               filterService != null
-                  ? 'Aucune photo pour ce service'
-                  : 'Aucune photo de portfolio',
+                  ? 'No photos for this service'
+                  : 'No portfolio photos',
               style: TextStyle(color: Colors.grey.shade500),
             ),
           ],
@@ -695,7 +695,7 @@ class _PortfolioTab extends StatelessWidget {
     // Group by service name
     final Map<String, Map<String, List<Map<String, dynamic>>>> grouped = {};
     for (final img in filtered) {
-      final service = (img['serviceName'] as String?) ?? 'Autre';
+      final service = (img['serviceName'] as String?) ?? 'Other';
       final task = (img['taskName'] as String?) ?? '';
       grouped.putIfAbsent(service, () => {});
       grouped[service]!.putIfAbsent(task, () => []);
