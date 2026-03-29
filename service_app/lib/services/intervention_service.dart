@@ -76,13 +76,14 @@ class InterventionService {
     String serviceId,
   ) async {
     try {
-      final snap = await _db
+      final snapRaw = await _db
           .collection('tacheExperts')
           .where('idExpert', isEqualTo: expertId)
-          .where('idService', isEqualTo: serviceId)
           .get();
 
-      return snap.docs.map((doc) {
+      final docs = snapRaw.docs.where((doc) => doc.data()['idService'] == serviceId).toList();
+
+      return docs.map((doc) {
         final data = doc.data();
         return {
           'id': doc.id,          // This is the idTacheExpert used in intervention
