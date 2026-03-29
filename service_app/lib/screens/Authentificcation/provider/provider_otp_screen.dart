@@ -186,7 +186,7 @@ class _ProviderOTPScreenState extends State<ProviderOTPScreen> {
               ),
               const SizedBox(height: 24),
               Text(
-                "Vérification SMS",
+                "SMS Verification",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
@@ -196,7 +196,7 @@ class _ProviderOTPScreenState extends State<ProviderOTPScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                "Entrez le code de vérification envoyé à votre numéro de téléphone",
+                "Enter the verification code sent to your phone number",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -212,7 +212,7 @@ class _ProviderOTPScreenState extends State<ProviderOTPScreen> {
                       const CircularProgressIndicator(),
                       const SizedBox(height: 24),
                       Text(
-                        "En attente de votre vérification...",
+                        "Waiting for your verification...",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -275,7 +275,7 @@ class _ProviderOTPScreenState extends State<ProviderOTPScreen> {
                       ),
                       const SizedBox(height: 32),
                       CustomButton(
-                        text: _isLoading ? "Chargement..." : "Vérifier",
+                        text: _isLoading ? "Loading..." : "Verify",
                         onPressed: _otp.length == 6 && !_isLoading
                             ? _verifyOTP
                             : null,
@@ -287,7 +287,7 @@ class _ProviderOTPScreenState extends State<ProviderOTPScreen> {
                         child: TextButton(
                           onPressed: () {},
                           child: Text(
-                            "Renvoyer le code",
+                            "Resend code",
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,

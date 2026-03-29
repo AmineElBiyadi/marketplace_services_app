@@ -79,8 +79,8 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
       // Notify Admin
       await _notificationService.sendNotification(
         idUtilisateur: 'user_admin_001',
-        titre: "Nouvelle Réclamation",
-        corps: "Une nouvelle réclamation a été déposée par ${widget.role == 'expert' ? 'un expert' : 'un client'} pour l'intervention ID: ${widget.interventionId}.",
+        titre: "New Complaint",
+        corps: "A new complaint has been filed by ${widget.role == 'expert' ? 'an expert' : 'a client'} for intervention ID: ${widget.interventionId}.",
         type: 'claim',
         relatedId: widget.interventionId,
       );
@@ -172,13 +172,13 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isExpert ? "Déposer une réclamation" : "What went wrong?",
+              isExpert ? "File a complaint" : "What went wrong?",
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
             ),
             const SizedBox(height: 8),
             Text(
               isExpert
-                  ? "Décrivez le problème rencontré avec ce client. Notre équipe examinera votre réclamation."
+                  ? "Describe the problem encountered with this client. Our team will review your complaint."
                   : "We take your feedback seriously. Please tell us what happened with this booking.",
               style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
             ),
@@ -255,7 +255,7 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
                 child: _isLoading
                     ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                     : Text(
-                        isExpert ? "Envoyer la réclamation" : "Submit Complaint",
+                        isExpert ? "Send Complaint" : "Submit Complaint",
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                       ),
               ),

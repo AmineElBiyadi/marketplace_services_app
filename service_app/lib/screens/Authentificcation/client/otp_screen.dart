@@ -213,7 +213,7 @@ class _OTPScreenState extends State<OTPScreen> {
               const SizedBox(height: 20),
               // ── Title ──
               Text(
-                _isEmailMethod ? 'Vérifiez votre email' : 'Verify your number',
+                _isEmailMethod ? 'Verify your email' : 'Verify your number',
                 style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
@@ -223,8 +223,8 @@ class _OTPScreenState extends State<OTPScreen> {
               const SizedBox(height: 6),
               Text(
                 _isEmailMethod
-                    ? 'Un lien de vérification a été envoyé à\n${widget.extraData?['email'] ?? ''}'
-                    : 'Entrez le code à 6 chiffres envoyé à votre téléphone',
+                    ? 'A verification link has been sent to\n${widget.extraData?['email'] ?? ''}'
+                    : 'Enter the 6-digit code sent to your phone',
                 style: const TextStyle(
                     fontSize: 14, color: Color(0xFF64748B), height: 1.5),
               ),
@@ -251,8 +251,8 @@ class _OTPScreenState extends State<OTPScreen> {
                       const SizedBox(height: 24),
                       Text(
                         _emailVerified
-                            ? 'Email vérifié ! Redirection...'
-                            : 'En attente de votre vérification...',
+                            ? 'Email verified! Redirecting...'
+                            : 'Waiting for verification...',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -275,7 +275,7 @@ class _OTPScreenState extends State<OTPScreen> {
                         TextButton(
                           onPressed: () {},
                           child: const Text(
-                            "Renvoyer l'email",
+                            "Resend email",
                             style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
@@ -288,97 +288,110 @@ class _OTPScreenState extends State<OTPScreen> {
                 ),
               ]
 
-              // ── SMS OTP state ──
-              else ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(6, (index) {
-                    return Container(
-                      width: 48,
-                      height: 56,
-                      margin: EdgeInsets.only(right: index < 5 ? 10 : 0),
-                      child: KeyboardListener(
-                        focusNode: FocusNode(),
-                        onKeyEvent: (e) => _handleKey(index, e),
-                        child: TextField(
-                          controller: _controllers[index],
-                          focusNode: _focusNodes[index],
-                          textAlign: TextAlign.center,
-                          keyboardType: TextInputType.number,
-                          maxLength: 1,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1A237E),
-                          ),
-                          decoration: InputDecoration(
-                            counterText: '',
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: EdgeInsets.zero,
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(
-                                  color: Color(0xFFCBD5E1), width: 1.5),
+                // ── SMS OTP state ──
+                else ...[
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(6, (index) {
+                          return Flexible(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(horizontal: index == 0 || index == 5 ? 0 : 4),
+                              child: SizedBox(
+                                height: 56,
+                                child: KeyboardListener(
+                                  focusNode: FocusNode(),
+                                  onKeyEvent: (e) => _handleKey(index, e),
+                                  child: TextField(
+                                    controller: _controllers[index],
+                                    focusNode: _focusNodes[index],
+                                    textAlign: TextAlign.center,
+                                    keyboardType: TextInputType.number,
+                                    maxLength: 1,
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1A237E),
+                                    ),
+                                    decoration: InputDecoration(
+                                      counterText: '',
+                                      filled: true,
+                                      fillColor: Colors.white,
+                                      contentPadding: EdgeInsets.zero,
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: const BorderSide(
+                                            color: Color(0xFFCBD5E1), width: 1.5),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: const BorderSide(
+                                            color: Color(0xFF3F64B5), width: 2),
+                                      ),
+                                    ),
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly
+                                    ],
+                                    onChanged: (v) => _handleChange(index, v),
+                                  ),
+                                ),
+                              ),
                             ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(14),
-                              borderSide: const BorderSide(
-                                  color: Color(0xFF3F64B5), width: 2),
-                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: _isFilled && !_isLoading ? _verifyOtp : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _isFilled
+                                ? const Color(0xFF3F64B5)
+                                : const Color(0xFF94A3B8),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30)),
+                            elevation: 0,
                           ),
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
-                          onChanged: (v) => _handleChange(index, v),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2.5),
+                                )
+                              : const Text(
+                                  'Verify',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: _isFilled && !_isLoading ? _verifyOtp : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _isFilled
-                          ? const Color(0xFF3F64B5)
-                          : const Color(0xFF94A3B8),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30)),
-                      elevation: 0,
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2.5),
-                          )
-                        : const Text(
-                            'Vérifier',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
                   ),
-                ),
                 const SizedBox(height: 16),
                 Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text("Vous n'avez pas reçu le code ? ",
+                      const Text("Didn't receive the code? ",
                           style: TextStyle(
                               fontSize: 14, color: Color(0xFF64748B))),
                       GestureDetector(
                         onTap: () {},
                         child: const Text(
-                          'Renvoyer',
+                          'Resend',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,

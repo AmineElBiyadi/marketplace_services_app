@@ -62,6 +62,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
   List<ServiceModel> _services = [];
   bool _isLoadingServices = false;
   final List<String> _selectedServiceIds = [];
+  int _freeLimit = 3; // Default fallback
   final _descriptionController = TextEditingController();
   final _zoneController = TextEditingController();
 
@@ -134,8 +135,18 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
   Future<void> _loadServices() async {
     setState(() => _isLoadingServices = true);
     try {
-      final services = await _firestoreService.getServices();
-      if (mounted) setState(() => _services = services);
+      // Fetch services and global limits in parallel
+      final results = await Future.wait([
+        _firestoreService.getServices(),
+        _firestoreService.getFreeServiceLimit(),
+      ]);
+      
+      if (mounted) {
+        setState(() {
+          _services = results[0] as List<ServiceModel>;
+          _freeLimit = results[1] as int;
+        });
+      }
     } catch (_) {} finally {
       if (mounted) setState(() => _isLoadingServices = false);
     }
@@ -152,14 +163,14 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
       if (image != null) {
         final bytes = await image.readAsBytes();
         if (bytes.length > 5000000) { // Increased to 5MB for Cloudinary
-          if (mounted) _showError('Fichier trop volumineux (max ~5 Mo).');
+          if (mounted) _showError('File too large (max ~5 MB).');
           return;
         }
         setter(image.name, bytes);
         if (mounted) setState(() {});
       }
     } catch (e) {
-      if (mounted) _showError('Erreur: $e');
+      if (mounted) _showError('Error: $e');
     }
   }
 
@@ -173,14 +184,14 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
       if (result != null && result.files.single.bytes != null) {
         final bytes = result.files.single.bytes!;
         if (bytes.length > 5000000) {
-          if (mounted) _showError('Fichier trop volumineux (max ~5 Mo).');
+          if (mounted) _showError('File too large (max ~5 MB).');
           return;
         }
         setter(result.files.single.name, bytes);
         if (mounted) setState(() {});
       }
     } catch (e) {
-      if (mounted) _showError('Erreur: $e');
+      if (mounted) _showError('Error: $e');
     }
   }
 
@@ -239,19 +250,19 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
     try {
       final pos = await _locationService.getCurrentPosition();
       if (pos == null) {
-        _showError('Impossible de détecter la localisation.');
+        _showError('Unable to detect location.');
         return;
       }
 
       // Reverse geocode — city + country only
       String city = '';
-      String country = 'Maroc';
+      String country = 'Morocco';
       try {
         final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
         if (placemarks.isNotEmpty) {
           final p = placemarks.first;
           city = p.administrativeArea ?? p.locality ?? '';
-          country = p.country ?? 'Maroc';
+          country = p.country ?? 'Morocco';
         }
       } catch (_) {}
 
@@ -259,7 +270,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         final fb = await _fallbackReverseGeocode(pos.latitude, pos.longitude);
         if (fb != null) {
           city = fb['locality'] ?? '';
-          country = fb['country'] ?? 'Maroc';
+          country = fb['country'] ?? 'Morocco';
         }
       }
 
@@ -287,12 +298,12 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
           if (result.country.isNotEmpty) _paysController.text = result.country;
         });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Position confirmée !'),
+          content: Text('Position confirmed!'),
           backgroundColor: Colors.green,
         ));
       }
     } catch (e) {
-      _showError('Erreur: $e');
+      _showError('Error: $e');
     } finally {
       if (mounted) setState(() => _detectingLoc = false);
     }
@@ -320,8 +331,8 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         setState(() => _isLoading = false);
         if (mounted) {
           _showError(duplicateField == 'phone'
-              ? 'Ce numéro de téléphone est déjà utilisé.'
-              : 'Cet email est déjà utilisé.');
+              ? 'This phone number is already in use.'
+              : 'This email is already in use.');
         }
         return;
       }
@@ -392,7 +403,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
           );
         } on FirebaseAuthException catch (e) {
           if (e.code == 'email-already-in-use') {
-            throw Exception('Ce numéro de téléphone est déjà lié à un compte.');
+            throw Exception('This phone number is already linked to an account.');
           }
           rethrow;
         }
@@ -506,18 +517,18 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
       children: [
         _illustration(),
         const SizedBox(height: 20),
-        const Text('Informations personnelles',
+        const Text('Personal Information',
             style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF1A237E))),
         const SizedBox(height: 4),
-        const Text('Créez votre compte prestataire',
+        const Text('Create your provider account',
             style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
         const SizedBox(height: 24),
-        _field(_nameController, 'Nom complet', icon: Icons.person_outline),
+        _field(_nameController, 'Full name', icon: Icons.person_outline),
         const SizedBox(height: 14),
-        _field(_phoneController, 'Téléphone',
+        _field(_phoneController, 'Phone number',
             icon: Icons.phone_outlined,
             keyboardType: TextInputType.phone),
         const SizedBox(height: 14),
@@ -525,13 +536,13 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress),
         const SizedBox(height: 14),
-        _field(_passwordController, 'Mot de passe',
+        _field(_passwordController, 'Password',
             icon: Icons.lock_outline,
             obscure: !_showPassword,
             suffix: _eyeButton(_showPassword,
                 () => setState(() => _showPassword = !_showPassword))),
         const SizedBox(height: 14),
-        _field(_confirmController, 'Confirmer le mot de passe',
+        _field(_confirmController, 'Confirm password',
             icon: Icons.lock_outline,
             obscure: !_showConfirm,
             suffix: _eyeButton(_showConfirm,
@@ -560,17 +571,17 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
                   style: const TextStyle(
                       fontSize: 12.5, color: Color(0xFF64748B)),
                   children: [
-                    const TextSpan(text: "J'accepte les "),
+                    const TextSpan(text: "I accept the "),
                     TextSpan(
-                        text: "Conditions d'utilisation",
+                        text: "Terms of Service",
                         style: const TextStyle(
                             color: Color(0xFF3F64B5),
                             fontWeight: FontWeight.w600),
                         recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
                     ),
-                    const TextSpan(text: ' et la '),
+                    const TextSpan(text: ' and the '),
                     TextSpan(
-                        text: 'Politique de confidentialité',
+                        text: 'Privacy Policy',
                         style: const TextStyle(
                             color: Color(0xFF3F64B5),
                             fontWeight: FontWeight.w600),
@@ -598,19 +609,19 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Informations professionnelles',
+        const Text('Professional Information',
             style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF1A237E))),
         const SizedBox(height: 4),
-        const Text('Décrivez votre activité',
+        const Text('Describe your activity',
             style: TextStyle(
                 fontSize: 14,
                 color: Color(0xFF3F64B5),
                 fontWeight: FontWeight.w500)),
         const SizedBox(height: 24),
-        const Text('Catégorie de métier',
+        const Text('Business category',
             style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -620,7 +631,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         _isLoadingServices
             ? const Center(child: CircularProgressIndicator())
             : _services.isEmpty
-                ? const Text('Aucun service disponible',
+                ? const Text('No services available',
                     style: TextStyle(color: Color(0xFF64748B)))
                 : GridView.count(
                     shrinkWrap: true,
@@ -638,10 +649,10 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
                           setState(() {
                             if (selected) {
                               _selectedServiceIds.remove(id);
-                            } else if (_selectedServiceIds.length < 3) {
+                            } else if (_selectedServiceIds.length < _freeLimit) {
                               _selectedServiceIds.add(id);
                             } else {
-                              _showError('Maximum 3 services autorisés.');
+                              _showError('Maximum $_freeLimit services allowed.');
                             }
                           });
                         },
@@ -689,7 +700,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
           style: const TextStyle(
               fontSize: 14, color: Color(0xFF1A237E)),
           decoration: InputDecoration(
-            hintText: 'Décrivez votre expérience et vos spécialités...',
+            hintText: 'Describe your experience and specialties...',
             hintStyle: const TextStyle(
                 fontSize: 13, color: Color(0xFFADB5C7)),
             filled: true,
@@ -709,35 +720,35 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         ),
         const SizedBox(height: 20),
         const SizedBox(height: 20),
-        const Text("Zone d'intervention & Localisation",
+        const Text("Intervention zone & Location",
             style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF1A237E))),
         const SizedBox(height: 8),
-        _field(_zoneController, "Ex: Casablanca, Rabat (zone d'action)", icon: Icons.map_outlined),
+        _field(_zoneController, "e.g. Casablanca, Rabat (activity zone)", icon: Icons.map_outlined),
         const SizedBox(height: 14),
 
         // Address Fields
         Row(
           children: [
-            Expanded(child: _field(_paysController, 'Pays', icon: Icons.public)),
+            Expanded(child: _field(_paysController, 'Country', icon: Icons.public)),
             const SizedBox(width: 14),
-            Expanded(child: _field(_villeController, 'Ville *', icon: Icons.location_city)),
+            Expanded(child: _field(_villeController, 'City *', icon: Icons.location_city)),
           ],
         ),
         const SizedBox(height: 14),
         Row(
           children: [
-            Expanded(child: _field(_numBatController, 'N° Bât/Appart', icon: Icons.home_work_outlined)),
+            Expanded(child: _field(_numBatController, 'Building/Apt No.', icon: Icons.home_work_outlined)),
             const SizedBox(width: 14),
-            Expanded(child: _field(_codePostalController, 'Code postal', keyboardType: TextInputType.number)),
+            Expanded(child: _field(_codePostalController, 'Postal code', keyboardType: TextInputType.number)),
           ],
         ),
         const SizedBox(height: 14),
-        _field(_quartierController, 'Quartier', icon: Icons.location_on_outlined),
+        _field(_quartierController, 'Neighborhood', icon: Icons.location_on_outlined),
         const SizedBox(height: 14),
-        _field(_rueController, 'Rue / Avenue', icon: Icons.add_road),
+        _field(_rueController, 'Street / Avenue', icon: Icons.add_road),
         const SizedBox(height: 16),
 
         // ── Location detector ──
@@ -748,7 +759,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
             icon: _detectingLoc
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.my_location, size: 18),
-            label: Text(_detectingLoc ? 'Détection...' : '📍 Détecter ville et pays auto'),
+            label: Text(_detectingLoc ? 'Detecting...' : '📍 Detect city and country auto'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
               side: const BorderSide(color: AppColors.primary),
@@ -765,7 +776,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
                 const Icon(Icons.check_circle, color: Colors.green, size: 16),
                 const SizedBox(width: 6),
                 const Text(
-                  'Position exacte confirmée sur la carte',
+                  'Exact position confirmed on the map',
                   style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.w600),
                 ),
               ],
@@ -787,20 +798,20 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Documents justificatifs',
+        const Text('Supporting documents',
             style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF1A237E))),
         const SizedBox(height: 4),
-        const Text('Téléchargez vos pièces pour vérification',
+        const Text('Upload your documents for verification',
             style: TextStyle(
                 fontSize: 14,
                 color: Color(0xFF3F64B5),
                 fontWeight: FontWeight.w500)),
         const SizedBox(height: 24),
         _uploadCard(
-          label: 'CIN - Recto',
+          label: 'ID Card - Front',
           fileName: _cinFrontName,
           icon: Icons.camera_alt_outlined,
           onTap: () => _pickImage((name, bytes) {
@@ -812,7 +823,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         ),
         const SizedBox(height: 16),
         _uploadCard(
-          label: 'CIN - Verso',
+          label: 'ID Card - Back',
           fileName: _cinBackName,
           icon: Icons.camera_alt_outlined,
           onTap: () => _pickImage((name, bytes) {
@@ -824,7 +835,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
         ),
         const SizedBox(height: 16),
         _uploadCard(
-          label: 'Casier Judiciaire',
+          label: 'Criminal Record',
           fileName: _certificateName,
           icon: Icons.upload_outlined,
           onTap: () => _pickDocument((name, bytes) {
@@ -850,7 +861,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Vos documents seront vérifiés par notre équipe sous 24-48h.',
+                  'Your documents will be checked by our team within 24-48h.',
                   style: TextStyle(
                       fontSize: 13, color: Color(0xFF854D0E)),
                 ),
@@ -878,7 +889,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
                     height: 22,
                     child: CircularProgressIndicator(
                         color: Colors.white, strokeWidth: 2.5))
-                : const Text('Continuer',
+                : const Text('Continue',
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -966,7 +977,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
               borderRadius: BorderRadius.circular(30)),
           elevation: 0,
         ),
-        child: const Text('Continuer',
+        child: const Text('Continue',
             style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -1021,7 +1032,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    uploaded ? fileName! : 'Appuyez pour télécharger',
+                    uploaded ? fileName! : 'Tap to upload',
                     style: TextStyle(
                       fontSize: 13,
                       color: uploaded
@@ -1045,7 +1056,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
   void _showCguDialog() {
     if (_cguContent == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Les conditions d\'utilisation ne sont pas encore configurées.')),
+        const SnackBar(content: Text('The Terms of Service are not yet configured.')),
       );
       return;
     }
@@ -1066,7 +1077,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
             const Padding(
               padding: EdgeInsets.all(16.0),
               child: Text(
-                'Conditions d\'utilisation & Politique',
+                'Terms of Service & Policy',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -1099,7 +1110,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
                       backgroundColor: const Color(0xFF3F64B5),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('Accepter', style: TextStyle(color: Colors.white, fontSize: 16)),
+                    child: const Text('Accept', style: TextStyle(color: Colors.white, fontSize: 16)),
                   ),
                 ),
               ),

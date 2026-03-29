@@ -50,7 +50,7 @@ class ProviderPendingScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 // ── Title ──
                 const Text(
-                  'Compte en cours de validation',
+                  'Account under validation',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 22,
@@ -60,7 +60,7 @@ class ProviderPendingScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Votre compte est en cours de validation par notre équipe. Vous serez notifié par SMS dès que votre profil sera approuvé.',
+                  'Your account is currently being validated by our team. You will be notified by SMS as soon as your profile is approved.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 14,
@@ -102,7 +102,7 @@ class ProviderPendingScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Vérification en cours...',
+                            'Verification in progress...',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
@@ -111,7 +111,7 @@ class ProviderPendingScreen extends StatelessWidget {
                           ),
                           SizedBox(height: 2),
                           Text(
-                            'Délai estimé : 24 à 48 heures',
+                            'Estimated time: 24 to 48 hours',
                             style: TextStyle(
                               fontSize: 12,
                               color: Color(0xFF64748B),
@@ -136,7 +136,7 @@ class ProviderPendingScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(30)),
                     ),
                     child: const Text(
-                      "Retour à l'accueil",
+                      "Back to home",
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,

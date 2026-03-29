@@ -94,8 +94,8 @@ class _ReviewScreenState extends State<ReviewScreen> {
           if (idUtilisateur != null) {
             await _notificationService.sendNotification(
               idUtilisateur: idUtilisateur,
-              titre: "Nvel Avis Client",
-              corps: "Un client a laissé un avis de $_rating étoiles sur votre prestation.",
+              titre: "New Client Review",
+              corps: "A client left a $_rating star review on your service.",
               type: 'review',
               relatedId: widget.interventionId,
             );

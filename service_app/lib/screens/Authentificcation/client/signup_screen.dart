@@ -38,7 +38,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final _quartierController    = TextEditingController();
   final _villeController       = TextEditingController();
   final _codePostalController  = TextEditingController();
-  final _paysController        = TextEditingController(text: 'Maroc');
+  final _paysController        = TextEditingController(text: 'Morocco');
 
   // ── Detected coords ───────────────────────────────────────────
   GeoPoint? _confirmedGeoPoint;  // user-confirmed via map
@@ -152,19 +152,19 @@ class _SignupScreenState extends State<SignupScreen> {
     try {
       final pos = await _locationService.getCurrentPosition();
       if (pos == null) {
-        _showError('Impossible de détecter la localisation.');
+        _showError('Unable to detect location.');
         return;
       }
 
       // Reverse geocode — fill only city + country
       String city = '';
-      String country = 'Maroc';
+      String country = 'Morocco';
       try {
         final placemarks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
         if (placemarks.isNotEmpty) {
           final p = placemarks.first;
           city = p.administrativeArea ?? p.locality ?? '';
-          country = p.country ?? 'Maroc';
+          country = p.country ?? 'Morocco';
         }
       } catch (_) {}
 
@@ -172,7 +172,7 @@ class _SignupScreenState extends State<SignupScreen> {
         final fb = await _fallbackReverseGeocode(pos.latitude, pos.longitude);
         if (fb != null) {
           city = fb['locality'] ?? '';
-          country = fb['country'] ?? 'Maroc';
+          country = fb['country'] ?? 'Morocco';
         }
       }
 
@@ -201,13 +201,13 @@ class _SignupScreenState extends State<SignupScreen> {
           if (result.country.isNotEmpty) _paysController.text = result.country;
         });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Position confirm\u00e9e !'),
+          content: Text('Position confirmed!'),
           backgroundColor: Colors.green,
         ));
       }
 
     } catch (e) {
-      _showError('Erreur de localisation: $e');
+      _showError('Location error: $e');
     } finally {
       if (mounted) setState(() => _detectingLoc = false);
     }
@@ -239,8 +239,8 @@ class _SignupScreenState extends State<SignupScreen> {
         setState(() => _isLoading = false);
         if (mounted) {
           _showError(duplicateField == 'phone'
-              ? 'Ce num\u00e9ro de t\u00e9l\u00e9phone est d\u00e9j\u00e0 utilis\u00e9.'
-              : 'Cet email est d\u00e9j\u00e0 utilis\u00e9.');
+              ? 'This phone number is already in use.'
+              : 'This email is already in use.');
         }
         return;
       }
@@ -307,7 +307,7 @@ class _SignupScreenState extends State<SignupScreen> {
           );
         } on FirebaseAuthException catch (e) {
           if (e.code == 'email-already-in-use') {
-            throw Exception('Ce numéro de téléphone est déjà lié à un compte.');
+            throw Exception('This phone number is already linked to an account.');
           }
           rethrow;
         }
@@ -358,7 +358,7 @@ class _SignupScreenState extends State<SignupScreen> {
   void _showCguDialog() {
     if (_cguContent == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Les conditions d\'utilisation ne sont pas encore configurées.')),
+        const SnackBar(content: Text('Terms and conditions are not yet configured.')),
       );
       return;
     }
@@ -379,7 +379,7 @@ class _SignupScreenState extends State<SignupScreen> {
             const Padding(
               padding: EdgeInsets.all(16.0),
               child: Text(
-                'Conditions Générales & Politique',
+                'Terms and Conditions & Policy',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -412,7 +412,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       backgroundColor: const Color(0xFF3F64B5),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: const Text('Accepter', style: TextStyle(color: Colors.white, fontSize: 16)),
+                    child: const Text('Accept', style: TextStyle(color: Colors.white, fontSize: 16)),
                   ),
                 ),
               ),
@@ -431,42 +431,47 @@ class _SignupScreenState extends State<SignupScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12),
-              // ── Back ──
-              IconButton(
-                onPressed: () {
-                  if (_step == 2) {
-                    setState(() => _step = 1);
-                  } else {
-                    context.canPop() ? context.pop() : context.go('/welcome');
-                  }
-                },
-                icon: const Icon(Icons.arrow_back, color: Color(0xFF1A237E), size: 24),
-                padding: EdgeInsets.zero,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  // ── Back ──
+                  IconButton(
+                    onPressed: () {
+                      if (_step == 2) {
+                        setState(() => _step = 1);
+                      } else {
+                        context.canPop() ? context.pop() : context.go('/welcome');
+                      }
+                    },
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF1A237E), size: 24),
+                    padding: EdgeInsets.zero,
+                  ),
+                  const SizedBox(height: 8),
+                  // ── Logo ──
+                  Center(
+                    child: Image.asset(
+                      'assets/logo.png',
+                      height: 70,
+                      errorBuilder: (_, __, ___) => const SizedBox(height: 70),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
+                  // ── Step indicator ──
+                  _buildStepIndicator(),
+                  const SizedBox(height: 20),
+    
+                  if (_step == 1) ..._buildStep1(),
+                  if (_step == 2) ..._buildStep2(),
+                ],
               ),
-              const SizedBox(height: 8),
-              // ── Logo ──
-              Center(
-                child: Image.asset(
-                  'assets/logo.png',
-                  height: 70,
-                  errorBuilder: (_, __, ___) => const SizedBox(height: 70),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const SizedBox(height: 24),
-              // ── Step indicator ──
-              _buildStepIndicator(),
-              const SizedBox(height: 20),
-
-              if (_step == 1) ..._buildStep1(),
-              if (_step == 2) ..._buildStep2(),
-            ],
+            ),
           ),
         ),
       ),
@@ -477,12 +482,12 @@ class _SignupScreenState extends State<SignupScreen> {
   Widget _buildStepIndicator() {
     return Row(
       children: [
-        _stepDot(1, 'Compte'),
+        _stepDot(1, 'Account'),
         Expanded(child: Divider(
           color: _step >= 2 ? AppColors.primary : Colors.grey.shade300,
           thickness: 2,
         )),
-        _stepDot(2, 'Adresse'),
+        _stepDot(2, 'Address'),
       ],
     );
   }
@@ -511,17 +516,17 @@ class _SignupScreenState extends State<SignupScreen> {
   //  STEP 1 — Account Info
   // ─────────────────────────────────────────────────────────────
   List<Widget> _buildStep1() => [
-    const Text('Créez votre compte', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF1A237E))),
+    const Text('Create your account', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF1A237E))),
     const SizedBox(height: 4),
-    const Text('Rejoignez des milliers de clients satisfaits', style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
+    const Text('Join thousands of satisfied clients', style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
     const SizedBox(height: 24),
-    _field(_nameController, 'Nom complet', icon: Icons.person_outline),
+    _field(_nameController, 'Full name', icon: Icons.person_outline),
     const SizedBox(height: 14),
-    _field(_phoneController, 'Numéro de téléphone', icon: Icons.phone_outlined, keyboardType: TextInputType.phone),
+    _field(_phoneController, 'Phone number', icon: Icons.phone_outlined, keyboardType: TextInputType.phone),
     const SizedBox(height: 14),
-    _field(_emailController, 'Email (optionnel)', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+    _field(_emailController, 'Email (optional)', icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
     const SizedBox(height: 14),
-    _field(_passwordController, 'Mot de passe',
+    _field(_passwordController, 'Password',
         icon: Icons.lock_outline,
         obscure: !_showPassword,
         suffix: IconButton(
@@ -529,7 +534,7 @@ class _SignupScreenState extends State<SignupScreen> {
           onPressed: () => setState(() => _showPassword = !_showPassword),
         )),
     const SizedBox(height: 14),
-    _field(_confirmController, 'Confirmer le mot de passe',
+    _field(_confirmController, 'Confirm password',
         icon: Icons.lock_outline,
         obscure: !_showConfirm,
         suffix: IconButton(
@@ -557,15 +562,15 @@ class _SignupScreenState extends State<SignupScreen> {
             text: TextSpan(
               style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
               children: [
-                const TextSpan(text: "J'accepte les "),
+                const TextSpan(text: "I accept the "),
                 TextSpan(
-                  text: 'Conditions générales',
+                  text: 'Terms and Conditions',
                   style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
                   recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
                 ),
-                const TextSpan(text: ' et la '),
+                const TextSpan(text: ' and the '),
                 TextSpan(
-                  text: 'Politique de confidentialité',
+                  text: 'Privacy Policy',
                   style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
                   recognizer: TapGestureRecognizer()..onTap = _showCguDialog,
                 ),
@@ -586,7 +591,7 @@ class _SignupScreenState extends State<SignupScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
           elevation: 0,
         ),
-        child: const Text('Suivant →', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+        child: const Text('Next →', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
       ),
     ),
     const SizedBox(height: 16),
@@ -594,10 +599,10 @@ class _SignupScreenState extends State<SignupScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text('Déjà un compte ? ', style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
+          const Text('Already have an account? ', style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
           GestureDetector(
             onTap: () => context.go('/login'),
-            child: const Text('Se connecter', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF3F64B5))),
+            child: const Text('Login', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF3F64B5))),
           ),
         ],
       ),
@@ -609,9 +614,9 @@ class _SignupScreenState extends State<SignupScreen> {
   //  STEP 2 — Address
   // ─────────────────────────────────────────────────────────────
   List<Widget> _buildStep2() => [
-    const Text('Votre adresse', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF1A237E))),
+    const Text('Your address', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF1A237E))),
     const SizedBox(height: 4),
-    const Text('Pour trouver les experts près de vous', style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
+    const Text('To find experts near you', style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
     const SizedBox(height: 20),
 
     // Detect location button
@@ -622,7 +627,7 @@ class _SignupScreenState extends State<SignupScreen> {
         icon: _detectingLoc
             ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
             : const Icon(Icons.my_location, size: 18),
-        label: Text(_detectingLoc ? 'Détection...' : '📍 Détecter ma position actuelle'),
+        label: Text(_detectingLoc ? 'Detecting...' : '📍 Detect my current position'),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.primary,
           side: const BorderSide(color: AppColors.primary),
@@ -639,7 +644,7 @@ class _SignupScreenState extends State<SignupScreen> {
             Icon(Icons.check_circle, color: Colors.green, size: 16),
             SizedBox(width: 6),
             Text(
-              'Position confirmée sur la carte',
+              'Position confirmed on map',
               style: TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold),
             ),
           ],
@@ -648,26 +653,26 @@ class _SignupScreenState extends State<SignupScreen> {
     const SizedBox(height: 16),
     const Divider(),
     const SizedBox(height: 8),
-    const Text('Ou saisissez manuellement', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+    const Text('Or enter manually', style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
     const SizedBox(height: 12),
 
     Row(children: [
-      Expanded(child: _field(_numBatCtrl, 'Nº Bâtiment', icon: Icons.home_outlined)),
+      Expanded(child: _field(_numBatCtrl, 'Building No.', icon: Icons.home_outlined)),
       const SizedBox(width: 10),
-      Expanded(flex: 2, child: _field(_rueController, 'Rue', icon: Icons.map_outlined)),
+      Expanded(flex: 2, child: _field(_rueController, 'Street', icon: Icons.map_outlined)),
     ]),
     const SizedBox(height: 12),
-    _field(_quartierController, 'Quartier *', icon: Icons.location_city_outlined),
+    _field(_quartierController, 'Neighborhood *', icon: Icons.location_city_outlined),
     const SizedBox(height: 12),
     Row(children: [
-      Expanded(child: _field(_villeController, 'Ville *', icon: Icons.location_on_outlined)),
+      Expanded(child: _field(_villeController, 'City *', icon: Icons.location_on_outlined)),
       const SizedBox(width: 10),
-      Expanded(child: _field(_codePostalController, 'Code Postal', icon: Icons.markunread_mailbox_outlined, keyboardType: TextInputType.number)),
+      Expanded(child: _field(_codePostalController, 'Postal Code', icon: Icons.markunread_mailbox_outlined, keyboardType: TextInputType.number)),
     ]),
     const SizedBox(height: 12),
-    _field(_paysController, 'Pays', icon: Icons.flag_outlined),
+    _field(_paysController, 'Country', icon: Icons.flag_outlined),
     const SizedBox(height: 8),
-    Text('* Champs obligatoires', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+    Text('* Required fields', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
     const SizedBox(height: 24),
 
     // S'inscrire button
@@ -682,14 +687,14 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         child: _isLoading
             ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-            : const Text("S'inscrire", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+            : const Text("Sign up", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
       ),
     ),
     // Skip option
     Center(
       child: TextButton(
         onPressed: _isLoading ? null : _handleSignup,
-        child: const Text('Passer cette étape', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+        child: const Text('Skip this step', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
       ),
     ),
     const SizedBox(height: 24),

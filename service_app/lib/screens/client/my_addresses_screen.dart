@@ -56,12 +56,12 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
       _fetchAddresses();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Adresse supprimée.')));
+            const SnackBar(content: Text('Address deleted.')));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red));
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
       }
     }
   }
@@ -139,7 +139,7 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          'Mes Adresses',
+                          'My Addresses',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
@@ -165,7 +165,7 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : _addresses.isEmpty
                       ? const Center(
-                          child: Text('Aucune adresse trouvée.',
+                          child: Text('No addresses found.',
                               style: TextStyle(color: Colors.grey)))
                       : ListView.builder(
                           padding: const EdgeInsets.all(20),
@@ -190,7 +190,7 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
                                       color: Color(0xFF3F64B5)),
                                 ),
                                 title: Text(
-                                  addr['Rue'] ?? addr['Ville'] ?? 'Adresse',
+                                  addr['Rue'] ?? addr['Ville'] ?? 'Address',
                                   style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Color(0xFF1E293B)),
@@ -213,7 +213,7 @@ class _MyAddressesScreenState extends State<MyAddressesScreen> {
         onPressed: _showAddAddressSheet,
         backgroundColor: AppColors.primary,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Ajouter',
+        label: const Text('Add',
             style:
                 TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
@@ -247,7 +247,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
   final _quartierCtrl = TextEditingController();
   final _villeCtrl = TextEditingController();
   final _cpCtrl = TextEditingController();
-  final _paysCtrl = TextEditingController(text: 'Maroc');
+  final _paysCtrl = TextEditingController(text: 'Morocco');
 
   // GPS-detected or map-confirmed coordinates
   GeoPoint? _confirmedGeoPoint;
@@ -279,11 +279,11 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
     setState(() => _isLoading = true);
     try {
       final pos = await widget.locationService.getCurrentPosition();
-      if (pos == null) throw Exception('Impossible de détecter la localisation.');
+      if (pos == null) throw Exception('Unable to detect location.');
 
       // Reverse geocode the GPS position
       String city = '';
-      String country = 'Maroc';
+      String country = 'Morocco';
       bool hasData = false;
 
       try {
@@ -292,7 +292,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
         if (placemarks.isNotEmpty) {
           final p = placemarks.first;
           city = p.administrativeArea ?? p.locality ?? '';
-          country = p.country ?? 'Maroc';
+          country = p.country ?? 'Morocco';
           hasData = city.isNotEmpty;
         }
       } catch (_) {}
@@ -310,7 +310,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
             if (data?['address'] != null) {
               final addr = data['address'];
               city = addr['city'] ?? addr['town'] ?? addr['village'] ?? addr['state'] ?? '';
-              country = addr['country'] ?? 'Maroc';
+              country = addr['country'] ?? 'Morocco';
             }
           }
         } catch (_) {}
@@ -343,14 +343,14 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
           if (result.country.isNotEmpty) _paysCtrl.text = result.country;
         });
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Position confirmée !'),
+          content: Text('Position confirmed!'),
           backgroundColor: Colors.green,
         ));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erreur: $e')));
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -364,7 +364,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
 
     if (city.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Veuillez entrer une ville d\'abord.')));
+          const SnackBar(content: Text('Please enter a city first.')));
       return;
     }
 
@@ -426,7 +426,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
   Future<void> _save() async {
     if (_villeCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('La ville est obligatoire.')));
+          const SnackBar(content: Text('City is required.')));
       return;
     }
 
@@ -445,7 +445,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text(
-                'Cette position est déjà enregistrée. Choisissez un autre emplacement.'),
+                'This location is already saved. Choose another location.'),
             backgroundColor: Colors.orange,
           ));
         }
@@ -475,7 +475,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Erreur: $e')));
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
         setState(() => _isLoading = false);
       }
     }
@@ -495,7 +495,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('Ajouter une adresse',
+            const Text('Add an address',
                 style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -512,7 +512,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Color(0xFF3F64B5)))
                   : const Icon(Icons.my_location),
-              label: const Text('Utiliser ma position GPS'),
+              label: const Text('Use my GPS position'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF3F64B5),
                 side: const BorderSide(color: Color(0xFF3F64B5)),
@@ -521,18 +521,18 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
             ),
             const SizedBox(height: 4),
             const Center(
-              child: Text('— ou entrez manuellement —',
+              child: Text('— or enter manually —',
                   style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
             ),
             const SizedBox(height: 12),
 
             // ── Form Fields (all preserved) ──
-            _field(_batCtrl, 'N° Bâtiment / Appt'),
-            _field(_rueCtrl, 'Rue'),
-            _field(_quartierCtrl, 'Quartier'),
-            _field(_villeCtrl, 'Ville *'),
-            _field(_cpCtrl, 'Code Postal'),
-            _field(_paysCtrl, 'Pays'),
+            _field(_batCtrl, 'Building / Apt No.'),
+            _field(_rueCtrl, 'Street'),
+            _field(_quartierCtrl, 'Neighborhood'),
+            _field(_villeCtrl, 'City *'),
+            _field(_cpCtrl, 'Postal Code'),
+            _field(_paysCtrl, 'Country'),
             const SizedBox(height: 12),
 
             // Map preview button (only if city filled and no GPS)
@@ -540,7 +540,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
               OutlinedButton.icon(
                 onPressed: _isLoading ? null : _openMapForManualEntry,
                 icon: const Icon(Icons.map_outlined),
-                label: const Text('Confirmer sur la carte'),
+                label: const Text('Confirm on map'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF3F64B5),
                   side: const BorderSide(color: Color(0xFF3F64B5)),
@@ -555,7 +555,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                 children: [
                   Icon(Icons.check_circle, color: Colors.green, size: 16),
                   SizedBox(width: 6),
-                  Text('Coordonnées GPS confirmées',
+                  Text('GPS coordinates confirmed',
                       style: TextStyle(
                           color: Colors.green,
                           fontSize: 13,
@@ -580,7 +580,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                       height: 20,
                       child: CircularProgressIndicator(
                           color: Colors.white, strokeWidth: 2))
-                  : const Text('Enregistrer',
+                  : const Text('Save',
                       style: TextStyle(
                           fontSize: 16, fontWeight: FontWeight.bold)),
             ),
