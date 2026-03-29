@@ -334,7 +334,7 @@ class AppRouter {
         builder: (context, state) {
           final expertId = state.pathParameters['expertId'] ?? '';
           return ProviderLayout(
-            activeRoute: AppRoutes.providerMessages,
+            activeRoute: AppRoutes.providerMessages.replaceAll(':expertId', expertId),
             expertId: expertId,
             child: ChatListScreen(currentUserRole: 'expert', expertId: expertId),
           );

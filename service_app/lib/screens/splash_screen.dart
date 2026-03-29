@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../services/firestore_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/notification_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -25,6 +26,11 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // Sync FCM Token for Notifications
+      await NotificationService.updateUserToken(user.uid);
+    }
+    
     final String currentPath = GoRouterState.of(context).uri.path;
 
     if (user == null) {

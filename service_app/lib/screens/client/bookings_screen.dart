@@ -674,6 +674,16 @@ class _BookingsScreenState extends State<BookingsScreen> {
                       onTap: () => context.push('/review/${intervention.id}'),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildActionButton(
+                      label: "Complain",
+                      icon: Icons.report_problem_outlined,
+                      color: Colors.orange,
+                      filled: false,
+                      onTap: () => context.push(AppRoutes.complaint.replaceFirst(':interventionId', intervention.id!)),
+                    ),
+                  ),
                 ],
               ),
             ],

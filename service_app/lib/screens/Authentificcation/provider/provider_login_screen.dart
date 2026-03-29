@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
 import '../../../utils/auth_errors.dart';
+import '../../../services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProviderLoginScreen extends StatefulWidget {
@@ -54,8 +55,10 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
       }
 
       final uid = _authService.currentUser!.uid;
-      
-      // 1. Check if Provider
+
+      // Sync FCM Token for Notifications
+      await NotificationService.updateUserToken(uid);
+
       final user = await _firestoreService.getProviderByUid(uid);
 
       if (user != null) {
