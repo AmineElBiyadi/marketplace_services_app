@@ -442,10 +442,15 @@ class FirestoreService {
     final snap = await _firestore
         .collection('imagesExemplaires')
         .where('idExpert', isEqualTo: expertId)
-        .orderBy('createdAt', descending: false)
         .get();
 
     final images = snap.docs;
+    // Sort in Dart to avoid index requirement
+    images.sort((a, b) {
+      final aTime = (a.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(0);
+      final bTime = (b.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(0);
+      return aTime.compareTo(bTime);
+    });
     
     // Group images by serviceExpertId
     final Map<String, List<DocumentSnapshot<Map<String, dynamic>>>> groupedImages = {};
@@ -637,16 +642,22 @@ class FirestoreService {
   /// Generates one entry per month elapsed since subscription start.
   Future<List<Map<String, dynamic>>> getPaymentHistory(String expertId) async {
     try {
-      final snap = await _firestore
+      final snapRaw = await _firestore
           .collection('abonnements')
           .where('idExpert', isEqualTo: expertId)
-          .orderBy('createdAt', descending: true)
-          .limit(1)
           .get();
 
-      if (snap.docs.isEmpty) return [];
+      if (snapRaw.docs.isEmpty) return [];
 
-      final data = snap.docs.first.data();
+      // Sort in Dart
+      final docs = snapRaw.docs.toList();
+      docs.sort((a, b) {
+        final aTime = (a.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(0);
+        final bTime = (b.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(0);
+        return bTime.compareTo(aTime); // descending
+      });
+
+      final data = docs.first.data();
       final createdAtRaw = data['createdAt'];
       if (createdAtRaw == null) return [];
 
