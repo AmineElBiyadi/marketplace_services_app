@@ -207,12 +207,12 @@ class _ExpertMapScreenState extends State<ExpertMapScreen> {
                         onPressed: () => Navigator.pop(context),
                       ),
                       const Expanded(
-                        child: Text('Experts à proximité', style: TextStyle(fontWeight: FontWeight.bold, color: _kBlue, fontSize: 16)),
+                        child: Text('Nearby Experts', style: TextStyle(fontWeight: FontWeight.bold, color: _kBlue, fontSize: 16)),
                       ),
                       Padding(
                         padding: const EdgeInsets.only(right: 12),
                         child: Text(
-                          '${_filteredExperts.length} trouvés',
+                          '${_filteredExperts.length} found',
                           style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
                         ),
                       ),
@@ -227,7 +227,7 @@ class _ExpertMapScreenState extends State<ExpertMapScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     child: Row(
                       children: [
-                        _addrChip('📍 Ma Position', null, null),
+                        _addrChip('📍 My Position', null, null),
                         ..._clientAddresses.map((addr) =>
                           _addrChip(addr['label'] as String, addr['latLng'] as LatLng, addr['label'] as String),
                         ),
@@ -242,7 +242,7 @@ class _ExpertMapScreenState extends State<ExpertMapScreen> {
                     padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
                     child: Row(
                       children: [
-                        _serviceChip('Tous', null),
+                        _serviceChip('All', null),
                         ..._serviceCategories.map((s) => _serviceChip(s, s)),
                       ],
                     ),
@@ -269,9 +269,9 @@ class _ExpertMapScreenState extends State<ExpertMapScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Rayon de recherche', style: TextStyle(fontWeight: FontWeight.w600, color: _kBlue)),
+                        const Text('Search radius', style: TextStyle(fontWeight: FontWeight.w600, color: _kBlue)),
                         Text(
-                          _radiusKm == 0 ? 'Tous' : '${_radiusKm.toInt()} km',
+                          _radiusKm == 0 ? 'All' : '${_radiusKm.toInt()} km',
                           style: const TextStyle(fontWeight: FontWeight.bold, color: _kBlue),
                         ),
                       ],
@@ -283,7 +283,7 @@ class _ExpertMapScreenState extends State<ExpertMapScreen> {
                       divisions: 20,
                       activeColor: _kBlue,
                       inactiveColor: const Color(0xFFDCDFEA),
-                      label: _radiusKm == 0 ? 'Tous' : '${_radiusKm.toInt()} km',
+                      label: _radiusKm == 0 ? 'All' : '${_radiusKm.toInt()} km',
                       onChanged: (v) {
                         setState(() => _radiusKm = v);
                         _applyFilters();
@@ -512,7 +512,7 @@ class _ExpertPreviewSheet extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
-              child: const Text('Voir le profil', style: TextStyle(fontWeight: FontWeight.w700)),
+              child: const Text('View Profile', style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ),
         ],

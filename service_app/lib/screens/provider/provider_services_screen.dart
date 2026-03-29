@@ -33,7 +33,8 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   List<ServiceModel> _categories = [];
   bool _isLoading = true;
   bool _isPremium = false;
-  final int _freeLimit = 3;
+  int _freeLimit = 3;
+  int _freePortfolioLimit = 3;
   StreamSubscription<bool>? _premiumSub;
 
   @override
@@ -61,6 +62,16 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     try {
+      // Load free limits from global config
+      final dynamicLimit = await _firestoreService.getFreeServiceLimit();
+      final dynamicPortfolioLimit = await _firestoreService.getFreePortfolioLimit();
+      if (mounted) {
+        setState(() {
+          _freeLimit = dynamicLimit;
+          _freePortfolioLimit = dynamicPortfolioLimit;
+        });
+      }
+
       final services = await _firestoreService.getExpertServicesDetailed(widget.expertId);
       final categories = await _firestoreService.getServiceCategories();
       setState(() {
@@ -236,7 +247,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
 
   Future<void> _pickImage(StateSetter setSheetState) async {
     final visiblePhotosCount = _imagesWithTasks.where((img) => (img['isVisibleByPlan'] as bool? ?? true) == true).length;
-    if (visiblePhotosCount >= 3 && !_isPremium) {
+    if (visiblePhotosCount >= _freePortfolioLimit && !_isPremium) {
       showDialog(
         context: context,
         builder: (context) => Dialog(
@@ -273,10 +284,10 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  "You've reached the limit of 3 portfolio photos for free accounts. Upgrade to Premium to upload unlimited photos and attract more clients!",
+                Text(
+                  "You've reached the limit of $_freePortfolioLimit portfolio photos for free accounts. Upgrade to Premium to upload unlimited photos and attract more clients!",
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.5),
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF64748B), height: 1.5),
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
@@ -365,7 +376,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
             'image': base64,
             'taskId': selectedTaskId ?? '',
             'taskName': selectedTaskName!,
-            'isVisibleByPlan': _isPremium || (visiblePhotosCount < 3),
+            'isVisibleByPlan': _isPremium || (visiblePhotosCount < _freePortfolioLimit),
           });
         });
         setState(() {});

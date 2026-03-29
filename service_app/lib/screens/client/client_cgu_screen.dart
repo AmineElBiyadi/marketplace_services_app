@@ -28,7 +28,7 @@ class _ClientCguScreenState extends State<ClientCguScreen> {
           onPressed: () => context.pop(),
         ),
         title: const Text(
-          "CGU / Confidentialité",
+          "T&C / Privacy",
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -47,7 +47,7 @@ class _ClientCguScreenState extends State<ClientCguScreen> {
           if (!snapshot.hasData || snapshot.data == null) {
             return const Center(
               child: Text(
-                "Aucune condition d'utilisation disponible.",
+                "No terms of use available.",
                 style: TextStyle(color: Color(0xFF64748B), fontSize: 16),
               ),
             );
@@ -69,7 +69,7 @@ class _ClientCguScreenState extends State<ClientCguScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  "Conditions Générales d'Utilisation",
+                  "Terms and Conditions",
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
@@ -78,7 +78,7 @@ class _ClientCguScreenState extends State<ClientCguScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Version $version • Mis à jour le $dateFormatted",
+                  "Version $version • Updated on $dateFormatted",
                   style: const TextStyle(
                     fontSize: 14,
                     color: Color(0xFF64748B),

@@ -62,7 +62,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (bytes.length > 5000000) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Image trop volumineuse (max 5 MB).')),
+              const SnackBar(content: Text('Image too large (max 5 MB).')),
             );
           }
           return;
@@ -90,7 +90,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (name.isEmpty || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez remplir le nom et téléphone.')),
+        const SnackBar(content: Text('Please fill in name and phone.')),
       );
       return;
     }
@@ -108,7 +108,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (phone != oldPhone) {
         final isTaken = await _firestoreService.isPhoneAlreadyUsed(phone, user.uid);
         if (isTaken) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ce numéro est déjà utilisé par un autre compte.')));
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This number is already in use by another account.')));
           setState(() => _isLoading = false);
           return;
         }
@@ -117,7 +117,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (email.isNotEmpty && email != oldEmail) {
         final isTaken = await _firestoreService.isEmailAlreadyUsed(email, user.uid);
         if (isTaken) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cet email est déjà utilisé par un autre compte.')));
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('This email is already in use by another account.')));
           setState(() => _isLoading = false);
           return;
         }
@@ -131,7 +131,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Upload de l\'image en cours...'),
+              content: Text('Uploading image...'),
               duration: Duration(seconds: 10),
             ),
           );
@@ -147,7 +147,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Échec de l\'upload Cloudinary. Vérifiez votre connexion ou le preset.'),
+                content: Text('Cloudinary upload failed. Check your connection or preset.'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -174,7 +174,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
+          SnackBar(content: Text('Error: $e')),
         );
       }
       setState(() => _isLoading = false);
@@ -268,7 +268,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 keyboardType: TextInputType.phone,
                 readOnly: _isPhoneBased,
                 decoration: InputDecoration(
-                  labelText: 'Numéro de Téléphone',
+                  labelText: 'Phone Number',
                   labelStyle: const TextStyle(color: primaryBlue),
                   filled: true,
                   fillColor: _isPhoneBased ? Colors.grey[100] : Colors.white,

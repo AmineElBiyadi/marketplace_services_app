@@ -84,15 +84,25 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
             context.go('/provider/pending');
           }
         }
-      } else {
-        // Signed in but not a provider — sign out and show error
-        await _authService.signOut();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Identifiant ou mot de passe incorrect.'),
-            backgroundColor: Color(0xFFEF4444),
-          ));
-        }
+        return;
+      }
+
+      // 2. Check if Admin (New unified flow)
+      final adminData = await _firestoreService.getAdminByUid(uid);
+      if (adminData != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('logged_admin_id', uid); 
+        if (mounted) context.go('/admin');
+        return;
+      }
+
+      // 3. Not found as Expert or Admin — sign out and show error
+      await _authService.signOut();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Unauthorized access. This area is for providers only.'),
+          backgroundColor: Color(0xFFEF4444),
+        ));
       }
     } catch (e) {
       if (mounted) {
@@ -142,7 +152,7 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
               Row(
                 children: const [
                   Text(
-                    'Espace Prestataire ',
+                    'Provider Space ',
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
@@ -154,7 +164,7 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
               ),
               const SizedBox(height: 4),
               const Text(
-                'Connectez-vous à votre compte pro',
+                'Log in to your pro account',
                 style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
               ),
               const SizedBox(height: 28),
@@ -162,7 +172,7 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
               // ── Identifier field ──
               _field(
                 _identifierController,
-                'Email ou numéro de téléphone',
+                'Email or phone number',
                 icon: Icons.person_outline,
                 keyboardType: TextInputType.emailAddress,
               ),
@@ -171,7 +181,7 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
               // ── Password field ──
               _field(
                 _passwordController,
-                'Mot de passe',
+                'Password',
                 icon: Icons.lock_outline,
                 obscure: !_showPassword,
                 suffix: IconButton(
@@ -194,7 +204,7 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
                 child: GestureDetector(
                   onTap: () => context.go('/forgot-password'),
                   child: const Text(
-                    'Mot de passe oublié ?',
+                    'Forgot password ?',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -225,7 +235,7 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
                           height: 22,
                           child: CircularProgressIndicator(
                               color: Colors.white, strokeWidth: 2.5))
-                      : const Text('Se connecter',
+                      : const Text('Log in',
                           style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w700,
@@ -239,13 +249,13 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text("Pas encore de compte ? ",
+                    const Text("Don't have an account ? ",
                         style: TextStyle(
                             fontSize: 14, color: Color(0xFF64748B))),
                     GestureDetector(
                       onTap: () => context.go('/provider/signup'),
                       child: const Text(
-                        "S'inscrire",
+                        "Sign up",
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,

@@ -14,10 +14,10 @@ import 'expert_details_screen.dart';
 import '../chat/chat_screen.dart';
 
 // ─── Couleurs ──────────────────────────────────────────────────
-const Color _kBg        = Color(0xFFF5F3EC);   // beige maquette
-const Color _kBlue      = Color(0xFF3D5A99);   // bleu principal
-const Color _kAvailable = Color(0xFF27AE60);   // vert "Available"
-const Color _kGold      = Color(0xFFFFC107);   // étoile
+const Color _kBg        = Color(0xFFF5F3EC);   // mockup beige
+const Color _kBlue      = Color(0xFF3D5A99);   // main blue
+const Color _kAvailable = Color(0xFF27AE60);   // green "Available"
+const Color _kGold      = Color(0xFFFFC107);   // star
 
 // ─── Sort options ──────────────────────────────────────────────
 enum _Sort { relevance, topRated, nearest }
@@ -590,16 +590,16 @@ class _ExpertTile extends StatelessWidget {
                           color: Colors.black87,
                         ),
                       ),
-                      if (distText.isNotEmpty) ...[
-                        const SizedBox(width: 16),
-                        Text(
-                          distText,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade500,
+                        if (distText.isNotEmpty) ...[
+                          const SizedBox(width: 16),
+                          Text(
+                            distText,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
                     ],
                   ),
                 ],
@@ -643,8 +643,8 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             query.isEmpty
-                ? 'Aucun prestataire trouvé'
-                : 'Aucun résultat pour "$query"',
+                ? 'No providers found'
+                : 'No results for "$query"',
             style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -652,7 +652,7 @@ class _EmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Essayez de modifier vos filtres',
+            'Try adjusting your filters',
             style:
                 TextStyle(fontSize: 13, color: Colors.grey.shade500),
           ),
@@ -733,7 +733,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                     children: [
                       const Icon(Icons.star, color: Colors.amber, size: 18),
                       const SizedBox(width: 6),
-                      const Text('Note minimale',
+                      const Text('Minimum rating',
                           style: TextStyle(
                               fontWeight: FontWeight.w600, fontSize: 15)),
                       const Spacer(),
@@ -775,7 +775,7 @@ class _FilterSheetState extends State<_FilterSheet> {
             // Ville
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
-              child: Text('Ville',
+              child: Text('City',
                   style: TextStyle(
                       fontWeight: FontWeight.w600, fontSize: 15)),
             ),
@@ -787,7 +787,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                 runSpacing: 8,
                 children: [
                   _VilleChip(
-                    label: 'Toutes',
+                    label: 'All',
                     active: _ville == null,
                     onTap: () => setState(() => _ville = null),
                   ),
@@ -820,7 +820,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                         padding:
                             const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: const Text('Réinitialiser',
+                      child: const Text('Reset',
                           style: TextStyle(color: _kBlue)),
                     ),
                   ),
@@ -839,7 +839,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                             const EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: const Text(
-                        'Appliquer',
+                        'Apply',
                         style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold),

@@ -99,11 +99,12 @@ class FirestoreService {
     return _firestore
         .collection('interventions')
         .where('idExpert', isEqualTo: expertId)
-        .where('statut', isEqualTo: 'EN_ATTENTE')
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => InterventionModel.fromFirestore(doc)).toList());
+        .map((snapshot) {
+          final list = snapshot.docs.map((doc) => InterventionModel.fromFirestore(doc)).where((interv) => interv.statut == 'EN_ATTENTE').toList();
+          list.sort((a, b) => (b.createdAt ?? DateTime(0)).compareTo(a.createdAt ?? DateTime(0)));
+          return list;
+        });
   }
 
   Stream<List<InterventionModel>> getUpcomingInterventions(String expertId) {
@@ -111,11 +112,15 @@ class FirestoreService {
     return _firestore
         .collection('interventions')
         .where('idExpert', isEqualTo: expertId)
-        .where('statut', isEqualTo: 'ACCEPTEE')
-        .where('dateDebutIntervention', isGreaterThan: now)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => InterventionModel.fromFirestore(doc)).toList());
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => InterventionModel.fromFirestore(doc))
+              .where((interv) => interv.statut == 'ACCEPTEE' && 
+                                interv.dateDebutIntervention != null && 
+                                interv.dateDebutIntervention!.isAfter(now))
+              .toList();
+        });
   }
 
   Stream<List<InterventionModel>> getExpertInterventionsByMonth(String expertId, DateTime month) {
@@ -247,13 +252,18 @@ class FirestoreService {
   }
 
   /// Returns true if expert has ACTIVE or GRACE subscription (both grant access).
-  Stream<bool> isExpertPremium(String expertId) {
-    return _firestore
+  Stream<bool> isExpertPremium(String expertId) async* {
+    final qRaw = await _firestore
         .collection('abonnements')
         .where('idExpert', isEqualTo: expertId)
-        .where('statut', whereIn: ['ACTIVE', 'GRACE'])
-        .snapshots()
-        .map((snapshot) => snapshot.docs.isNotEmpty);
+        .get();
+        
+    final docs = qRaw.docs.where((doc) {
+      final statut = doc.data()['statut'];
+      return statut == 'ACTIVE' || statut == 'GRACE';
+    }).toList();
+    
+    yield docs.isNotEmpty;
   }
 
   /// Returns the full active/grace subscription document, or null if not premium.
@@ -397,12 +407,13 @@ class FirestoreService {
         batch.update(doc.reference, {'isVisibleByPlan': keep});
       }
     } else {
-      // Default: only allow it for first 3 photos belonging to visible services
+      // Default: only allow it for first X photos belonging to visible services
+      final dynamicLimit = await getFreePortfolioLimit();
       int visibleCount = 0;
       for (var doc in imgQ.docs) {
         final serviceId = doc.data()['idServiceExpert'];
         bool isServiceVisible = keptServiceIds.contains(serviceId);
-        bool shouldBeVisible = isServiceVisible && visibleCount < 3;
+        bool shouldBeVisible = isServiceVisible && visibleCount < dynamicLimit;
         if (shouldBeVisible) visibleCount++;
         batch.update(doc.reference, {'isVisibleByPlan': shouldBeVisible});
       }
@@ -426,15 +437,20 @@ class FirestoreService {
     await batch.commit();
   }
 
-  /// Automatically unlocks the next hidden photos for each service of an expert until the 3-photo-per-service limit is reached.
+  /// Automatically unlocks the next hidden photos for each service of an expert until the dynamic photo-per-service limit is reached.
   Future<void> autoUnlockNextPhotosGlobal(String expertId) async {
     final snap = await _firestore
         .collection('imagesExemplaires')
         .where('idExpert', isEqualTo: expertId)
-        .orderBy('createdAt', descending: false)
         .get();
 
     final images = snap.docs;
+    // Sort in Dart to avoid index requirement
+    images.sort((a, b) {
+      final aTime = (a.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(0);
+      final bTime = (b.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(0);
+      return aTime.compareTo(bTime);
+    });
     
     // Group images by serviceExpertId
     final Map<String, List<DocumentSnapshot<Map<String, dynamic>>>> groupedImages = {};
@@ -444,13 +460,15 @@ class FirestoreService {
       groupedImages.putIfAbsent(seId, () => []).add(doc);
     }
 
-    // For each service, ensure at least 3 photos are visible (if available)
+    final dynamicLimit = await getFreePortfolioLimit();
+
+    // For each service, ensure at least X photos are visible (if available)
     for (var seId in groupedImages.keys) {
       final serviceImages = groupedImages[seId]!;
       int visibleCount = serviceImages.where((d) => (d.data()?['isVisibleByPlan'] ?? true) == true).length;
 
-      if (visibleCount < 3) {
-        int needed = 3 - visibleCount;
+      if (visibleCount < dynamicLimit) {
+        int needed = dynamicLimit - visibleCount;
         final hiddenImages = serviceImages.where((d) => (d.data()?['isVisibleByPlan'] ?? true) == false).toList();
         for (int i = 0; i < hiddenImages.length && i < needed; i++) {
           await hiddenImages[i].reference.update({'isVisibleByPlan': true});
@@ -624,16 +642,22 @@ class FirestoreService {
   /// Generates one entry per month elapsed since subscription start.
   Future<List<Map<String, dynamic>>> getPaymentHistory(String expertId) async {
     try {
-      final snap = await _firestore
+      final snapRaw = await _firestore
           .collection('abonnements')
           .where('idExpert', isEqualTo: expertId)
-          .orderBy('createdAt', descending: true)
-          .limit(1)
           .get();
 
-      if (snap.docs.isEmpty) return [];
+      if (snapRaw.docs.isEmpty) return [];
 
-      final data = snap.docs.first.data();
+      // Sort in Dart
+      final docs = snapRaw.docs.toList();
+      docs.sort((a, b) {
+        final aTime = (a.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(0);
+        final bTime = (b.data()['createdAt'] as Timestamp?)?.toDate() ?? DateTime(0);
+        return bTime.compareTo(aTime); // descending
+      });
+
+      final data = docs.first.data();
       final createdAtRaw = data['createdAt'];
       if (createdAtRaw == null) return [];
 
@@ -783,6 +807,32 @@ class FirestoreService {
     } catch (e) {
       debugPrint("Error fetching services: $e");
       return [];
+    }
+  }
+
+  Future<int> getFreeServiceLimit() async {
+    try {
+      final doc = await _firestore.collection('settings').doc('global_config').get();
+      if (doc.exists) {
+        return doc.data()?['free_service_limit'] ?? 3;
+      }
+      return 3;
+    } catch (e) {
+      debugPrint("Error fetching free service limit: $e");
+      return 3;
+    }
+  }
+
+  Future<int> getFreePortfolioLimit() async {
+    try {
+      final doc = await _firestore.collection('settings').doc('global_config').get();
+      if (doc.exists) {
+        return doc.data()?['free_portfolio_limit'] ?? 3;
+      }
+      return 3;
+    } catch (e) {
+      debugPrint("Error fetching free portfolio limit: $e");
+      return 3;
     }
   }
 
@@ -1584,14 +1634,15 @@ class FirestoreService {
             .toList();
 
         // Get linked tasks for the expert instances
-        final tasksSnapshot = await _firestore
+        final tasksSnapshotRaw = await _firestore
             .collection('tacheExperts')
             .where('idExpert', isEqualTo: expertId)
-            .where('idService', isEqualTo: serviceId)
             .get();
         
+        final tasksDocs = tasksSnapshotRaw.docs.where((doc) => doc.data()['idService'] == serviceId).toList();
+        
         List<Map<String, dynamic>> tasksData = [];
-        for (var tDoc in tasksSnapshot.docs) {
+        for (var tDoc in tasksDocs) {
           final task = TaskExpertModel.fromFirestore(tDoc);
           final tid = tDoc.id;
 
@@ -1820,21 +1871,23 @@ class FirestoreService {
     final batch = _firestore.batch();
 
     // Delete from serviceExperts
-    final seQuery = await _firestore
+    final seQueryRaw = await _firestore
         .collection('serviceExperts')
         .where('idExpert', isEqualTo: expertId)
-        .where('idService', isEqualTo: serviceId)
-        .get();
-    for (var doc in seQuery.docs) batch.delete(doc.reference);
-
-    // Delete task instances from 'tacheExperts'
-    final tQuery = await _firestore
-        .collection('tacheExperts')
-        .where('idExpert', isEqualTo: expertId)
-        .where('idService', isEqualTo: serviceId)
         .get();
     
-    for (var doc in tQuery.docs) {
+    final seDocs = seQueryRaw.docs.where((doc) => doc.data()['idService'] == serviceId).toList();
+    for (var doc in seDocs) batch.delete(doc.reference);
+
+    // Delete task instances from 'tacheExperts'
+    final tQueryRaw = await _firestore
+        .collection('tacheExperts')
+        .where('idExpert', isEqualTo: expertId)
+        .get();
+    
+    final tDocs = tQueryRaw.docs.where((doc) => doc.data()['idService'] == serviceId).toList();
+    
+    for (var doc in tDocs) {
       // Delete images linked via legacy idTacheExpert
       final imgQuery = await _firestore
           .collection('imagesExemplaires')
@@ -1846,22 +1899,21 @@ class FirestoreService {
     }
     
     // Delete images linked via idServiceExpert
-    final seList = seQuery.docs;
-    if (seList.isNotEmpty) {
+    if (seDocs.isNotEmpty) {
       final seImgQuery = await _firestore
           .collection('imagesExemplaires')
-          .where('idServiceExpert', isEqualTo: seList.first.id)
+          .where('idServiceExpert', isEqualTo: seDocs.first.id)
           .get();
       for (var doc in seImgQuery.docs) batch.delete(doc.reference);
     }
 
     // Delete custom task definitions from 'taches'
-    final customTQuery = await _firestore
+    final customTQueryRaw = await _firestore
         .collection('taches')
         .where('idExpert', isEqualTo: expertId)
-        .where('idService', isEqualTo: serviceId)
         .get();
-    for (var doc in customTQuery.docs) batch.delete(doc.reference);
+    final customTDocs = customTQueryRaw.docs.where((doc) => doc.data()['idService'] == serviceId).toList();
+    for (var doc in customTDocs) batch.delete(doc.reference);
 
     // Decrement service count in utilisateurs
     final userQuery = await _firestore.collection('utilisateurs').where('idExpert', isEqualTo: expertId).limit(1).get();
@@ -1879,12 +1931,13 @@ class FirestoreService {
     }
 
     // Auto-unlock hidden services if free limit frees up
+    final freeLimit = await getFreeServiceLimit();
     final allServicesQuery = await _firestore.collection('serviceExperts').where('idExpert', isEqualTo: expertId).get();
     final remainingServices = allServicesQuery.docs.where((doc) => doc.data()['idService'] != serviceId).toList();
     
     int visibleCount = remainingServices.where((doc) => (doc.data()['isVisibleByPlan'] ?? true) == true).length;
-    if (visibleCount < 3) {
-      int needed = 3 - visibleCount;
+    if (visibleCount < freeLimit) {
+      int needed = freeLimit - visibleCount;
       final hiddenServices = remainingServices.where((doc) => (doc.data()['isVisibleByPlan'] ?? true) == false).toList();
       
       // We can sort by createdAt to unlock the oldest hidden service first, or just take the first one
@@ -1902,29 +1955,30 @@ class FirestoreService {
   Future<bool> hasOngoingInterventionsForService(String expertId, String serviceId) async {
     try {
       // 1. Get all task IDs associated with this service for this expert
-      final tasksQuery = await _firestore.collection('tacheExperts')
+      final tasksQueryRaw = await _firestore.collection('tacheExperts')
           .where('idExpert', isEqualTo: expertId)
-          .where('idService', isEqualTo: serviceId)
           .get();
       
-      if (tasksQuery.docs.isEmpty) return false;
+      final tasksDocs = tasksQueryRaw.docs.where((doc) => doc.data()['idService'] == serviceId).toList();
       
-      final taskIds = tasksQuery.docs.map((doc) => doc.id).toList();
+      if (tasksDocs.isEmpty) return false;
+      
+      final taskIds = tasksDocs.map((doc) => doc.id).toList();
 
       // 2. Check interventions for any of these tasks that are not finished or cancelled
-      for (var i = 0; i < taskIds.length; i += 10) {
-        final chunk = taskIds.sublist(i, i + 10 > taskIds.length ? taskIds.length : i + 10);
-        
-        final ongoingQuery = await _firestore.collection('interventions')
-            .where('idExpert', isEqualTo: expertId)
-            .where('idTacheExpert', whereIn: chunk)
-            .where('statut', whereIn: ['EN_ATTENTE', 'ACCEPTEE'])
-            .get();
+      // We filter by idExpert (which should be indexed) and then check statut/task in Dart
+      final ongoingQueryRaw = await _firestore.collection('interventions')
+          .where('idExpert', isEqualTo: expertId)
+          .get();
 
-        if (ongoingQuery.docs.isNotEmpty) return true;
-      }
+      final hasOngoing = ongoingQueryRaw.docs.any((doc) {
+        final data = doc.data();
+        final statut = data['statut'];
+        final taskId = data['idTacheExpert'];
+        return taskIds.contains(taskId) && (statut == 'EN_ATTENTE' || statut == 'ACCEPTEE');
+      });
 
-      return false;
+      return hasOngoing;
     } catch (e) {
       debugPrint("Error checking ongoing interventions: $e");
       return false;

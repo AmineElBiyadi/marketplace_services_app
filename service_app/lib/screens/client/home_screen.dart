@@ -163,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez vous connecter pour chater')),
+        const SnackBar(content: Text('Please login to chat')),
       );
       return;
     }
@@ -205,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: _villesExperts.isEmpty
                       ? const Padding(
                     padding: EdgeInsets.all(16),
-                    child: Text('Aucune ville disponible'),
+                    child: Text('No cities available'),
                   )
                       : ListView.builder(
                     shrinkWrap: true,
@@ -352,7 +352,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             IconButton(
                               icon: const Icon(Icons.logout, color: Colors.white),
-                              tooltip: 'Se déconnecter',
+                              tooltip: 'Logout',
                               onPressed: () async {
                                 final prefs = await SharedPreferences.getInstance();
                                 await prefs.clear();
@@ -463,7 +463,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             : nearby.isEmpty
                                 ? const Center(child: Padding(
                                     padding: EdgeInsets.all(40.0),
-                                    child: Text('Aucun prestataire trouvé'),
+                                    child: const Text('No providers found'),
                                   ))
                                 : SizedBox(
                                     height: 240,
@@ -512,7 +512,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             : topRated.isEmpty
                                 ? const Center(child: Padding(
                                     padding: EdgeInsets.all(40.0),
-                                    child: Text('Aucun prestataire trouvé'),
+                                    child: const Text('No providers found'),
                                   ))
                                 : ListView.builder(
                                     padding: const EdgeInsets.symmetric(horizontal: 24),
