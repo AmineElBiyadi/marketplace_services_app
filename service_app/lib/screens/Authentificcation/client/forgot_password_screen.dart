@@ -64,7 +64,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           // No account found
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Aucun compte trouvé avec ce numéro.'),
+              content: Text('No account found with this number.'),
               backgroundColor: Color(0xFFEF4444),
             ));
           }
@@ -141,7 +141,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Réinitialiser le mot de passe',
+          'Reset Password',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w800,
@@ -150,7 +150,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'Entrez votre email ou numéro de téléphone',
+          'Enter your email or phone number',
           style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
         ),
         const SizedBox(height: 28),
@@ -160,7 +160,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           onChanged: (_) => setState(() {}),
           style: const TextStyle(fontSize: 15, color: Color(0xFF1A237E)),
           decoration: InputDecoration(
-            hintText: 'Email ou numéro de téléphone',
+            hintText: 'Email or phone number',
             hintStyle: const TextStyle(fontSize: 14, color: Color(0xFFADB5C7)),
             prefixIcon: const Icon(Icons.person_outline,
                 color: Color(0xFFADB5C7), size: 20),
@@ -204,7 +204,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         color: Colors.white, strokeWidth: 2.5),
                   )
                 : const Text(
-                    'Envoyer le lien',
+                    'Send Link',
                     style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -242,7 +242,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
         const SizedBox(height: 28),
         Text(
-          isEmail ? 'Vérifiez votre email' : 'Vérifiez votre téléphone',
+          isEmail ? 'Check your email' : 'Check your phone',
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 24,
@@ -253,8 +253,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         const SizedBox(height: 12),
         Text(
           isEmail
-              ? 'Un lien de réinitialisation a été envoyé à\n$_sentTo\n\nCliquez sur le lien dans l\'email pour créer un nouveau mot de passe.'
-              : 'Votre compte a été vérifié.\nContactez le support pour réinitialiser votre mot de passe par téléphone.',
+              ? 'A reset link has been sent to\n$_sentTo\n\nClick the link in the email to create a new password.'
+              : 'Your account has been verified.\nContact support to reset your password by phone.',
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 14,
@@ -275,7 +275,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               elevation: 0,
             ),
             child: const Text(
-              'Retour à la connexion',
+              'Back to Login',
               style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
@@ -288,7 +288,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           TextButton(
             onPressed: _sendReset,
             child: const Text(
-              "Renvoyer l'email",
+              "Resend email",
               style: TextStyle(
                   fontSize: 14,
                   color: Color(0xFF3F64B5),

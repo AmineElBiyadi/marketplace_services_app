@@ -106,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await _authService.signOut();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Identifiant ou mot de passe incorrect.'),
+          content: Text('Invalid ID or password.'),
           backgroundColor: AppColors.destructive,
         ));
       }
@@ -127,198 +127,187 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12),
-              // ── Back arrow ──
-              IconButton(
-                onPressed: () => context.canPop()
-                    ? context.pop()
-                    : context.go('/welcome'),
-                icon: const Icon(Icons.arrow_back,
-                    color: Color(0xFF1A237E), size: 24),
-                padding: EdgeInsets.zero,
-              ),
-              const SizedBox(height: 8),
-              // ── Illustration ──
-              Center(
-                child: Image.asset(
-                  'assets/logo.png',
-                  height: 80,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox(height: 80),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // ── Heading ──
-              const Text(
-                'Bon retour !',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1A237E),
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Connectez-vous pour continuer',
-                style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
-              ),
-              const SizedBox(height: 28),
-              // ── Identifier field (email or phone) ──
-              _field(
-                _identifierController,
-                'Email ou numéro de téléphone',
-                icon: Icons.person_outline,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 14),
-              // ── Password field ──
-              _field(
-                _passwordController,
-                'Mot de passe',
-                icon: Icons.lock_outline,
-                obscure: !_showPassword,
-                suffix: IconButton(
-                  icon: Icon(
-                    _showPassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: const Color(0xFF94A3B8),
-                    size: 20,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  // ── Back arrow ──
+                  IconButton(
+                    onPressed: () => context.canPop()
+                        ? context.pop()
+                        : context.go('/welcome'),
+                    icon: const Icon(Icons.arrow_back,
+                        color: Color(0xFF1A237E), size: 24),
+                    padding: EdgeInsets.zero,
                   ),
-                  onPressed: () =>
-                      setState(() => _showPassword = !_showPassword),
-                ),
-              ),
-              const SizedBox(height: 10),
-              // ── Forgot password ──
-              Align(
-                alignment: Alignment.centerRight,
-                child: GestureDetector(
-                  onTap: () => context.go('/forgot-password'),
-                  child: const Text(
-                    'Mot de passe oublié ?',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF3F64B5),
+                  const SizedBox(height: 8),
+                  // ── Illustration ──
+                  Center(
+                    child: Image.asset(
+                      'assets/logo.png',
+                      height: 80,
+                      errorBuilder: (context, error, stackTrace) => const SizedBox(height: 80),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // ── Login button ──
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _isValid && !_isLoading ? _handleLogin : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isValid
-                        ? const Color(0xFF3F64B5)
-                        : const Color(0xFF94A3B8),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30)),
-                    elevation: 0,
+                  const SizedBox(height: 20),
+                  // ── Heading ──
+                  const Text(
+                    'Welcome Back!',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1A237E),
+                    ),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2.5),
-                        )
-                      : const Text(
-                          'Se connecter',
-                          style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // ── Signup link ──
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text("Pas encore de compte ? ",
-                        style: TextStyle(
-                            fontSize: 14, color: Color(0xFF64748B))),
-                    GestureDetector(
-                      onTap: () => context.go('/signup'),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Log in to continue',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 28),
+                  // ── Identifier field (email or phone) ──
+                  _field(
+                    _identifierController,
+                    'Email or phone number',
+                    icon: Icons.person_outline,
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 14),
+                  // ── Password field ──
+                  _field(
+                    _passwordController,
+                    'Password',
+                    icon: Icons.lock_outline,
+                    obscure: !_showPassword,
+                    suffix: IconButton(
+                      icon: Icon(
+                        _showPassword
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: const Color(0xFF94A3B8),
+                        size: 20,
+                      ),
+                      onPressed: () =>
+                          setState(() => _showPassword = !_showPassword),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // ── Forgot password ──
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: () => context.go('/forgot-password'),
                       child: const Text(
-                        "S'inscrire",
+                        'Forgot password?',
                         style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                           color: Color(0xFF3F64B5),
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              // ── Divider ──
-              Row(
-                children: const [
-                  Expanded(child: Divider(color: Color(0xFFE2E8F0))),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('ou',
-                        style: TextStyle(
-                            fontSize: 13, color: Color(0xFF94A3B8))),
                   ),
-                  Expanded(child: Divider(color: Color(0xFFE2E8F0))),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // ── Provider button ──
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: OutlinedButton(
-                  onPressed: () => context.go('/provider/login'),
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFF9E6),
-                    side: const BorderSide(
-                        color: Color(0xFFE8C060), width: 1.5),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30)),
-                  ),
-                  child: const Text(
-                    "Accéder à l'espace Prestataire",
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF5D4037),
+                  const SizedBox(height: 20),
+                  // ── Login button ──
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: _isValid && !_isLoading ? _handleLogin : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _isValid
+                            ? const Color(0xFF3F64B5)
+                            : const Color(0xFF94A3B8),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30)),
+                        elevation: 0,
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white, strokeWidth: 2.5),
+                            )
+                          : const Text(
+                              'Login',
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white),
+                            ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              // ── Admin link (discreet) ──
-              Center(
-                child: TextButton.icon(
-                  onPressed: () => context.go('/admin/login'),
-                  icon: const Icon(Icons.shield_outlined,
-                      size: 14, color: Color(0xFF94A3B8)),
-                  label: const Text(
-                    'Espace Administration',
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF94A3B8),
-                        fontWeight: FontWeight.w500),
+                  const SizedBox(height: 16),
+                  // ── Signup link ──
+                  Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text("Don't have an account? ",
+                            style: TextStyle(
+                                fontSize: 14, color: Color(0xFF64748B))),
+                        GestureDetector(
+                          onTap: () => context.go('/signup'),
+                          child: const Text(
+                            "Sign up",
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF3F64B5),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 24),
+                  // ── Divider ──
+                  Row(
+                    children: const [
+                      Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('or',
+                            style: TextStyle(
+                                fontSize: 13, color: Color(0xFF94A3B8))),
+                      ),
+                      Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // ── Provider button ──
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: OutlinedButton(
+                      onPressed: () => context.go('/provider/login'),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFF9E6),
+                        side: const BorderSide(
+                            color: Color(0xFFE8C060), width: 1.5),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30)),
+                      ),
+                      child: const Text(
+                        "Access Provider Space",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF5D4037),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
         ),
       ),

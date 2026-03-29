@@ -39,7 +39,7 @@ class StartChatSheet extends StatefulWidget {
     final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
     if (uid.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vous devez être connecté.')),
+        const SnackBar(content: Text('You must be logged in.')),
       );
       return;
     }
@@ -88,7 +88,7 @@ class _StartChatSheetState extends State<StartChatSheet> {
   final _quartierCtrl   = TextEditingController();
   final _villeCtrl      = TextEditingController();
   final _cpCtrl         = TextEditingController();
-  final _paysCtrl       = TextEditingController(text: 'Maroc');
+  final _paysCtrl       = TextEditingController(text: 'Morocco');
   String? _addressFormError;
 
   @override
@@ -284,7 +284,7 @@ class _StartChatSheetState extends State<StartChatSheet> {
       if (!mounted) return;
       setState(() => _step = _Step.selectAddress);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -298,7 +298,7 @@ class _StartChatSheetState extends State<StartChatSheet> {
     final pays     = _paysCtrl.text.trim();
 
     if (rue.isEmpty || ville.isEmpty) {
-      setState(() => _addressFormError = 'Rue et Ville sont obligatoires.');
+      setState(() => _addressFormError = 'Street and City are required.');
       return;
     }
 
@@ -320,7 +320,7 @@ class _StartChatSheetState extends State<StartChatSheet> {
       }, newId);
     } catch (e) {
       if (!mounted) return;
-      setState(() { _step = _Step.selectAddress; _addressFormError = 'Erreur lors de la sauvegarde.'; });
+      setState(() { _step = _Step.selectAddress; _addressFormError = 'Error during saving.'; });
     }
   }
 
@@ -361,12 +361,12 @@ class _StartChatSheetState extends State<StartChatSheet> {
 
   Widget _buildHeader() {
     final titles = {
-      _Step.loading:       'Chargement…',
-      _Step.creating:      'Création en cours…',
-      _Step.existingChat:  'Chat en cours',
-      _Step.selectService: 'Choisir un service',
-      _Step.selectTask:    'Choisir une tâche',
-      _Step.selectAddress: 'Choisir une adresse',
+      _Step.loading:       'Loading...',
+      _Step.creating:      'Creating...',
+      _Step.existingChat:  'Active Chat',
+      _Step.selectService: 'Choose a service',
+      _Step.selectTask:    'Choose a task',
+      _Step.selectAddress: 'Choose an address',
     };
 
     return Padding(
@@ -421,7 +421,7 @@ class _StartChatSheetState extends State<StartChatSheet> {
               const CircularProgressIndicator(color: _kPrimary),
               const SizedBox(height: 16),
               Text(
-                _step == _Step.creating ? 'Création de votre demande…' : 'Vérification…',
+                _step == _Step.creating ? 'Creating your request...' : 'Checking...',
                 style: TextStyle(color: Colors.grey.shade600),
               ),
             ],
@@ -433,7 +433,7 @@ class _StartChatSheetState extends State<StartChatSheet> {
           return _ExistingChatPanel(
             chat: _existingChats.first,
             expertName: widget.expert.nom,
-            title: 'Vous avez déjà un chat actif pour cette tâche',
+            title: 'You already have an active chat for this task',
             onContinue: () {
               Navigator.pop(context);
               Navigator.push(
@@ -586,12 +586,12 @@ class _ExistingChatPanel extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title ?? 'Vous avez déjà un chat ouvert',
+                        title ?? 'You already have an open chat',
                         style: const TextStyle(fontWeight: FontWeight.bold, color: _kPrimary, fontSize: 15),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'avec $expertName',
+                        'with $expertName',
                         style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                       ),
                     ],
@@ -606,7 +606,7 @@ class _ExistingChatPanel extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: onContinue,
               icon: const Icon(Icons.chat_bubble, color: Colors.white, size: 18),
-              label: const Text('Continuer ce chat', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: const Text('Continue this chat', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _kPrimary,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -621,7 +621,7 @@ class _ExistingChatPanel extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: onNewChat,
               icon: const Icon(Icons.add_comment_outlined, color: _kPrimary, size: 18),
-              label: const Text('Nouveau chat', style: TextStyle(color: _kPrimary, fontWeight: FontWeight.bold)),
+              label: const Text('New chat', style: TextStyle(color: _kPrimary, fontWeight: FontWeight.bold)),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: _kPrimary),
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -656,7 +656,7 @@ class _ExistingChatsListPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Vous avez ${chats.length} chats actifs avec cet expert',
+            'You have ${chats.length} active chats with this expert',
             style: const TextStyle(fontWeight: FontWeight.bold, color: _kPrimary, fontSize: 16),
           ),
           const SizedBox(height: 16),
@@ -667,12 +667,12 @@ class _ExistingChatsListPanel extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final c = chats[index];
-                final serviceNom = c.tacheSnapshot?['serviceNom'] ?? 'Service générique';
+                final serviceNom = c.tacheSnapshot?['serviceNom'] ?? 'Generic service';
                 final taskNom = c.tacheSnapshot?['nom'] ?? 'Discussion';
                 return _SelectionCard(
                   icon: Icons.chat,
                   title: '$serviceNom - $taskNom',
-                  subtitle: c.dernierMessage?.contenu ?? 'Nouveau chat...',
+                  subtitle: c.dernierMessage?.contenu ?? 'New chat...',
                   onTap: () => onSelect(c),
                 );
               },
@@ -684,7 +684,7 @@ class _ExistingChatsListPanel extends StatelessWidget {
             child: OutlinedButton.icon(
               onPressed: onNewChat,
               icon: const Icon(Icons.add_comment_outlined, color: _kPrimary, size: 18),
-              label: const Text('Démarrer un nouveau chat (Autre service)', style: TextStyle(color: _kPrimary, fontWeight: FontWeight.bold)),
+              label: const Text('Start a new chat (Other service)', style: TextStyle(color: _kPrimary, fontWeight: FontWeight.bold)),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: _kPrimary),
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -711,7 +711,7 @@ class _ServiceList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (services.isEmpty) {
       return Center(
-        child: Text('Aucun service disponible.', style: TextStyle(color: Colors.grey.shade500)),
+        child: Text('No services available.', style: TextStyle(color: Colors.grey.shade500)),
       );
     }
     return ListView.separated(
@@ -745,7 +745,7 @@ class _TaskList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (tasks.isEmpty) {
       return Center(
-        child: Text('Aucune tâche disponible pour ce service.', style: TextStyle(color: Colors.grey.shade500)),
+        child: Text('No tasks available for this service.', style: TextStyle(color: Colors.grey.shade500)),
       );
     }
     return ListView.separated(
@@ -830,7 +830,7 @@ class _AddressList extends StatelessWidget {
                     color: _kPrimary),
                 const SizedBox(width: 12),
                 Text(
-                  showForm ? 'Masquer le formulaire' : '+ Ajouter une nouvelle adresse',
+                  showForm ? 'Hide form' : '+ Add a new address',
                   style: const TextStyle(color: _kPrimary, fontWeight: FontWeight.w600),
                 ),
               ],
@@ -850,13 +850,13 @@ class _AddressList extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _FormRow(controllers: [rueCtrl], labels: ['Rue']),
+                _FormRow(controllers: [rueCtrl], labels: ['Street']),
                 const SizedBox(height: 10),
-                _FormRow(controllers: [numCtrl, quartierCtrl], labels: ['N° Bâtiment', 'Quartier']),
+                _FormRow(controllers: [numCtrl, quartierCtrl], labels: ['Building No.', 'Neighborhood']),
                 const SizedBox(height: 10),
-                _FormRow(controllers: [villeCtrl, cpCtrl], labels: ['Ville', 'Code Postal']),
+                _FormRow(controllers: [villeCtrl, cpCtrl], labels: ['City', 'Postal Code']),
                 const SizedBox(height: 10),
-                _FormRow(controllers: [paysCtrl], labels: ['Pays']),
+                _FormRow(controllers: [paysCtrl], labels: ['Country']),
                 if (formError != null) ...[
                   const SizedBox(height: 8),
                   Text(formError!, style: const TextStyle(color: Colors.red, fontSize: 13)),
@@ -872,7 +872,7 @@ class _AddressList extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
                     ),
-                    child: const Text('Confirmer et créer le chat',
+                    child: const Text('Confirm and create chat',
                         style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ),

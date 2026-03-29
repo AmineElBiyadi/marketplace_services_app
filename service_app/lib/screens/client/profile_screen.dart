@@ -259,11 +259,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: Row(
                   children: [
-                    _buildStat(_bookingsCount.toString(), 'Réservations'),
+                    _buildStat(_bookingsCount.toString(), 'Bookings'),
                     _vDivider(),
                     _buildStat(
-                      _clientData?['Pays'] ?? _clientData?['pays'] ?? 'Maroc',
-                      'Pays',
+                      _clientData?['Pays'] ?? _clientData?['pays'] ?? 'Morocco',
+                      'Country',
                     ),
                   ],
                 ),
@@ -294,7 +294,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ),
                       child: const Text(
-                        'Modifier mon profil',
+                        'Edit Profile',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -352,43 +352,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         _menuItem(
           icon: LucideIcons.calendar,
-          title: 'Mes réservations',
+          title: 'My Bookings',
           onTap: () => context.push('/bookings-list'),
         ),
         _menuItem(
           icon: LucideIcons.mapPin,
-          title: 'Mes adresses',
+          title: 'My Addresses',
           onTap: () => Navigator.push(
               context, MaterialPageRoute(builder: (_) => const MyAddressesScreen())),
         ),
         _menuItem(
           icon: LucideIcons.star,
-          title: 'Mes avis',
+          title: 'My Reviews',
           onTap: () => Navigator.push(
               context, MaterialPageRoute(builder: (_) => const MyReviewsScreen())),
         ),
         _menuItem(
           icon: LucideIcons.alertCircle,
-          title: 'Mes réclamations',
+          title: 'My Complaints',
           onTap: () => Navigator.push(
               context, MaterialPageRoute(builder: (_) => const MyComplaintsScreen())),
         ),
         _menuItem(
           icon: LucideIcons.fileText,
-          title: 'CGU / Confidentialité',
+          title: 'T&C / Privacy',
           onTap: () => Navigator.push(
               context, MaterialPageRoute(builder: (_) => const ClientCguScreen())),
         ),
         _buildToggleItem(
           icon: LucideIcons.mapPin,
-          title: 'Utiliser ma localisation',
+          title: 'Use my location',
           value: _useLocation,
           onChanged: _toggleLocationPreference,
         ),
         const SizedBox(height: 16),
         _menuItem(
           icon: LucideIcons.logOut,
-          title: 'Se déconnecter',
+          title: 'Logout',
           textColor: const Color(0xFFEF4444),
           iconColor: const Color(0xFFEF4444),
           hideArrow: true,

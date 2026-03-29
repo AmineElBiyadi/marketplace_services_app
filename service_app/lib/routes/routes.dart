@@ -7,7 +7,7 @@ import '../screens/Authentificcation/provider/provider_login_screen.dart' as pro
 import '../screens/Authentificcation/provider/provider_signup_screen.dart' as provider_signup;
 import '../screens/Authentificcation/provider/provider_pending_screen.dart' as provider_pending;
 import '../screens/Authentificcation/client/welcome_screen.dart';
-import '../screens/Authentificcation/admin/admin_login_screen.dart' as admin_login;
+// import '../screens/Authentificcation/admin/admin_login_screen.dart' as admin_login;
 import '../screens/admin/admin_dashboard_screen.dart';
 import '../screens/admin/admin_users_screen.dart';
 import '../screens/admin/admin_providers_screen.dart';
@@ -72,7 +72,8 @@ class AppRoutes {
   static const String providerDeactivated = '/provider/deactivated';
   static const String notifications = '/notifications';
 
-  static const String adminLogin = '/admin/login';
+  // Admin (Unified through Expert login)
+  static const String adminLogin = '/provider/login'; 
   static const String adminDashboard = '/admin';
   static const String adminUsers = '/admin/users';
   static const String adminProviders = '/admin/providers';
@@ -114,16 +115,15 @@ class AppRouter {
         AppRoutes.providerLogin,
         AppRoutes.providerSignup,
         AppRoutes.providerPending,
-        AppRoutes.adminLogin,
         '/welcome',
       ];
 
       // 3. Protection Spécifique Admin
-      if (path.startsWith('/admin') && path != AppRoutes.adminLogin) {
+      if (path.startsWith('/admin')) {
         final prefs = await SharedPreferences.getInstance();
         final adminId = prefs.getString('logged_admin_id');
         if (adminId == null || adminId.isEmpty) {
-          return AppRoutes.adminLogin;
+          return AppRoutes.providerLogin;
         }
         return null; 
       }
@@ -348,11 +348,13 @@ class AppRouter {
         },
       ),
 
-      // ── Admin ──
+      // Admin login removed (unified via providerLogin)
+      /*
       GoRoute(
         path: AppRoutes.adminLogin,
         builder: (context, state) => const admin_login.AdminLoginScreen(),
       ),
+      */
       GoRoute(
         path: AppRoutes.adminDashboard,
         pageBuilder: (context, state) => const NoTransitionPage(child: AdminDashboardScreen()),
