@@ -97,8 +97,8 @@ class ChatService {
     final email = user.email!;
     QuerySnapshot userQuery;
 
-    if (email.endsWith('@proxy.app.com')) {
-      final phoneString = email.replaceAll('@proxy.app.com', '');
+    if (email.endsWith('@proxy.marketplace.app')) {
+      final phoneString = email.replaceAll('@proxy.marketplace.app', '');
       userQuery = await _db
           .collection('utilisateurs')
           .where('telephone', isEqualTo: '+$phoneString')

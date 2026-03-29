@@ -498,7 +498,7 @@ class FirestoreService {
     try {
       QuerySnapshot userQuery;
       
-      if (email.endsWith('@proxy.app.com')) {
+      if (email.endsWith('@proxy.marketplace.app')) {
         final phonePart = email.split('@')[0];
         debugPrint("[FirestoreService] Phone-based proxy detected: $phonePart");
         
