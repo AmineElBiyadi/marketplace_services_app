@@ -76,7 +76,10 @@ class _ProviderLayoutState extends State<ProviderLayout> {
             child: Column(
               children: [
                 Expanded(
-                  child: widget.child,
+                  child: SafeArea(
+                    bottom: false, // BottomNav handles bottom safe area
+                    child: widget.child,
+                  ),
                 ),
                 if (isMobile && widget.showBottomNav)
                   ProviderBottomNav(

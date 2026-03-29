@@ -166,7 +166,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           bottomRight: Radius.circular(40),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(24, 60, 24, 30),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 30),
       child: Column(
         children: [
           Row(
@@ -217,7 +217,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
-                              _isPremium ? "Premium ⭐" : "Gratuit",
+                              _isPremium ? "Premium ⭐" : "Free",
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: Colors.white,
@@ -248,7 +248,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                                       size: 14, color: Color(0xFF92400E)),
                                   const SizedBox(width: 4),
                                   Text(
-                                    'Grâce – J-${_graceRemainingDays}',
+                                    'Grace – D-${_graceRemainingDays}',
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: Color(0xFF92400E), // Brown text
@@ -654,7 +654,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  "Erreur Firestore : ${snapshot.error}",
+                  "Firestore Error : ${snapshot.error}",
                   style: TextStyle(color: Colors.red[700], fontSize: 11),
                 ),
               );

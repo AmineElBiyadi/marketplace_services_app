@@ -87,17 +87,17 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
           
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Image de profil mise à jour avec succès!"), backgroundColor: Colors.green),
+              const SnackBar(content: Text("Profile picture updated successfully!"), backgroundColor: Colors.green),
             );
           }
         } else {
-          throw Exception("Échec de l'upload sur Cloudinary.");
+          throw Exception("Failed to upload image.");
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erreur: $e"), backgroundColor: Colors.red),
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -130,26 +130,24 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       expertId: widget.expertId,
       child: Scaffold(
         backgroundColor: Colors.white,
-        body: SafeArea(
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                _buildHeader(
-                  context,
-                  fullName: fullName,
-                  serviceCategory: serviceCategory,
-                  rating: rating,
-                  reviewsCount: _reviewsCount,
-                  city: city,
-                  photoUrl: photoUrl,
-                  isPremium: isPremium,
-                ),
-                const SizedBox(height: 24),
-                _buildMenuSection(context),
-                const SizedBox(height: 80),
-              ],
-            ),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              _buildHeader(
+                context,
+                fullName: fullName,
+                serviceCategory: serviceCategory,
+                rating: rating,
+                reviewsCount: _reviewsCount,
+                city: city,
+                photoUrl: photoUrl,
+                isPremium: isPremium,
+              ),
+              const SizedBox(height: 24),
+              _buildMenuSection(context),
+              const SizedBox(height: 80),
+            ],
           ),
         ),
       ),
@@ -310,7 +308,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   context.push('/experts/${widget.expertId}', extra: _expertData);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Chargement des données du profil...")),
+                    const SnackBar(content: Text("Loading profile data...")),
                   );
                 }
               },
@@ -479,23 +477,23 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
         ),
         _buildMenuItem(
           icon: LucideIcons.alertTriangle,
-          title: "Désactiver mon compte",
+          title: "Deactivate my account",
           onTap: () => _showDeactivateDialog(context),
           textColor: Colors.orange,
           iconColor: Colors.orange,
         ),
         _buildMenuItem(
           icon: LucideIcons.logOut,
-          title: "Se déconnecter",
+          title: "Log out",
           onTap: () async {
             bool confirm = await showDialog(
               context: context,
               builder: (ctx) => AlertDialog(
-                title: const Text("Déconnexion"),
-                content: const Text("Voulez-vous vraiment vous déconnecter?"),
+                title: const Text("Log out"),
+                content: const Text("Are you sure you want to log out?"),
                 actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Annuler")),
-                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Déconnexion", style: TextStyle(color: Colors.red))),
+                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
+                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Log out", style: TextStyle(color: Colors.red))),
                 ],
               ),
             ) ?? false;
@@ -516,18 +514,18 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Désactiver mon compte"),
+        title: const Text("Deactivate my account"),
         content: const Text(
-          "Êtes-vous sûr de vouloir désactiver votre compte ? Votre profil ne sera plus visible par les clients. Vous pourrez le réactiver à tout moment.",
+          "Are you sure you want to deactivate your account? Your profile will no longer be visible to clients. You can reactivate it at any time.",
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Annuler")),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
               _handleDeactivate();
             },
-            child: const Text("Désactiver", style: TextStyle(color: Colors.orange)),
+            child: const Text("Deactivate", style: TextStyle(color: Colors.orange)),
           ),
         ],
       ),
@@ -543,7 +541,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Erreur: $e"), backgroundColor: Colors.red),
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
         );
       }
     }

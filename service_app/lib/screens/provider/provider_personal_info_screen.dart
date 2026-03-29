@@ -36,7 +36,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
   
   // Address fields
   final TextEditingController _villeCtrl = TextEditingController();
-  final TextEditingController _paysCtrl = TextEditingController(text: 'Maroc');
+  final TextEditingController _paysCtrl = TextEditingController(text: 'Morocco');
   final TextEditingController _numBatCtrl = TextEditingController();
   final TextEditingController _rueCtrl = TextEditingController();
   final TextEditingController _quartierCtrl = TextEditingController();
@@ -81,7 +81,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
           
           if (addressData != null) {
             _villeCtrl.text = addressData['Ville'] ?? _expertData?.ville.split(',').first ?? 'Casablanca';
-            _paysCtrl.text = addressData['Pays'] ?? 'Maroc';
+            _paysCtrl.text = addressData['Pays'] ?? 'Morocco';
             _numBatCtrl.text = addressData['NumBatiment'] ?? '';
             _rueCtrl.text = addressData['Rue'] ?? '';
             _quartierCtrl.text = addressData['Quartier'] ?? '';
@@ -91,7 +91,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
             }
           } else {
             _villeCtrl.text = _expertData?.ville.split(',').first ?? 'Casablanca';
-            _paysCtrl.text = 'Maroc';
+            _paysCtrl.text = 'Morocco';
             _rueCtrl.text = _expertData?.ville ?? '';
           }
           
@@ -311,7 +311,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
           decoration: InputDecoration(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             filled: !enabled,
-            fillColor: enabled ? Colors.transparent : const Color(0xFFF1F5F9), // Fond grisé
+            fillColor: enabled ? Colors.transparent : const Color(0xFFF1F5F9), // Grayed out background
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(20),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -498,7 +498,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
       final pos = await _locationService.getCurrentPosition();
       GeoPoint? geoPoint;
       String city = _villeCtrl.text.trim();
-      String country = _paysCtrl.text.trim().isEmpty ? 'Maroc' : _paysCtrl.text.trim();
+      String country = _paysCtrl.text.trim().isEmpty ? 'Morocco' : _paysCtrl.text.trim();
       double lat = 31.7917;
       double lng = -7.0926;
 
@@ -511,7 +511,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
           if (placemarks.isNotEmpty) {
             final p = placemarks.first;
             city = p.administrativeArea ?? p.locality ?? '';
-            country = p.country ?? 'Maroc';
+            country = p.country ?? 'Morocco';
           }
         } catch (_) {}
 
@@ -519,7 +519,7 @@ class _ProviderPersonalInfoScreenState extends State<ProviderPersonalInfoScreen>
           final fb = await _fallbackReverseGeocode(pos.latitude, pos.longitude);
           if (fb != null) {
             city = fb['locality'] ?? '';
-            country = fb['country'] ?? 'Maroc';
+            country = fb['country'] ?? 'Morocco';
           }
         }
       } else if (city.isNotEmpty) {

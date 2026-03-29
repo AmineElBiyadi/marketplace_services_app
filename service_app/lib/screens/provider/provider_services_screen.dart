@@ -945,13 +945,13 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                 const SizedBox(width: 8),
                 const Expanded(
                   child: Text(
-                    "Passez au Premium pour rendre toutes vos photos visibles !",
+                    "Upgrade to Premium to make all your photos visible!",
                     style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                 ),
                 TextButton(
                   onPressed: () => context.push('/provider/${widget.expertId}/subscription'),
-                  child: const Text("Passer au Premium", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.orange)),
+                  child: const Text("Upgrade to Premium", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.orange)),
                 ),
               ],
             ),
@@ -1220,11 +1220,11 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                         const Icon(Icons.info_outline, color: Colors.orange),
                         const SizedBox(width: 12),
                         const Expanded(
-                          child: Text("Abonnement suspendu, réactivez pour retrouver tous vos services.", style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 13, height: 1.4)),
+                          child: Text("Subscription suspended, reactivate to restore all your services.", style: TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.bold, fontSize: 13, height: 1.4)),
                         ),
                         TextButton(
                           onPressed: () => context.push('/provider/${widget.expertId}/subscription'),
-                          child: const Text("Réactiver", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                          child: const Text("Reactivate", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
                         )
                       ],
                     ),
@@ -1482,7 +1482,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                       color: Colors.orange.shade100,
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Text("Masqué (Plan)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                    child: const Text("Hidden (Plan)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
                   ),
                 ],
                 const Spacer(),
@@ -1539,7 +1539,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
     // Build a map of taskId -> taskName for labeling images
     final Map<String, String> taskIdToName = {};
     for (var t in tasks) {
-      taskIdToName[t['id']?.toString() ?? ''] = t['nom']?.toString() ?? 'Tâche';
+      taskIdToName[t['id']?.toString() ?? ''] = t['nom']?.toString() ?? 'Task';
     }
 
     showDialog(
@@ -1580,7 +1580,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                         const SizedBox(width: 14),
                         Expanded(
                           child: Text(
-                            service['serviceName'] ?? 'Détails du service',
+                            service['serviceName'] ?? 'Service details',
                             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
                             overflow: TextOverflow.ellipsis,
                           ),

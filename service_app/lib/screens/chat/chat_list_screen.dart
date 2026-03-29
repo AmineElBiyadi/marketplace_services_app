@@ -65,174 +65,213 @@ class ChatListScreen extends StatelessWidget {
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.chat_bubble_outline,
-                      size: 70, color: Colors.grey[300]),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'No conversations yet.',
-                    style: TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w500),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (currentUserRole == 'expert')
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 32, 20, 0),
+                    child: Text(
+                      "Messages",
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    currentUserRole == 'client'
-                        ? 'Contact an expert from the home screen.'
-                        : 'Clients will contact you here.',
-                    style: const TextStyle(color: Colors.grey),
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.chat_bubble_outline,
+                            size: 70, color: Colors.grey[300]),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'No conversations yet.',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          currentUserRole == 'client'
+                              ? 'Contact an expert from the home screen.'
+                              : 'Clients will contact you here.',
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             );
           }
 
           final chats = snapshot.data!;
 
-          return ListView.separated(
-            itemCount: chats.length,
-            separatorBuilder: (_, __) =>
-                const Divider(height: 1, indent: 72),
-            itemBuilder: (context, index) {
-              final chat = chats[index];
-              final currentUserId = chatService.currentUserId;
-
-              final otherName = currentUserRole == 'client'
-                  ? chat.expertSnapshot.nom
-                  : chat.clientSnapshot.nom;
-              final otherPhoto = currentUserRole == 'client'
-                  ? chat.expertSnapshot.photo
-                  : chat.clientSnapshot.photo;
-
-              final lastText =
-                  chat.dernierMessage?.contenu ?? 'No messages';
-              final lastTime = chat.updatedAt.toDate();
-              final unread = chat.nbMessagesNonLus;
-
-              // Only show unread badge if the last message was NOT sent by me
-              final isLastMessageMine =
-                  chat.dernierMessage?.senderId == currentUserId;
-              final showUnread = unread > 0 && !isLastMessageMine;
-
-              final serviceNom = chat.tacheSnapshot?['serviceNom'] as String? ?? 'Demande';
-              final taskNom = chat.tacheSnapshot?['nom'] as String? ?? 'Discussion générale';
-              final hasTaskInfo = true;
-
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 6),
-                leading: _buildAvatar(otherPhoto, otherName, chat.estOuvert),
-                title: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        otherName.isNotEmpty ? otherName : 'User',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (currentUserRole == 'expert')
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 32, 20, 0),
+                  child: Text(
+                    "Messages",
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1E293B),
                     ),
-                    if (hasTaskInfo)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        margin: const EdgeInsets.only(left: 6),
-                        decoration: BoxDecoration(
-                          color: _primaryBlue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '$serviceNom',
-                          style: const TextStyle(fontSize: 10, color: _primaryBlue, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (hasTaskInfo)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 2),
-                        child: Text(
-                          taskNom!,
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
-                        ),
-                      ),
-                    Row(
-                      children: [
-                        if (!chat.estOuvert)
-                          const Padding(
-                            padding: EdgeInsets.only(right: 4),
-                            child: Icon(Icons.lock_outline,
-                                size: 12, color: Colors.grey),
+              Expanded(
+                child: ListView.separated(
+                  padding: currentUserRole == 'expert' ? const EdgeInsets.only(top: 16) : null,
+                  itemCount: chats.length,
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 1, indent: 72),
+                  itemBuilder: (context, index) {
+                    final chat = chats[index];
+                    final currentUserId = chatService.currentUserId;
+
+                    final otherName = currentUserRole == 'client'
+                        ? chat.expertSnapshot.nom
+                        : chat.clientSnapshot.nom;
+                    final otherPhoto = currentUserRole == 'client'
+                        ? chat.expertSnapshot.photo
+                        : chat.clientSnapshot.photo;
+
+                    final lastText =
+                        chat.dernierMessage?.contenu ?? 'No messages';
+                    final lastTime = chat.updatedAt.toDate();
+                    final unread = chat.nbMessagesNonLus;
+
+                    // Only show unread badge if the last message was NOT sent by me
+                    final isLastMessageMine =
+                        chat.dernierMessage?.senderId == currentUserId;
+                    final showUnread = unread > 0 && !isLastMessageMine;
+
+                    final serviceNom = chat.tacheSnapshot?['serviceNom'] as String? ?? 'Request';
+                    final taskNom = chat.tacheSnapshot?['nom'] as String? ?? 'General discussion';
+                    final hasTaskInfo = true;
+
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
+                      leading: _buildAvatar(otherPhoto, otherName, chat.estOuvert),
+                      title: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              otherName.isNotEmpty ? otherName : 'User',
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        Expanded(
-                          child: Text(
-                            lastText,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          if (hasTaskInfo)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              margin: const EdgeInsets.only(left: 6),
+                              decoration: BoxDecoration(
+                                color: _primaryBlue.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '$serviceNom',
+                                style: const TextStyle(fontSize: 10, color: _primaryBlue, fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                        ],
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (hasTaskInfo)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 2),
+                              child: Text(
+                                taskNom,
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                              ),
+                            ),
+                          Row(
+                            children: [
+                              if (!chat.estOuvert)
+                                const Padding(
+                                  padding: EdgeInsets.only(right: 4),
+                                  child: Icon(Icons.lock_outline,
+                                      size: 12, color: Colors.grey),
+                                ),
+                              Expanded(
+                                child: Text(
+                                  lastText,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: showUnread
+                                        ? Colors.black87
+                                        : Colors.grey[600],
+                                    fontWeight: showUnread
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            _formatTime(lastTime),
                             style: TextStyle(
-                              color: showUnread
-                                  ? Colors.black87
-                                  : Colors.grey[600],
+                              fontSize: 11,
+                              color: showUnread ? _primaryBlue : Colors.grey,
                               fontWeight: showUnread
-                                  ? FontWeight.w600
+                                  ? FontWeight.bold
                                   : FontWeight.normal,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      _formatTime(lastTime),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: showUnread ? _primaryBlue : Colors.grey,
-                        fontWeight: showUnread
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                          if (showUnread) ...[
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              decoration: const BoxDecoration(
+                                color: _primaryBlue,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '$unread',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ),
-                    if (showUnread) ...[
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.all(5),
-                        decoration: const BoxDecoration(
-                          color: _primaryBlue,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '$unread',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ChatScreen(
+                              chat: chat,
+                              currentUserRole: currentUserRole,
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
-                  ],
+                        );
+                      },
+                    );
+                  },
                 ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatScreen(
-                        chat: chat,
-                        currentUserRole: currentUserRole,
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
+              ),
+            ],
           );
         },
       ),

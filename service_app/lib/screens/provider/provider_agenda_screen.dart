@@ -18,7 +18,7 @@ class ProviderAgendaScreen extends StatefulWidget {
 
 class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
   final FirestoreService _firestoreService = FirestoreService();
-  final List<String> _weekDaysShort = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+  final List<String> _weekDaysShort = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   final List<int> _hours = List.generate(12, (i) => i + 7); // 7h - 18h
 
   DateTime _gridDate = DateTime.now();
@@ -133,7 +133,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                       stream: _interventionsStream,
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
-                          return Center(child: Text("Erreur: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
+                          return Center(child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
                         }
                         
                         // Only update cache if the data belongs to the current query month
@@ -206,14 +206,14 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
           ),
           const SizedBox(height: 24),
           const Text(
-            "Disponible avec le pack Premium",
+            "Available with Premium pack",
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
           ),
           const SizedBox(height: 12),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-              "Accédez aux statistiques avancées pour booster votre activité",
+              "Access advanced statistics to boost\nyour activity",
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
             ),
@@ -225,7 +225,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
             child: ElevatedButton.icon(
               onPressed: () => context.push('/provider/$_resolvedExpertId/subscription'),
               icon: const Icon(Icons.workspace_premium_rounded, size: 18),
-              label: const Text("Passer Premium", style: TextStyle(fontWeight: FontWeight.bold)),
+              label: const Text("Go Premium", style: TextStyle(fontWeight: FontWeight.bold)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
@@ -249,12 +249,12 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
       child: Row(
         children: [
           const Text(
-            "Mon Agenda",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
+            "My Agenda",
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
           ),
           const Spacer(),
           Text(
-            DateFormat('MMMM yyyy', 'fr').format(_queryDate).toUpperCase(),
+            DateFormat('MMMM yyyy', 'en_US').format(_queryDate).toUpperCase(),
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
           ),
           const SizedBox(width: 8),
@@ -276,8 +276,8 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
   }
 
   Widget _buildWeekPicker() {
-    final start = DateFormat('dd MMM', 'fr').format(_startOfWeek);
-    final end = DateFormat('dd MMM yyyy', 'fr').format(_endOfWeek);
+    final start = DateFormat('dd MMM', 'en_US').format(_startOfWeek);
+    final end = DateFormat('dd MMM yyyy', 'en_US').format(_endOfWeek);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -287,7 +287,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
         children: [
           IconButton(onPressed: _previousWeek, icon: const Icon(LucideIcons.arrowLeft, size: 16)),
           Text(
-            "Semaine du $start au $end",
+            "Week of $start to $end",
             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey),
           ),
           IconButton(onPressed: _nextWeek, icon: const Icon(LucideIcons.arrowRight, size: 16)),
@@ -440,7 +440,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              "Toutes les interventions du mois",
+              "All interventions of the month",
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
             ),
             _badge("${interventions.length}", AppColors.primary),
@@ -450,7 +450,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
         if (sorted.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 32),
-            child: Center(child: Text("Aucune intervention ce mois", style: TextStyle(color: Colors.grey, fontSize: 13))),
+            child: Center(child: Text("No interventions this month", style: TextStyle(color: Colors.grey, fontSize: 13))),
           )
         else
           ...sorted.map((interv) => GestureDetector(
@@ -484,7 +484,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B), fontSize: 13),
                         ),
                         Text(
-                          "${DateFormat('dd/MM HH:mm', 'fr').format(interv.dateDebutIntervention!)} • ${interv.clientSnapshot?['nom'] ?? 'Client'}",
+                          "${DateFormat('dd/MM HH:mm', 'en_US').format(interv.dateDebutIntervention!)} • ${interv.clientSnapshot?['nom'] ?? 'Client'}",
                           style: const TextStyle(fontSize: 11, color: Colors.grey),
                         ),
                       ],
@@ -535,7 +535,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
             children: [
               Icon(LucideIcons.info, color: _getStatusColor(interv.statut)),
               const SizedBox(width: 12),
-              const Text("Détails de l'intervention", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              const Text("Intervention Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ],
           ),
         ),
@@ -547,18 +547,18 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
               _modalHeader(interv),
               const Divider(height: 32),
               _detailRow("Service", interv.tacheSnapshot?['serviceNom']),
-              _detailRow("Date", DateFormat('dd MMMM yyyy', 'fr').format(interv.dateDebutIntervention!)),
-              _detailRow("Horaire", "${DateFormat('HH:mm').format(interv.dateDebutIntervention!)} - ${DateFormat('HH:mm').format(interv.dateFinIntervention ?? interv.dateDebutIntervention!.add(const Duration(hours: 1)))}"),
-              _detailRow("Prix", "${interv.prixNegocie} DH"),
-              _detailRow("Statut", interv.statut),
+              _detailRow("Date", DateFormat('dd MMMM yyyy', 'en_US').format(interv.dateDebutIntervention!)),
+              _detailRow("Schedule", "${DateFormat('HH:mm').format(interv.dateDebutIntervention!)} - ${DateFormat('HH:mm').format(interv.dateFinIntervention ?? interv.dateDebutIntervention!.add(const Duration(hours: 1)))}"),
+              _detailRow("Price", "${interv.prixNegocie} DH"),
+              _detailRow("Status", interv.statut),
               const SizedBox(height: 8),
-              Text("ID Document: ${interv.id}", style: const TextStyle(fontSize: 9, color: Colors.grey, fontStyle: FontStyle.italic)),
+              Text("Document ID: ${interv.id}", style: const TextStyle(fontSize: 9, color: Colors.grey, fontStyle: FontStyle.italic)),
               const SizedBox(height: 12),
               const Text("CLIENT", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1.2)),
               const SizedBox(height: 8),
               _clientCard(interv.clientSnapshot),
               const SizedBox(height: 20),
-              const Text("ADRESSE", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1.2)),
+              const Text("ADDRESS", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1.2)),
               const SizedBox(height: 8),
               _locationCard(interv.adresseSnapshot),
             ],
@@ -567,7 +567,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Fermer", style: TextStyle(color: Colors.grey)),
+            child: const Text("Close", style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -623,8 +623,8 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(client?['nom'] ?? 'Client inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                Text(client?['telephone'] ?? 'Pas de numéro', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                Text(client?['nom'] ?? 'Unknown client', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(client?['telephone'] ?? 'No phone number', style: const TextStyle(fontSize: 12, color: Colors.grey)),
               ],
             ),
           ),
