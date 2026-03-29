@@ -1396,16 +1396,15 @@ class AdminDashboardService {
   }
 
   Future<void> updateService(String id, Map<String, dynamic> data) async {
+    final serviceDoc = await _db.collection('services').doc(id).get();
+    final serviceName = serviceDoc.data()?['nom'] ?? 'Service';
     await _db.collection('services').doc(id).update(data);
 
     // Si on désactive le service, on désactive uniquement les tâches catalogue (idExpert == "").
-    // Les tâches créées par les experts (idExpert != "") ne sont PAS touchées,
-    // car elles ont leur propre cycle de vie et ne peuvent pas être "débloquées" lors de la réactivation.
     if (data.containsKey('estActive') && data['estActive'] == false) {
       final batch = _db.batch();
 
       // 1. Désactiver uniquement les tâches catalogue (idExpert == "" ou null)
-      // On filtre en Dart pour éviter d'avoir besoin d'un index composite Firestore
       final tasksSnap = await _db
           .collection('taches')
           .where('idService', isEqualTo: id)
@@ -1425,15 +1424,34 @@ class AdminDashboardService {
           .collection('tacheExperts')
           .where('idService', isEqualTo: id)
           .get();
+      
+      final Set<String> expertIdsToNotify = {};
       for (var doc in tacheExpertsSnap.docs) {
         batch.update(doc.reference, {
           'estActive': false,
           'updatedAt': FieldValue.serverTimestamp(),
         });
+        final expertId = doc.data()['idExpert'];
+        if (expertId != null) expertIdsToNotify.add(expertId);
       }
 
       if (tasksSnap.docs.isNotEmpty || tacheExpertsSnap.docs.isNotEmpty) {
         await batch.commit();
+      }
+
+      // Notify Experts
+      for (String expertId in expertIdsToNotify) {
+        final expertDoc = await _db.collection('experts').doc(expertId).get();
+        final userId = expertDoc.data()?['idUtilisateur'];
+        if (userId != null) {
+          await _notificationService.sendNotification(
+            idUtilisateur: userId,
+            titre: "Service Désactivé : $serviceName",
+            corps: "L'administration a désactivé le service '$serviceName'. Vous ne recevrez plus de nouvelles demandes pour ce service. Les interventions en cours doivent être terminées.",
+            type: "SERVICE_DEACTIVATED",
+            relatedId: id,
+          );
+        }
       }
     }
   }
@@ -1476,6 +1494,9 @@ class AdminDashboardService {
   }
 
   Future<void> updateTask(String id, Map<String, dynamic> data) async {
+    final taskDoc = await _db.collection('taches').doc(id).get();
+    final taskName = taskDoc.data()?['nom'] ?? 'Tâche';
+
     await _db.collection('taches').doc(id).update({
       ...data,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -1492,13 +1513,32 @@ class AdminDashboardService {
 
         if (tacheExpertsSnap.docs.isNotEmpty) {
           final batch = _db.batch();
+          final Set<String> expertIdsToNotify = {};
+
           for (var doc in tacheExpertsSnap.docs) {
             batch.update(doc.reference, {
               'estActive': false,
               'updatedAt': FieldValue.serverTimestamp(),
             });
+            final expertId = doc.data()['idExpert'];
+            if (expertId != null) expertIdsToNotify.add(expertId);
           }
           await batch.commit();
+
+          // Notify Experts
+          for (String expertId in expertIdsToNotify) {
+            final expertDoc = await _db.collection('experts').doc(expertId).get();
+            final userId = expertDoc.data()?['idUtilisateur'];
+            if (userId != null) {
+              await _notificationService.sendNotification(
+                idUtilisateur: userId,
+                titre: "Tâche Désactivée : $taskName",
+                corps: "L'administration a désactivé la tâche '$taskName'. Vous ne recevrez plus de nouvelles demandes pour cette tâche. Les interventions en cours doivent être terminées.",
+                type: "TASK_DEACTIVATED",
+                relatedId: id,
+              );
+            }
+          }
         }
       }
     }

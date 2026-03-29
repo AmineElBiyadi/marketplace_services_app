@@ -4,6 +4,7 @@ import '../../../theme/app_colors.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
 import '../../../utils/auth_errors.dart';
+import '../../../services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -55,6 +56,9 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final uid = _authService.currentUser!.uid;
+
+      // Sync FCM Token for Notifications
+      await NotificationService.updateUserToken(uid);
 
       // Try client first
       final clientData = await _firestoreService.getClientByUid(uid);

@@ -45,6 +45,7 @@ import '../services/maintenance_service.dart';
 import '../screens/maintenance_screen.dart';
 import '../screens/client/expert_details_screen.dart';
 import '../models/expert.dart';
+import '../layouts/provider_layout.dart';
 
 // ─── Route name constants ──────────────────────────────────────────
 class AppRoutes {
@@ -332,7 +333,11 @@ class AppRouter {
         path: AppRoutes.providerMessages,
         builder: (context, state) {
           final expertId = state.pathParameters['expertId'] ?? '';
-          return ChatListScreen(currentUserRole: 'expert', expertId: expertId);
+          return ProviderLayout(
+            activeRoute: AppRoutes.providerMessages.replaceAll(':expertId', expertId),
+            expertId: expertId,
+            child: ChatListScreen(currentUserRole: 'expert', expertId: expertId),
+          );
         },
       ),
       GoRoute(
