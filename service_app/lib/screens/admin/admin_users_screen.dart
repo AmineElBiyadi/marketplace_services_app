@@ -28,9 +28,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   List<Map<String, dynamic>> _allUsers = [];
   List<Map<String, dynamic>> _filteredUsers = [];
   final TextEditingController _searchController = TextEditingController();
-  String _selectedRole = 'Tous';
-  String _selectedStatus = 'Tous';
-  String _selectedSort = 'Plus récents';
+  String _selectedRole = 'All';
+  String _selectedStatus = 'All';
+  String _selectedSort = 'Newest';
 
   @override
   void initState() {
@@ -42,10 +42,22 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     setState(() => _loading = true);
     try {
       final users = await _service.getAllUsers();
+      
+      // Normalize statuses in memory
+      final normalizedUsers = users.map((u) {
+        final rawStatus = (u['status'] ?? '').toString().toUpperCase();
+        String normalizedStatus = rawStatus;
+        if (rawStatus == 'ACTIVE') normalizedStatus = 'ACTIVE';
+        else if (rawStatus == 'SUSPENDUE' || rawStatus == 'SUSPENDED') normalizedStatus = 'SUSPENDED';
+        else if (rawStatus == 'DESACTIVE' || rawStatus == 'INACTIVE') normalizedStatus = 'DEACTIVATED';
+        
+        return {...u, 'status': normalizedStatus};
+      }).toList();
+
       if (mounted) {
         setState(() {
-          _allUsers = users;
-          _filteredUsers = users;
+          _allUsers = normalizedUsers;
+          _filteredUsers = normalizedUsers;
           _loading = false;
         });
       }
@@ -60,13 +72,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       _loadData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Statut mis à jour : $newStatus'), backgroundColor: Colors.green),
+          SnackBar(content: Text('Status updated: $newStatus'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erreur lors de la mise à jour'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Error during update'), backgroundColor: Colors.red),
         );
       }
     }
@@ -77,14 +89,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     setState(() {
       _filteredUsers = _allUsers.where((user) {
         final nameMatches = (user['name'] ?? '').toLowerCase().contains(query);
-        final roleMatches = _selectedRole == 'Tous' || (user['type'] == _selectedRole);
-        final statusMatches = _selectedStatus == 'Tous' || (user['status'] == _selectedStatus);
+        final roleMatches = _selectedRole == 'All' || (user['type'] == _selectedRole);
+        final statusMatches = _selectedStatus == 'All' || (user['status'] == _selectedStatus);
         return nameMatches && roleMatches && statusMatches;
       }).toList();
       
-      if (_selectedSort == 'Plus récents') {
+      if (_selectedSort == 'Newest') {
         _filteredUsers.sort((a, b) => (b['rawDate'] as DateTime).compareTo(a['rawDate'] as DateTime));
-      } else if (_selectedSort == 'Plus anciens') {
+      } else if (_selectedSort == 'Oldest') {
         _filteredUsers.sort((a, b) => (a['rawDate'] as DateTime).compareTo(b['rawDate'] as DateTime));
       }
     });
@@ -111,8 +123,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   Widget _buildTopBar(bool isMobile) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: isMobile ? 48 : 64,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
       decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: _border))),
       child: Row(
         children: [
@@ -125,7 +137,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             ),
           Expanded(
             child: Text(
-              'Gestion des Clients', 
+              'Customer Management', 
               style: TextStyle(
                 fontSize: isMobile ? 16 : 18, 
                 fontWeight: FontWeight.bold, 
@@ -141,7 +153,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               child: ElevatedButton.icon(
                 onPressed: _exportUsers,
                 icon: const Icon(LucideIcons.fileText, size: 14),
-                label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                label: const Text('Export PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _textPrimary,
                   foregroundColor: Colors.white,
@@ -181,7 +193,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                       controller: _searchController,
                       onChanged: (_) => _applyFilters(),
                       decoration: InputDecoration(
-                        hintText: 'Rechercher par nom...',
+                        hintText: 'Search by name...',
                         prefixIcon: const Icon(LucideIcons.search, size: 18),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                         filled: true,
@@ -192,8 +204,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     const SizedBox(height: 12),
                     _buildDropdownFilter(
                       value: _selectedStatus,
-                      items: ['Tous', 'ACTIVE', 'DESACTIVE', 'SUSPENDUE'],
-                      label: 'Statut',
+                      items: ['All', 'ACTIVE', 'DESACTIVE', 'SUSPENDUE'],
+                      label: 'Status',
                       onChanged: (val) {
                         if (val != null) {
                           setState(() => _selectedStatus = val);
@@ -204,8 +216,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     const SizedBox(height: 12),
                     _buildDropdownFilter(
                       value: _selectedSort,
-                      items: ['Plus récents', 'Plus anciens'],
-                      label: 'Tri',
+                      items: ['Newest', 'Oldest'],
+                      label: 'Sort',
                       onChanged: (val) {
                         if (val != null) {
                           setState(() => _selectedSort = val);
@@ -223,7 +235,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         controller: _searchController,
                         onChanged: (_) => _applyFilters(),
                         decoration: InputDecoration(
-                          hintText: 'Rechercher par nom...',
+                          hintText: 'Search by name...',
                           prefixIcon: const Icon(LucideIcons.search, size: 18),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                           filled: true,
@@ -236,8 +248,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     Expanded(
                       child: _buildDropdownFilter(
                         value: _selectedRole,
-                        items: ['Tous', 'Client', 'Prestataire'],
-                        label: 'Rôle',
+                        items: ['All', 'Customer', 'Provider'],
+                        label: 'Role',
                         onChanged: (val) {
                           if (val != null) {
                             setState(() => _selectedRole = val);
@@ -250,8 +262,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     Expanded(
                       child: _buildDropdownFilter(
                         value: _selectedStatus,
-                        items: ['Tous', 'ACTIVE', 'DESACTIVE', 'SUSPENDUE'],
-                        label: 'Statut',
+                        items: ['All', 'ACTIVE', 'DEACTIVATED', 'SUSPENDED'],
+                        label: 'Status',
                         onChanged: (val) {
                           if (val != null) {
                             setState(() => _selectedStatus = val);
@@ -264,8 +276,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                     Expanded(
                       child: _buildDropdownFilter(
                         value: _selectedSort,
-                        items: ['Plus récents', 'Plus anciens'],
-                        label: 'Tri',
+                        items: ['Newest', 'Oldest'],
+                        label: 'Sort',
                         onChanged: (val) {
                           if (val != null) {
                             setState(() => _selectedSort = val);
@@ -279,7 +291,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           ),
           const SizedBox(height: 24),
           if (_filteredUsers.isEmpty)
-            const Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Aucun utilisateur trouvé')))
+            const Padding(padding: EdgeInsets.all(48), child: Center(child: Text('No users found')))
           else if (isMobile)
             ListView.separated(
               shrinkWrap: true,
@@ -303,11 +315,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         showCheckboxColumn: false,
                         headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: _textSecondary),
                         columns: const [
-                          DataColumn(label: Text('Utilisateur')),
-                          DataColumn(label: Text('Rôle')),
-                          DataColumn(label: Text('Statut')),
-                          DataColumn(label: Text('Créé le')),
-                          DataColumn(label: Text('Mis à jour le')),
+                          DataColumn(label: Text('User')),
+                          DataColumn(label: Text('Role')),
+                          DataColumn(label: Text('Status')),
+                          DataColumn(label: Text('Created on')),
+                          DataColumn(label: Text('Updated on')),
                           DataColumn(label: Text('Actions')),
                         ],
                         rows: _filteredUsers.map((user) {
@@ -331,11 +343,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                           : null,
                                     ),
                                     const SizedBox(width: 12),
-                                    Text(user['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    Text(user['name'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               ),
-                              DataCell(_badge(user['type'] ?? 'Client', user['type'] == 'Prestataire' ? Colors.purple : _primary)),
+                              DataCell(_badge(user['type'] ?? 'Customer', user['type'] == 'Provider' ? Colors.purple : _primary)),
                               DataCell(_statusBadge(user['status'] ?? 'ACTIVE')),
                               DataCell(Text(user['createdAt'] ?? 'N/A', style: const TextStyle(color: _textSecondary))),
                               DataCell(Text(user['updatedAt'] ?? 'N/A', style: const TextStyle(color: _textSecondary))),
@@ -344,7 +356,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                   children: [
                                     IconButton(
                                       icon: const Icon(LucideIcons.eye, size: 18, color: _primary),
-                                      tooltip: 'Détails',
+                                      tooltip: 'Details',
                                       onPressed: () {
                                         showDialog(
                                           context: context,
@@ -352,23 +364,23 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                         );
                                       },
                                     ),
-                                    if ((user['status'] ?? 'DESACTIVE') != 'ACTIVE')
+                                    if ((user['status'] ?? 'INACTIVE') != 'ACTIVE')
                                       IconButton(
                                         icon: const Icon(LucideIcons.checkCircle, size: 18, color: Colors.green),
-                                        tooltip: 'Activer',
+                                        tooltip: 'Activate',
                                         onPressed: () => _updateStatus(user['id'], 'ACTIVE'),
                                       ),
                                     if ((user['status'] ?? 'ACTIVE') == 'ACTIVE')
                                       IconButton(
                                         icon: const Icon(LucideIcons.xCircle, size: 18, color: Colors.orange),
-                                        tooltip: 'Désactiver',
-                                        onPressed: () => _updateStatus(user['id'], 'DESACTIVE'),
+                                        tooltip: 'Deactivate',
+                                        onPressed: () => _updateStatus(user['id'], 'INACTIVE'),
                                       ),
-                                    if ((user['status'] ?? 'ACTIVE') != 'SUSPENDUE')
+                                    if ((user['status'] ?? 'ACTIVE') != 'SUSPENDED')
                                       IconButton(
                                         icon: const Icon(LucideIcons.alertTriangle, size: 18, color: Colors.red),
-                                        tooltip: 'Suspendre',
-                                        onPressed: () => _updateStatus(user['id'], 'SUSPENDUE'),
+                                        tooltip: 'Suspend',
+                                        onPressed: () => _updateStatus(user['id'], 'SUSPENDED'),
                                       ),
                                   ],
                                 ),
@@ -407,10 +419,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           style: const TextStyle(fontSize: 13, color: _textPrimary, fontWeight: FontWeight.w500),
           items: items.map((item) {
             String display = item;
-            if (item == 'Tous') display = '$label: Tous';
-            else if (item == 'ACTIVE') display = 'Actif';
-            else if (item == 'DESACTIVE') display = 'Désactivé';
-            else if (item == 'SUSPENDUE') display = 'Suspendu';
+            if (item == 'All') display = '$label: All';
+            else if (item == 'ACTIVE') display = 'Active';
+            else if (item == 'DESACTIVE') display = 'Deactivated';
+            else if (item == 'SUSPENDUE') display = 'Suspended';
+            else if (item == 'Customer') display = 'Customer';
+            else if (item == 'Provider') display = 'Provider';
             return DropdownMenuItem(
               value: item,
               child: Text(display),
@@ -424,19 +438,18 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
   Widget _statusBadge(String status) {
     Color color;
-    String label;
-    switch (status) {
-      case 'ACTIVE':
-        color = Colors.green;
-        label = 'Actif';
-        break;
-      case 'SUSPENDUE':
-        color = Colors.red;
-        label = 'Suspendu';
-        break;
-      default:
-        color = Colors.orange;
-        label = 'Désactivé';
+    String label = status;
+    final s = status.toUpperCase();
+
+    if (s == 'ACTIVE') {
+      color = Colors.green;
+      label = 'Active';
+    } else if (s == 'SUSPENDUE' || s == 'SUSPENDED') {
+      color = Colors.red;
+      label = 'Suspended';
+    } else {
+      color = Colors.orange;
+      label = 'Deactivated';
     }
     return _badge(label, color);
   }
@@ -496,11 +509,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(user['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      Text(user['name'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          _badge(user['type']?.toString() ?? 'Client', user['type'] == 'Prestataire' ? Colors.purple : _primary),
+                          _badge(user['type']?.toString() ?? 'Customer', user['type'] == 'Provider' ? Colors.purple : _primary),
                           const SizedBox(width: 8),
                           _statusBadge(user['status']?.toString() ?? 'ACTIVE'),
                         ],
@@ -517,14 +530,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Créé le', style: TextStyle(fontSize: 10, color: _textSecondary)),
+                    const Text('Created on', style: TextStyle(fontSize: 10, color: _textSecondary)),
                     Text(user['createdAt'] ?? 'N/A', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                   ],
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    const Text('Téléphone', style: TextStyle(fontSize: 10, color: _textSecondary)),
+                    const Text('Phone', style: TextStyle(fontSize: 10, color: _textSecondary)),
                     Text(user['phone'] ?? 'N/A', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                   ],
                 ),
@@ -568,7 +581,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   }
 
   void _exportUsers() async {
-    final headers = ['Nom', 'Téléphone', 'Date Création', 'Statut'];
+    final headers = ['Name', 'Phone', 'Creation Date', 'Status'];
     final rows = _filteredUsers.map((u) => [
       u['name'] ?? '',
       u['phone'] ?? '',
@@ -578,12 +591,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
     await AdminExportUtil.exportPageToPdf(
       filename: 'users_presto_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-      title: 'Registre des Clients',
-      subtitle: 'Liste complète des utilisateurs enregistrés sur la plateforme Presto',
+      title: 'Customer Registry',
+      subtitle: 'Complete list of users registered on the Presto platform',
       kpis: [
-        {'label': 'Total Clients', 'value': _allUsers.length.toString()},
-        {'label': 'Filtre Actuel', 'value': _filteredUsers.length.toString()},
-        {'label': 'Actifs', 'value': _allUsers.where((u) => u['status'] == 'ACTIVE').length.toString()},
+        {'label': 'Total Customers', 'value': _allUsers.length.toString()},
+        {'label': 'Current Filter', 'value': _filteredUsers.length.toString()},
+        {'label': 'Active', 'value': _allUsers.where((u) => u['status'] == 'ACTIVE').length.toString()},
       ],
       tableHeaders: headers,
       tableRows: rows,

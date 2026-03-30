@@ -46,7 +46,7 @@ class AdminExportUtil {
     required List<List<dynamic>> tableRows,
   }) async {
     final pdf    = pw.Document();
-    final dateStr = DateFormat('dd/MM/yyyy à HH:mm').format(DateTime.now());
+    final dateStr = DateFormat('dd/MM/yyyy at HH:mm').format(DateTime.now());
 
     // Fetch logo
     Uint8List? logoBytes;
@@ -72,20 +72,20 @@ class AdminExportUtil {
 
           if (kpis != null && kpis.isNotEmpty) {
             widgets.add(pw.SizedBox(height: 20));
-            widgets.add(_buildSectionHeader('Indicateurs Clés de Performance'));
+            widgets.add(_buildSectionHeader('Key Performance Indicators'));
             widgets.add(pw.SizedBox(height: 10));
             widgets.add(_buildKpiGrid(kpis));
             widgets.add(pw.SizedBox(height: 24));
           }
 
           if (chartImages != null && chartImages.isNotEmpty) {
-            widgets.add(_buildSectionHeader('Graphiques & Visualisations'));
+            widgets.add(_buildSectionHeader('Charts & Visualizations'));
             widgets.add(pw.SizedBox(height: 12));
             widgets.add(_buildChartsGrid(chartImages));
             widgets.add(pw.SizedBox(height: 24));
           }
 
-          widgets.add(_buildSectionHeader('Données Détaillées'));
+          widgets.add(_buildSectionHeader('Detailed Data'));
           widgets.add(pw.SizedBox(height: 10));
           widgets.add(_buildDataTable(tableHeaders, tableRows));
 
@@ -186,7 +186,7 @@ class AdminExportUtil {
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
             pw.Text(
-              'Rapport Confidentiel – Presto Admin',
+              'Confidential Report – Presto Admin',
               style: pw.TextStyle(fontSize: 8, color: _greyText),
             ),
             pw.Text(
@@ -298,7 +298,7 @@ class AdminExportUtil {
         padding: const pw.EdgeInsets.all(16),
         child: pw.Center(
           child: pw.Text(
-            'Aucune donnée disponible',
+            'No data available',
             style: pw.TextStyle(fontSize: 10, color: _greyText),
           ),
         ),

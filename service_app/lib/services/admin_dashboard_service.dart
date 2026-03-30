@@ -470,14 +470,12 @@ class AdminDashboardService {
       final userId = data['idUtilisateur'] as String?;
       String name = 'Expert';
       String? imageUrl;
+      final userDoc = userId != null ? await _db.collection('utilisateurs').doc(userId).get() : null;
       
-      if (userId != null) {
-        final userDoc = await _db.collection('utilisateurs').doc(userId).get();
-        if (userDoc.exists) {
-          final ud = userDoc.data()!;
-          name = ud['nom'] ?? ud['email'] ?? 'Expert';
-          imageUrl = ud['image_profile'];
-        }
+      if (userDoc?.exists == true) {
+        final ud = userDoc!.data()!;
+        name = ud['nom'] ?? ud['email'] ?? 'Expert';
+        imageUrl = ud['image_profile'];
       }
 
       // Services Join
@@ -521,6 +519,15 @@ class AdminDashboardService {
         rating = sum / evalSnap.docs.length;
       }
 
+      final userDocData = userDoc?.data();
+      final dynamic userCreatedAt = userDocData?['createdAt'] ?? userDocData?['created_At'];
+      final dynamic rawCreatedAt = data['createdAt'] ?? data['created_At'] ?? userCreatedAt;
+      final DateTime rawDate = rawCreatedAt is Timestamp
+          ? rawCreatedAt.toDate()
+          : rawCreatedAt is DateTime
+              ? rawCreatedAt
+              : DateTime(2000);
+
       result.add({
         'id': doc.id,
         'name': name,
@@ -531,10 +538,10 @@ class AdminDashboardService {
         'rating': rating,
         'interventionsCount': interventionsCount,
         'status': status, // Raw status for buttons: ACTIVE, DESACTIVE, SUSPENDUE
-        'date': _formatRelativeDate(data['createdAt']),
+        'date': rawDate == DateTime(2000) ? 'N/A' : _formatRelativeDate(rawDate),
         'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
         'imageUrl': imageUrl,
-        'rawDate': data['createdAt'] is Timestamp ? (data['createdAt'] as Timestamp).toDate() : DateTime(2000),
+        'rawDate': rawDate,
         'zone': (services.isNotEmpty ? services.first : (data['region'] ?? 'N/A')),
         // New detailed fields
         'CarteNationale': data['CarteNationale'] ?? 'Non fourni',

@@ -49,7 +49,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Statut à jour. Email automatique envoyé à ${_user!['email']}'),
+          content: Text('Status updated. Automatic email sent to ${_user!['email']}'),
           backgroundColor: Colors.green,
         )
       );
@@ -79,7 +79,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
         child: _loading 
           ? SizedBox(height: isMobile ? 150 : 200, child: Center(child: CircularProgressIndicator()))
           : _user == null 
-            ? const Center(child: Text('Profil non trouvé'))
+            ? const Center(child: Text('Profile not found'))
             : SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -130,7 +130,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                     SizedBox(height: isMobile ? 16 : 24),
                     
                     Text(
-                      'Informations Générales', 
+                      'General Information', 
                       style: TextStyle(
                         fontSize: isMobile ? 13 : 14, 
                         fontWeight: FontWeight.bold, 
@@ -139,14 +139,14 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                       )
                     ),
                     SizedBox(height: isMobile ? 12 : 16),
-                    _modernInfoTile(LucideIcons.mail, 'E-mail', _user!['email'], isMobile: isMobile),
-                    _modernInfoTile(LucideIcons.phone, 'Téléphone', _user!['phone'], isMobile: isMobile),
-                    if (_user!['region'] != null) _modernInfoTile(LucideIcons.mapPin, 'Région', _user!['region'], isMobile: isMobile),
+                    _modernInfoTile(LucideIcons.mail, 'Email', _user!['email'], isMobile: isMobile),
+                    _modernInfoTile(LucideIcons.phone, 'Phone', _user!['phone'], isMobile: isMobile),
+                    if (_user!['region'] != null) _modernInfoTile(LucideIcons.mapPin, 'Region', _user!['region'], isMobile: isMobile),
                     
                     if (widget.role == 'Expert' || widget.role == 'Prestataire') ...[
                       SizedBox(height: isMobile ? 16 : 24),
                       Text(
-                        'Profil Professionnel', 
+                        'Professional Profile', 
                         style: TextStyle(
                           fontSize: isMobile ? 13 : 14, 
                           fontWeight: FontWeight.bold, 
@@ -155,15 +155,15 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                         )
                       ),
                       SizedBox(height: isMobile ? 12 : 16),
-                      _modernInfoTile(LucideIcons.briefcase, 'Expérience', _user!['Experience']?.toString() ?? 'Non précisée', isMobile: isMobile),
-                      _modernInfoTile(LucideIcons.map, 'Zone (Texte)', _user!['zoneTexte']?.toString() ?? 'Non précisée', isMobile: isMobile),
-                      _modernInfoTile(LucideIcons.navigation, 'Rayon d\'action', '${_user!['rayonTravaille']} km', isMobile: isMobile),
+                      _modernInfoTile(LucideIcons.briefcase, 'Experience', _user!['Experience']?.toString() ?? 'Not specified', isMobile: isMobile),
+                      _modernInfoTile(LucideIcons.map, 'Zone (Text)', _user!['zoneTexte']?.toString() ?? 'Not specified', isMobile: isMobile),
+                      _modernInfoTile(LucideIcons.navigation, 'Action Radius', '${_user!['rayonTravaille']} km', isMobile: isMobile),
                       if (_user!['services'] != null && (_user!['services'] as List).isNotEmpty)
                         _modernInfoTile(LucideIcons.settings, 'Services', (_user!['services'] as List).map((s) => s.toString()).join(", "), isMobile: isMobile),
                       
                       SizedBox(height: isMobile ? 16 : 24),
                       Text(
-                        'Documents & Justificatifs', 
+                        'Documents & Supporting Docs', 
                         style: TextStyle(
                           fontSize: isMobile ? 13 : 14, 
                           fontWeight: FontWeight.bold, 
@@ -176,13 +176,13 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                     ],
                     
                     SizedBox(height: isMobile ? 12 : 16),
-                    _modernInfoTile(LucideIcons.clock, 'Dernière mise à jour', _user!['updatedAt'] ?? 'N/A', isMobile: isMobile),
+                    _modernInfoTile(LucideIcons.clock, 'Last updated', _user!['updatedAt'] ?? 'N/A', isMobile: isMobile),
                     
                     SizedBox(height: isMobile ? 16 : 24),
                     const Divider(height: 1, color: Color(0xFFE2E8F0)),
                     SizedBox(height: isMobile ? 16 : 24),
                     Text(
-                      'Actions Administratives', 
+                      'Administrative Actions', 
                       style: TextStyle(
                         fontSize: isMobile ? 13 : 14, 
                         fontWeight: FontWeight.bold, 
@@ -197,7 +197,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                         onPressed: _user!['email'].isNotEmpty ? _showEmailComposer : null,
                         icon: Icon(LucideIcons.mail, size: isMobile ? 14 : 16),
                         label: Text(
-                          'Envoyer un e-mail',
+                          'Send an email',
                           style: TextStyle(fontSize: isMobile ? 12 : 14),
                         ),
                         style: OutlinedButton.styleFrom(
@@ -209,11 +209,11 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                     SizedBox(height: isMobile ? 8 : 12),
                     Row(
                       children: [
-                        Expanded(child: _modernActionBtn('Activer', Colors.green, LucideIcons.checkCircle, () => _updateStatus('ACTIVE'), isActive: _user!['status'] == 'ACTIVE', isMobile: isMobile)),
+                        Expanded(child: _modernActionBtn('Activate', Colors.green, LucideIcons.checkCircle, () => _updateStatus('ACTIVE'), isActive: _user!['status'] == 'ACTIVE', isMobile: isMobile)),
                         SizedBox(width: isMobile ? 6 : 8),
-                        Expanded(child: _modernActionBtn('Suspendre', Colors.orange, LucideIcons.alertTriangle, () => _updateStatus('SUSPENDUE'), isActive: _user!['status'] == 'SUSPENDUE', isMobile: isMobile)),
+                        Expanded(child: _modernActionBtn('Suspend', Colors.orange, LucideIcons.alertTriangle, () => _updateStatus('SUSPENDUE'), isActive: _user!['status'] == 'SUSPENDUE', isMobile: isMobile)),
                         SizedBox(width: isMobile ? 6 : 8),
-                        Expanded(child: _modernActionBtn('Désactiver', Colors.red, LucideIcons.xCircle, () => _updateStatus('DESACTIVE'), isActive: _user!['status'] == 'DESACTIVE', isMobile: isMobile)),
+                        Expanded(child: _modernActionBtn('Deactivate', Colors.red, LucideIcons.xCircle, () => _updateStatus('DESACTIVE'), isActive: _user!['status'] == 'DESACTIVE', isMobile: isMobile)),
                       ],
                     ),
                   ],
@@ -224,7 +224,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
   }
 
   void _showEmailComposer() {
-    final subjectController = TextEditingController(text: 'Concernant votre compte Marketplace');
+    final subjectController = TextEditingController(text: 'Concerning your Marketplace account');
     final bodyController = TextEditingController();
     bool sending = false;
 
@@ -241,12 +241,12 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Nouvel E-mail', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                const Text('New Email', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
                 const SizedBox(height: 24),
                 TextField(
                   controller: subjectController,
                   decoration: InputDecoration(
-                    labelText: 'Sujet',
+                    labelText: 'Subject',
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
@@ -271,7 +271,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                     TextButton(
                       onPressed: () => Navigator.pop(context),
                       style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
-                      child: const Text('Annuler', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
+                      child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton(
@@ -281,10 +281,10 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                         await _service.sendAutomaticEmail(
                           to: _user!['email'],
                           subject: subjectController.text,
-                          html: "<div style='font-family: sans-serif; color: #333;'><p>${bodyController.text.replaceAll('\n', '<br>')}</p><br><p>Cordialement,<br><strong>L'équipe Marketplace</strong></p></div>",
+                          html: "<div style='font-family: sans-serif; color: #333;'><p>${bodyController.text.replaceAll('\n', '<br>')}</p><br><p>Best regards,<br><strong>The Marketplace Team</strong></p></div>",
                         );
                         if (context.mounted) Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('E-mail envoyé avec succès !'), backgroundColor: Colors.green));
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email sent successfully!'), backgroundColor: Colors.green));
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
@@ -295,7 +295,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                       ),
                       child: sending 
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                        : const Text('Envoyer', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        : const Text('Send', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     ),
                   ],
                 ),
@@ -347,7 +347,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     final strValue = value.toString();
     final isLong = strValue.length > 50;
     final isUrl = strValue.startsWith('http');
-    final displayValue = (isLong || isUrl) ? "Document fourni" : strValue;
+    final displayValue = (isLong || isUrl) ? "Document provided" : strValue;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -374,7 +374,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
             TextButton.icon(
               onPressed: () => _showFullDocument(label, strValue),
               icon: const Icon(LucideIcons.externalLink, size: 14),
-              label: const Text('Ouvrir', style: TextStyle(fontSize: 12)),
+              label: const Text('Open', style: TextStyle(fontSize: 12)),
               style: TextButton.styleFrom(foregroundColor: Colors.blue),
             ),
         ],
@@ -408,11 +408,11 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
           actions: [
             TextButton(
               onPressed: () => _launchExternalUrl(value),
-              child: const Text('Ouvrir l\'original (PDF)'),
+              child: const Text('Open original (PDF)'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Fermer'),
+              child: const Text('Close'),
             ),
           ],
         ),
@@ -442,12 +442,12 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                       children: [
                         const Icon(LucideIcons.fileWarning, size: 48, color: Colors.orange),
                         const SizedBox(height: 16),
-                        const Text("L'aperçu n'est pas disponible pour ce format de fichier.", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
+                        const Text("Preview is not available for this file format.", textAlign: TextAlign.center, style: TextStyle(fontSize: 12)),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
                           onPressed: () => _launchExternalUrl(value),
                           icon: const Icon(LucideIcons.externalLink, size: 14),
-                          label: const Text("Ouvrir dans un nouvel onglet"),
+                          label: const Text("Open in a new tab"),
                         ),
                       ],
                     ),
@@ -459,9 +459,9 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
           if (isPdf || isUrl)
             TextButton(
               onPressed: () => _launchExternalUrl(value),
-              child: const Text('Ouvrir l\'original (URL)'),
+              child: const Text('Open original (URL)'),
             ),
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
         ],
       ),
     );
@@ -559,7 +559,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
       return Padding(
         padding: EdgeInsets.symmetric(vertical: isMobile ? 6 : 8),
         child: Text(
-          'Aucun document fourni', 
+          'No documents provided', 
           style: TextStyle(
             color: _textSecondary, 
             fontStyle: FontStyle.italic,
@@ -694,7 +694,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                           if (!isMobile) ...[
                             const SizedBox(height: 4),
                             const Text(
-                              'VOIR DOCUMENT', 
+                              'VIEW DOCUMENT', 
                               style: TextStyle(
                                 fontSize: 8, 
                                 fontWeight: FontWeight.bold, 
@@ -717,11 +717,11 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     String label;
     switch (status) {
       case 'ACTIVE':
-        color = Colors.green; label = 'Actif'; break;
+        color = Colors.green; label = 'Active'; break;
       case 'SUSPENDUE':
-        color = Colors.orange; label = 'Suspendu'; break;
+        color = Colors.orange; label = 'Suspended'; break;
       case 'DESACTIVE':
-        color = Colors.red; label = 'Désactivé'; break;
+        color = Colors.red; label = 'Deactivated'; break;
       default:
         color = Colors.grey; label = status;
     }
