@@ -474,15 +474,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
               ),
               child: Row(
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(interv.statut).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(LucideIcons.calendar, color: _getStatusColor(interv.statut), size: 18),
-                  ),
+                  _buildClientAvatar(interv.clientSnapshot?['photo'] ?? '', interv.clientSnapshot?['nom'] ?? 'Client'),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -621,12 +613,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
       decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey[200]!)),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: AppColors.primary.withOpacity(0.1),
-            backgroundImage: (client?['photo'] != null && (client?['photo'].toString().startsWith('http') ?? false)) ? NetworkImage(client!['photo']) : null,
-            child: (client?['photo'] == null || !(client?['photo'].toString().startsWith('http') ?? false)) ? const Icon(LucideIcons.user, size: 20, color: AppColors.primary) : null,
-          ),
+          _buildClientAvatar(client?['photo'] ?? '', client?['nom'] ?? 'Client', size: 40),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -676,6 +663,32 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
           Text(value?.toString() ?? 'N/A', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
         ],
       ),
+    );
+  }
+
+  Widget _buildClientAvatar(String photo, String name, {double size = 40}) {
+    final initials = name.isNotEmpty ? name.split(' ').map((e) => e[0]).take(2).join().toUpperCase() : '?';
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.1),
+        shape: BoxShape.circle,
+        image: photo.isNotEmpty && photo.startsWith('http')
+            ? DecorationImage(image: NetworkImage(photo), fit: BoxFit.cover)
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: photo.isEmpty || !photo.startsWith('http')
+          ? Text(
+              initials,
+              style: TextStyle(
+                fontSize: size * 0.35,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            )
+          : null,
     );
   }
 }

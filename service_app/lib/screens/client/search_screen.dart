@@ -12,6 +12,7 @@ import '../../widgets/start_chat_sheet.dart';
 import 'expert_map_screen.dart';
 import 'expert_details_screen.dart';
 import '../chat/chat_screen.dart';
+import '../../widgets/shared/client_header.dart';
 
 // ─── Couleurs ──────────────────────────────────────────────────
 const Color _kBg        = Color(0xFFF5F3EC);   // mockup beige
@@ -184,35 +185,10 @@ class _SearchScreenState extends State<SearchScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── Top bar ─────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-              child: Row(
-                children: [
-                  Image.asset(
-                    'assets/logo.png',
-                    height: 32,
-                    errorBuilder: (context, error, stackTrace) => const SizedBox(height: 32),
-                  ),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Presto — snap your fingers, we handle the rest.',
-                      style: TextStyle(
-                        color: _kBlue,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
+            ClientHeader(
+              title: 'Search',
+              subtitle: 'Find the best experts near you',
+              bottom: Row(
                 children: [
                   // Barre de recherche
                   Expanded(
@@ -223,9 +199,9 @@ class _SearchScreenState extends State<SearchScreen> {
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.06),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 8,
-                            offset: const Offset(0, 2),
+                            offset: const Offset(0, 4),
                           ),
                         ],
                       ),
@@ -274,15 +250,23 @@ class _SearchScreenState extends State<SearchScreen> {
                       width: 46,
                       height: 46,
                       decoration: BoxDecoration(
-                        color: _kBlue,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: const Icon(Icons.tune_rounded,
-                          color: Colors.white, size: 20),
+                          color: _kBlue, size: 20),
                     ),
                   ),
                 ],
               ),
+              bottomPadding: 30,
             ),
 
             const SizedBox(height: 10),

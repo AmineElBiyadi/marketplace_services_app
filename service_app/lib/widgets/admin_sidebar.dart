@@ -39,7 +39,7 @@ class _AdminSidebarState extends State<AdminSidebar> {
         children: [
           // Logo Section
           Container(
-            height: 64,
+            height: widget.isMobile ? 60 : 76,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: Colors.white10)),
@@ -48,16 +48,16 @@ class _AdminSidebarState extends State<AdminSidebar> {
               mainAxisAlignment: widget.isMobile || widget.isOpen ? MainAxisAlignment.spaceBetween : MainAxisAlignment.center,
               children: [
                 if (widget.isMobile || widget.isOpen)
-                  const Row(
+                  Row(
                     children: [
-                      Icon(LucideIcons.shield, color: _primary, size: 28),
-                      SizedBox(width: 8),
+                      Icon(LucideIcons.shield, color: _primary, size: widget.isMobile ? 24 : 30),
+                      const SizedBox(width: 10),
                       Text(
                         'Admin',
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,
-                          fontSize: 18,
+                          fontSize: widget.isMobile ? 18 : 20,
                         ),
                       ),
                     ],
@@ -76,13 +76,13 @@ class _AdminSidebarState extends State<AdminSidebar> {
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
               children: [
-                _sidebarItem(LucideIcons.home, 'Tableau de bord', '/admin'),
-                _sidebarItem(LucideIcons.users, 'Clients', '/admin/users'),
-                _sidebarItem(LucideIcons.wrench, 'Prestataires', '/admin/providers'),
-                _sidebarItem(LucideIcons.calendarDays, 'Réservations', '/admin/reservations'),
-                _sidebarItem(LucideIcons.star, 'Avis & Réclamations', '/admin/reviews'),
+                _sidebarItem(LucideIcons.home, 'Dashboard', '/admin'),
+                _sidebarItem(LucideIcons.users, 'Customers', '/admin/users'),
+                _sidebarItem(LucideIcons.wrench, 'Providers', '/admin/providers'),
+                _sidebarItem(LucideIcons.calendarDays, 'Reservations', '/admin/reservations'),
+                _sidebarItem(LucideIcons.star, 'Reviews & Claims', '/admin/reviews'),
                 _sidebarItem(LucideIcons.dollarSign, 'Finances', '/admin/finances'),
-                _sidebarItem(LucideIcons.settings, 'Paramètres', '/admin/settings'),
+                _sidebarItem(LucideIcons.settings, 'Settings', '/admin/settings'),
               ],
             ),
           ),
@@ -91,7 +91,7 @@ class _AdminSidebarState extends State<AdminSidebar> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: const BoxDecoration(border: Border(top: BorderSide(color: Colors.white10))),
-            child: _sidebarItem(LucideIcons.logOut, 'Déconnexion', '/logout', isDestructive: true),
+            child: _sidebarItem(LucideIcons.logOut, 'Log out', '/logout', isDestructive: true),
           ),
         ],
       ),

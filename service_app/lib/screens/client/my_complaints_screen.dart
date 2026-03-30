@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../../services/firestore_service.dart';
 import '../../../theme/app_colors.dart';
+import '../../widgets/shared/client_header.dart';
 
 class MyComplaintsScreen extends StatefulWidget {
   const MyComplaintsScreen({super.key});
@@ -71,73 +72,10 @@ class _MyComplaintsScreenState extends State<MyComplaintsScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Custom Gradient Header
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, Color(0xFF818CF8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
-              ),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Image.asset(
-                              'assets/logo.png',
-                              height: 30,
-                              errorBuilder: (context, error, stackTrace) => const SizedBox(height: 30),
-                            ),
-                            const SizedBox(width: 8),
-                            const Expanded(
-                              child: Text(
-                                'Presto — snap your fingers, we handle the rest.',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'My Complaints',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Track issues you reported',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.white.withOpacity(0.8),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            ClientHeader(
+              title: 'My Complaints',
+              subtitle: 'Track issues you reported',
+              showBackButton: true,
             ),
             const SizedBox(height: 16),
             // ── Filter chips ──
@@ -218,6 +156,7 @@ class _MyComplaintsScreenState extends State<MyComplaintsScreen> {
     final isResolved = etat == 'TRAITEE';
     final expertNom = complaint['expertNom'] as String? ?? 'Expert';
     final description = complaint['description'] as String? ?? '';
+    final adminResponse = complaint['adminResponse'] as String? ?? '';
     final date = complaint['date'];
 
     String dateStr = '';
@@ -275,6 +214,31 @@ class _MyComplaintsScreenState extends State<MyComplaintsScreen> {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.5),
+            ),
+          ],
+          if (adminResponse.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F9FF),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFBAE6FD)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.support_agent, size: 16, color: Color(0xFF0369A1)),
+                      SizedBox(width: 8),
+                      Text('Admin Response', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0369A1))),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(adminResponse, style: const TextStyle(fontSize: 13, color: Color(0xFF0C4A6E), height: 1.4)),
+                ],
+              ),
             ),
           ],
         ],

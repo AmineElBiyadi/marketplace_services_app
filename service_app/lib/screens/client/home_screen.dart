@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -16,6 +17,7 @@ import 'package:go_router/go_router.dart';
 import '../../models/service.dart';
 import '../../widgets/start_chat_sheet.dart';
 import '../../widgets/notification_bell.dart';
+import '../../widgets/shared/client_header.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -41,6 +43,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Position? _userPosition;
 
   List<Map<String, dynamic>> _categories = [];
+  final ScrollController _servicesScrollController = ScrollController();
+  double _indicatorOffset = 0.0;
+  final double _trackWidth = 120.0;
+  final double _indicatorWidth = 40.0;
 
   // Map of category names to their assets/icons (for hardcoded ones)
   final Map<String, Map<String, dynamic>> _categoryAssets = {
@@ -55,6 +61,27 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _servicesScrollController.addListener(_updateIndicator);
+  }
+
+  @override
+  void dispose() {
+    _servicesScrollController.removeListener(_updateIndicator);
+    _servicesScrollController.dispose();
+    super.dispose();
+  }
+
+  void _updateIndicator() {
+    if (_servicesScrollController.hasClients &&
+        _servicesScrollController.position.maxScrollExtent > 0) {
+      final maxScroll = _servicesScrollController.position.maxScrollExtent;
+      final currentScroll = _servicesScrollController.offset;
+      final scrollRatio = (currentScroll / maxScroll).clamp(0.0, 1.0);
+      
+      setState(() {
+        _indicatorOffset = scrollRatio * (_trackWidth - _indicatorWidth);
+      });
+    }
   }
 
   // ── Chargement des données ──────────────────
@@ -73,26 +100,29 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('Fetching name for searchUid: $searchUid (customId: $customId, authUser: ${authUser?.uid})');
 
       if (searchUid != null) {
-        // Try direct fetch by ID first (works if customId is the doc ID)
-        final userDoc = await FirebaseFirestore.instance
-            .collection('utilisateurs')
-            .doc(searchUid)
-            .get();
+        final userData = await _firestoreService.getClientSnapshot(searchUid);
         
-        if (userDoc.exists && userDoc.data()?['nom'] != null) {
-          if (mounted) setState(() => _clientNom = userDoc.data()!['nom']);
-        } else {
-          // Fallback: search by current auth user details if they exist
-          if (authUser != null) {
-            if (authUser.email != null) {
-              final qEmail = await FirebaseFirestore.instance
-                  .collection('utilisateurs')
-                  .where('email', isEqualTo: authUser.email)
-                  .limit(1)
-                  .get();
-              if (qEmail.docs.isNotEmpty) {
-                 if (mounted) setState(() => _clientNom = qEmail.docs.first.data()['nom'] ?? '');
-              }
+        if (userData != null) {
+          // Look for 'nom', fallback to 'prenom' if 'nom' is empty
+          String name = userData['nom'] ?? userData['prenom'] ?? '';
+          
+          if (name.isNotEmpty && mounted) {
+            setState(() => _clientNom = name);
+          }
+        }
+        
+        // Fallback: search by current auth user details if they exist
+        if (_clientNom.isEmpty && authUser != null && authUser.email != null) {
+          final qEmail = await FirebaseFirestore.instance
+              .collection('utilisateurs')
+              .where('email', isEqualTo: authUser.email)
+              .limit(1)
+              .get();
+          if (qEmail.docs.isNotEmpty) {
+            final data = qEmail.docs.first.data();
+            String name = data['nom'] ?? data['prenom'] ?? '';
+            if (name.isNotEmpty && mounted) {
+              setState(() => _clientNom = name);
             }
           }
         }
@@ -283,267 +313,227 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── HEADER ──
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(24, 40, 24, 60), // Restored large padding
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF4A69B1),
-                      borderRadius: BorderRadius.only(
-                        bottomLeft: Radius.circular(36),
-                        bottomRight: Radius.circular(36),
-                      ),
+                  ClientHeader(
+                    greeting: 'Hi ${_clientNom.isNotEmpty ? _clientNom : "Client"},',
+                    title: 'What service are you\nlooking for?',
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        NotificationBell(
+                          idUtilisateur: FirebaseAuth.instance.currentUser?.uid ?? '',
+                          role: 'client',
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 22),
+                          onPressed: () async {
+                            final prefs = await SharedPreferences.getInstance();
+                            await prefs.clear();
+                            await FirebaseAuth.instance.signOut();
+                            if (context.mounted) {
+                              context.go('/login');
+                            }
+                          },
+                          tooltip: 'Logout',
+                        ),
+                      ],
                     ),
+                    bottomPadding: 32,
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  // Categories Section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Image.asset(
-                                    'assets/logo.png',
-                                    height: 40,
-                                    errorBuilder: (context, error, stackTrace) => const SizedBox(height: 40),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  const Expanded(
-                                    child: Text(
-                                      'Presto — snap your fingers, we handle the rest.',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 24),
-                              Text(
-                                'Hi ${_clientNom.isNotEmpty ? _clientNom : 'Client'},',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                'What service are you looking for?',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            NotificationBell(
-                              idUtilisateur: FirebaseAuth.instance.currentUser?.uid ?? '',
-                              role: 'Client',
-                              color: Colors.white,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.logout, color: Colors.white),
-                              tooltip: 'Logout',
-                              onPressed: () async {
-                                final prefs = await SharedPreferences.getInstance();
-                                await prefs.clear();
-                                await FirebaseAuth.instance.signOut();
-                                if (context.mounted) {
-                                  context.go('/login');
-                                }
-                              },
-                            ),
-                          ],
+                        const Text(
+                          'Our Services',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                         ),
                       ],
                     ),
                   ),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Categories Section
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Our Services',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                              ),
-                            ],
-                          ),
+                  const SizedBox(height: 16),
+                  ScrollConfiguration(
+                    behavior: const ScrollBehavior().copyWith(
+                      dragDevices: {
+                        PointerDeviceKind.touch,
+                        PointerDeviceKind.mouse,
+                        PointerDeviceKind.trackpad,
+                      },
+                    ),
+                    child: SizedBox(
+                      height: 140,
+                      child: ListView.separated(
+                        controller: _servicesScrollController,
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _categories.length,
+                        separatorBuilder: (context, index) => const SizedBox(width: 24),
+                        itemBuilder: (context, index) {
+                          final cat = _categories[index];
+                          final isSelected = _selectedCategory == cat['label'];
+                          return CategoryCard(
+                            label: cat['label'],
+                            icon: cat['icon'],
+                            imagePath: cat['image'],
+                            isSelected: isSelected,
+                            onTap: () => _selectCategory(cat['label']),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  
+                  // Enhanced Scroll Indicator
+                  if (_categories.length > 3)
+                    Center(
+                      child: Container(
+                        width: _trackWidth,
+                        height: 4,
+                        margin: const EdgeInsets.only(top: 16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4A69B1).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          height: 150,
-                          child: ListView.separated(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _categories.length,
-                            separatorBuilder: (context, index) => const SizedBox(width: 20),
-                            itemBuilder: (context, index) {
-                              final cat = _categories[index];
-                              final isSelected = _selectedCategory == cat['label'];
-                              return CategoryCard(
-                                label: cat['label'],
-                                icon: cat['icon'],
-                                imagePath: cat['image'],
-                                isSelected: isSelected,
-                                onTap: () => _selectCategory(cat['label']),
-                              );
-                            },
-                          ),
-                        ),
-                        
-                        // Scroll Indicator Placeholder
-                        Center(
-                          child: Container(
-                            width: 120,
-                            height: 4,
-                            margin: const EdgeInsets.only(top: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 40,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF4A69B1),
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        // Nearby Providers
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Nearby Providers',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                              ),
-                              TextButton(
-                                onPressed: () => _showVilleDropdown(context),
-                                child: const Row(
-                                  children: [
-                                    Text('Map ', style: TextStyle(color: Color(0xFF4A69B1), fontWeight: FontWeight.bold)),
-                                    Icon(Icons.chevron_right, size: 18, color: Color(0xFF4A69B1)),
+                        child: Stack(
+                          children: [
+                            AnimatedPositioned(
+                              duration: const Duration(milliseconds: 50),
+                              left: _indicatorOffset,
+                              child: Container(
+                                width: _indicatorWidth,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF4A69B1),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF4A69B1).withValues(alpha: 0.2),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
                                   ],
                                 ),
                               ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 32),
+
+                  // Nearby Providers
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Nearby Providers',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                        ),
+                        TextButton(
+                          onPressed: () => _showVilleDropdown(context),
+                          child: const Row(
+                            children: [
+                              Text('Map ', style: TextStyle(color: Color(0xFF4A69B1), fontWeight: FontWeight.bold)),
+                              Icon(Icons.chevron_right, size: 18, color: Color(0xFF4A69B1)),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 16),
-
-                        _isLoading
-                            ? const Center(child: CircularProgressIndicator(color: Color(0xFF4A69B1)))
-                            : nearby.isEmpty
-                                ? const Center(child: Padding(
-                                    padding: EdgeInsets.all(40.0),
-                                    child: const Text('No providers found'),
-                                  ))
-                                : SizedBox(
-                                    height: 240,
-                                    child: ListView.builder(
-                                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: nearby.length,
-                                      itemBuilder: (context, index) {
-                                        final expert = nearby[index];
-                                        final dist = _distanceTo(expert);
-                                        return NearbyProviderCard(
-                                          name: expert.nom,
-                                          service: expert.services.join(', '),
-                                          rating: expert.noteMoyenne,
-                                          distance: dist ?? 0.0,
-                                          imageUrl: expert.photo,
-                                          isPremium: expert.isPremium,
-                                          onTap: () => Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                                builder: (_) => ExpertProfileScreen(
-                                                  expert: expert,
-                                                  preSelectedService: _selectedCategory, 
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-
-                        const SizedBox(height: 32),
-
-                        // Top Rated
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          child: const Text(
-                            'Top Rated',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        _isLoading
-                            ? const Center(child: CircularProgressIndicator(color: Color(0xFF4A69B1)))
-                            : topRated.isEmpty
-                                ? const Center(child: Padding(
-                                    padding: EdgeInsets.all(40.0),
-                                    child: const Text('No providers found'),
-                                  ))
-                                : ListView.builder(
-                                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                                    shrinkWrap: true,
-                                    physics: const NeverScrollableScrollPhysics(),
-                                    itemCount: topRated.length,
-                                    itemBuilder: (context, index) {
-                                      final expert = topRated[index];
-                                      return TopRatedCard(
-                                        name: expert.nom,
-                                        services: expert.services.join(', '),
-                                        rating: expert.noteMoyenne,
-                                        imageUrl: expert.photo,
-                                        isPremium: expert.isPremium,
-                                        onChat: () => _openChat(expert),
-                                        onTap: () => Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => ExpertProfileScreen(
-                                                expert: expert,
-                                                preSelectedService: _selectedCategory,
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 16),
+
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator(color: Color(0xFF4A69B1)))
+                      : nearby.isEmpty
+                          ? const Center(child: Padding(
+                              padding: EdgeInsets.all(40.0),
+                              child: Text('No providers found'),
+                            ))
+                          : SizedBox(
+                              height: 240,
+                              child: ListView.builder(
+                                padding: const EdgeInsets.symmetric(horizontal: 24),
+                                scrollDirection: Axis.horizontal,
+                                itemCount: nearby.length,
+                                itemBuilder: (context, index) {
+                                  final expert = nearby[index];
+                                  final dist = _distanceTo(expert);
+                                  return NearbyProviderCard(
+                                    name: expert.nom,
+                                    service: expert.services.join(', '),
+                                    rating: expert.noteMoyenne,
+                                    distance: dist ?? 0.0,
+                                    imageUrl: expert.photo,
+                                    isPremium: expert.isPremium,
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) => ExpertProfileScreen(
+                                            expert: expert,
+                                            preSelectedService: _selectedCategory, 
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+
+                  const SizedBox(height: 32),
+
+                  // Top Rated
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: const Text(
+                      'Top Rated',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator(color: Color(0xFF4A69B1)))
+                      : topRated.isEmpty
+                          ? const Center(child: Padding(
+                              padding: EdgeInsets.all(40.0),
+                              child: Text('No providers found'),
+                            ))
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: topRated.length,
+                              itemBuilder: (context, index) {
+                                final expert = topRated[index];
+                                return TopRatedCard(
+                                  name: expert.nom,
+                                  services: expert.services.join(', '),
+                                  rating: expert.noteMoyenne,
+                                  imageUrl: expert.photo,
+                                  isPremium: expert.isPremium,
+                                  onChat: () => _openChat(expert),
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ExpertProfileScreen(
+                                          expert: expert,
+                                          preSelectedService: _selectedCategory,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                  const SizedBox(height: 40),
                 ],
               ),
             ),

@@ -598,6 +598,27 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
             enabled: _step1Valid,
             onPressed: () => setState(() => _step = 2)),
         const SizedBox(height: 24),
+        Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text("Already have an account ? ",
+                  style: TextStyle(fontSize: 14, color: Color(0xFF64748B))),
+              GestureDetector(
+                onTap: () => context.go('/provider/login'),
+                child: const Text(
+                  "Log in",
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF3F64B5),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
       ],
     );
   }

@@ -6,7 +6,6 @@ import '../../layouts/admin_layout.dart';
 
 import '../../services/admin_dashboard_service.dart';
 import '../../utils/admin_export_util.dart';
-import 'package:intl/intl.dart';
 
 class AdminFinancesScreen extends StatefulWidget {
   const AdminFinancesScreen({super.key});
@@ -33,36 +32,36 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
   List<Map<String, dynamic>> _failedPayments = [];
 
   static const List<String> _monthNames = [
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
   String get _currentMonthName => _monthNames[DateTime.now().month - 1];
 
   List<Map<String, dynamic>> get kpis => [
     {
-      'label': "Revenus totaux",
+      'label': "Total Revenue",
       'value': "${_totalRevenue.toInt()} DH",
       'icon': LucideIcons.dollarSign,
       'colorBg': const Color(0xFFF0FDF4),
       'colorFg': const Color(0xFF16A34A),
     },
     {
-      'label': "Experts Premium",
+      'label': "Premium Providers",
       'value': "$_premiumCount",
       'icon': LucideIcons.crown,
       'colorBg': const Color(0xFFFEF9C3),
       'colorFg': const Color(0xFFCA8A04),
     },
     {
-      'label': "Revenus $_currentMonthName",
+      'label': "Revenue $_currentMonthName",
       'value': "${_currentMonthRevenue.toInt()} DH",
       'icon': LucideIcons.creditCard,
       'colorBg': const Color(0xFFEFF6FF),
       'colorFg': const Color(0xFF2563EB),
     },
     {
-      'label': "Impayés (Grâce)",
+      'label': "Unpaid (Grace)",
       'value': "$_graceCount",
       'icon': LucideIcons.alertTriangle,
       'colorBg': const Color(0xFFFEF2F2),
@@ -83,10 +82,17 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
 
   Future<void> _loadData() async {
     try {
-      final stats = await _dashboardService.getDashboardStats();
-      final monthlyRev = await _dashboardService.getMonthlyRevenue();
-      final transactions = await _dashboardService.getFinancialTransactions();
-      final graceList = await _dashboardService.getGraceSubscriptions();
+      final results = await Future.wait([
+        _dashboardService.getDashboardStats(),
+        _dashboardService.getMonthlyRevenue(),
+        _dashboardService.getFinancialTransactions(),
+        _dashboardService.getGraceSubscriptions(),
+      ]);
+
+      final stats = results[0] as AdminDashboardStats;
+      final monthlyRev = (results[1] as List).cast<Map<String, dynamic>>();
+      final transactions = (results[2] as List).cast<Map<String, dynamic>>();
+      final graceList = (results[3] as List).cast<Map<String, dynamic>>();
 
       final last6Months = monthlyRev.length > 6
           ? monthlyRev.sublist(monthlyRev.length - 6)
@@ -141,47 +147,107 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
 
   @override
   Widget build(BuildContext context) {
-    final bool isMobile = MediaQuery.of(context).size.width < 1024;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 768;
+    final bool isTablet = screenWidth >= 768 && screenWidth < 1024;
+    final bool isDesktop = screenWidth >= 1024;
+    
+    // Debug pour voir les données et le type d'appareil
+    debugPrint('=== FINANCE SCREEN DEBUG ===');
+    debugPrint('screenWidth: $screenWidth');
+    debugPrint('isMobile: $isMobile');
+    debugPrint('isTablet: $isTablet');
+    debugPrint('isDesktop: $isDesktop');
+    debugPrint('_isLoading: $_isLoading');
+    debugPrint('_revenueData length: ${_revenueData.length}');
+    debugPrint('_subscriptions length: ${_subscriptions.length}');
+    debugPrint('_failedPayments length: ${_failedPayments.length}');
+    debugPrint('_totalRevenue: $_totalRevenue');
+    debugPrint('==========================');
+    
     return AdminLayout(
       activeRoute: '/admin/finances',
       child: Column(
         children: [
-          _buildTopBar(isMobile),
+          _buildTopBar(isMobile, isTablet),
           Expanded(
             child: _isLoading 
                 ? const Center(child: CircularProgressIndicator(color: AppColors.foreground))
-                : SingleChildScrollView(
-                    child: Padding(
-                      padding: EdgeInsets.all(isMobile ? 12.0 : 24.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildKPIGrid(),
-                          const SizedBox(height: 32),
-                          _buildPremiumPricingCard(),
-                          const SizedBox(height: 32),
-                          _buildChartCard(),
-                          const SizedBox(height: 32),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: _buildTabsIndicator(),
+                : _revenueData.isEmpty && _subscriptions.isEmpty && _failedPayments.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(LucideIcons.alertCircle, size: 64, color: AppColors.mutedForeground),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No data available',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.mutedForeground,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Please check your connection or try again later.',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AppColors.mutedForeground,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 24),
+                            ElevatedButton.icon(
+                              onPressed: _loadData,
+                              icon: const Icon(LucideIcons.refreshCw),
+                              label: const Text('Refresh'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isMobile ? 12.0 : isTablet ? 18.0 : 24.0,
+                            vertical: isMobile ? 12.0 : 18.0,
                           ),
-                          const SizedBox(height: 16),
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            child: _tabController.index == 0
-                                ? KeyedSubtree(
-                                    key: const ValueKey('tab0'),
-                                    child: _buildSubscriptionsTable(),
-                                  )
-                                : KeyedSubtree(
-                                    key: const ValueKey('tab1'),
-                                    child: _buildFailedPaymentsTable(),
-                                  ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildKPIGrid(),
+                              const SizedBox(height: 32),
+                              _buildPremiumPricingCard(),
+                              const SizedBox(height: 32),
+                              if (_revenueData.isNotEmpty) ...[
+                                _buildChartCard(),
+                                const SizedBox(height: 32),
+                              ],
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: _buildTabsIndicator(),
+                              ),
+                              const SizedBox(height: 16),
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 300),
+                                child: _tabController.index == 0
+                                    ? KeyedSubtree(
+                                        key: const ValueKey('tab0'),
+                                        child: _buildSubscriptionsTable(),
+                                      )
+                                    : KeyedSubtree(
+                                        key: const ValueKey('tab1'),
+                                        child: _buildFailedPaymentsTable(),
+                                      ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
                   ),
           ),
         ],
@@ -190,36 +256,58 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
   }
 
   // ── HEADER ──────────────────────────────────────────────────────────────────
-  Widget _buildTopBar(bool isMobile) {
+  Widget _buildTopBar(bool isMobile, bool isTablet) {
+    final bool showDrawerButton = isMobile || isTablet;
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: isMobile ? 48 : 64,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
       decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: AppColors.border))),
       child: Row(
         children: [
-          if (isMobile)
+          if (showDrawerButton)
             Builder(
               builder: (context) => IconButton(
                 icon: const Icon(LucideIcons.menu, color: AppColors.foreground),
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          const Text('Finances', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.foreground)),
-          const Spacer(),
-          ElevatedButton.icon(
-            onPressed: _exportFinances,
-            icon: const Icon(LucideIcons.fileText, size: 14),
-            label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.foreground,
-              foregroundColor: AppColors.card,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
+          Expanded(
+            child: Text(
+              'Finances', 
+              style: TextStyle(
+                fontSize: isMobile ? 16 : 18, 
+                fontWeight: FontWeight.bold, 
+                color: AppColors.foreground
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(width: 12),
-          IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: AppColors.mutedForeground)),
+          if (!isMobile) ...[
+            const SizedBox(width: 12),
+            SizedBox(
+              height: 36,
+              child: ElevatedButton.icon(
+                onPressed: _exportFinances,
+                icon: const Icon(LucideIcons.fileText, size: 14),
+                label: const Text('Export PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.foreground,
+                  foregroundColor: AppColors.card,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: AppColors.mutedForeground)),
+          ] else ...[
+            IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: AppColors.mutedForeground)),
+            IconButton(
+              onPressed: _exportFinances,
+              icon: const Icon(LucideIcons.fileText, size: 18, color: AppColors.foreground),
+            ),
+          ],
         ],
       ),
     );
@@ -229,8 +317,8 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
     final bool isAbonnements = _tabController.index == 0;
     
     final List<String> headers = isAbonnements 
-        ? ['Prestataire', 'Pack', 'Début', 'Renouvellement', 'Montant', 'Statut']
-        : ['Prestataire', 'Montant', 'Date Échec', 'Tentatives'];
+        ? ['Provider', 'Pack', 'Start', 'Renewal', 'Amount', 'Status']
+        : ['Provider', 'Amount', 'Failure Date', 'Attempts'];
 
     final List<List<dynamic>> rows = isAbonnements
         ? _subscriptions.map((s) => [
@@ -241,16 +329,16 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
           ]).toList();
 
     await AdminExportUtil.exportPageToPdf(
-      filename: isAbonnements ? 'abonnements_presto' : 'impayes_presto',
-      title: isAbonnements ? 'Rapport des Abonnements' : 'Rapport des Impayés',
+      filename: isAbonnements ? 'subscriptions_presto' : 'unpaid_presto',
+      title: isAbonnements ? 'Subscription Report' : 'Unpaid Report',
       subtitle: isAbonnements 
-          ? 'Liste des experts avec un abonnement actif'
-          : 'Liste des paiements en échec ou en période de grâce',
+          ? 'List of providers with an active subscription'
+          : 'List of failed payments or grace period subscriptions',
       kpis: [
-        {'label': 'Revenu Total', 'value': '${_totalRevenue.toInt()} DH'},
-        {'label': 'Experts Premium', 'value': '$_premiumCount'},
-        {'label': 'Revenu Mois', 'value': '${_currentMonthRevenue.toInt()} DH'},
-        {'label': 'Impayés', 'value': '$_graceCount'},
+        {'label': 'Total Revenue', 'value': '${_totalRevenue.toInt()} DH'},
+        {'label': 'Premium Providers', 'value': '$_premiumCount'},
+        {'label': 'Monthly Revenue', 'value': '${_currentMonthRevenue.toInt()} DH'},
+        {'label': 'Unpaid', 'value': '$_graceCount'},
       ],
       tableHeaders: headers,
       tableRows: rows,
@@ -348,22 +436,37 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Performance Mensuelle',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.foreground,
-                      letterSpacing: -0.2)),
-              _buildLegendRow(),
-            ],
-          ),
+          LayoutBuilder(builder: (context, headerConstraints) {
+            final screenWidth = MediaQuery.of(context).size.width;
+            final bool isMobile = screenWidth < 768;
+            return Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                SizedBox(
+                  width: isMobile ? headerConstraints.maxWidth * 0.55 : headerConstraints.maxWidth * 0.65,
+                  child: const Text('Monthly Performance',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.foreground,
+                          letterSpacing: -0.2)),
+                ),
+                _buildLegendRow(),
+              ],
+            );
+          }),
           const SizedBox(height: 32),
-          SizedBox(
-            height: 250,
-            child: BarChart(
+          LayoutBuilder(builder: (context, chartConstraints) {
+            final screenWidth = MediaQuery.of(context).size.width;
+            final chartHeight = screenWidth < 768 ? 220.0 : screenWidth < 1024 ? 260.0 : 300.0;
+            return SizedBox(
+              height: chartHeight,
+              child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
                 maxY: 10000,
@@ -459,7 +562,8 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                 }).toList(),
               ),
             ),
-          ),
+          );
+        }),
         ],
       ),
     );
@@ -476,37 +580,46 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                     colors: [_chartYellowStart, _chartYellowEnd]),
                 borderRadius: BorderRadius.circular(3))),
         const SizedBox(width: 8),
-        const Text('Abonnements Premium',
-            style: TextStyle(
-                fontSize: 12,
-                color: AppColors.mutedForeground,
-                fontWeight: FontWeight.w600)),
+        Flexible(
+          child: Text('Premium Subscriptions',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 12,
+                  color: AppColors.mutedForeground,
+                  fontWeight: FontWeight.w600)),
+        ),
       ],
     );
   }
 
   // ── TAB BAR ──────────────────────────────────────────────────────────────────
   Widget _buildTabsIndicator() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 768;
+    
     return Row(
       children: [
         _TabButton(
           index: 0,
           controller: _tabController,
           icon: LucideIcons.checkCircle,
-          label: 'Abonnements',
+          label: isMobile ? 'Subs.' : 'Subscriptions',
           count: _subscriptions.length,
-          activeColor: const Color(0xFF16A34A),
-          activeBg: const Color(0xFFF0FDF4),
+          activeColor: AppColors.primary,
+          activeBg: AppColors.primary.withOpacity(0.1),
+          isMobile: isMobile,
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: isMobile ? 4 : 8),
         _TabButton(
           index: 1,
           controller: _tabController,
-          icon: LucideIcons.ban,
-          label: 'Abonnements Suspendus',
+          icon: LucideIcons.alertTriangle,
+          label: isMobile ? 'Suspended' : 'Suspended Subscriptions',
           count: _failedPayments.length,
-          activeColor: const Color(0xFFEA580C),
-          activeBg: const Color(0xFFFFF7ED),
+          activeColor: Colors.orange,
+          activeBg: Colors.orange.withOpacity(0.1),
+          isMobile: isMobile,
         ),
       ],
     );
@@ -514,6 +627,77 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
 
   // ── SUBSCRIPTIONS TABLE ──────────────────────────────────────────────────────
   Widget _buildSubscriptionsTable() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 768;
+    if (isMobile) {
+      return Column(
+        children: _subscriptions.asMap().entries.map((e) {
+          final s = e.value;
+          return Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border.withOpacity(0.5)),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _Avatar(name: s['provider']),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(s['provider'],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.foreground,
+                              fontSize: 15)),
+                    ),
+                    const SizedBox(width: 12),
+                    _StatusChip(status: s['status']),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _PackBadge(label: s['pack']),
+                    _InfoPill(icon: LucideIcons.calendarDays, label: s['start']),
+                    _InfoPill(icon: LucideIcons.refreshCcw, label: s['renewal']),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(s['amount'],
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.foreground,
+                            fontSize: 16)),
+                    const SizedBox(width: 8),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      );
+    }
+
     return _TableShell(
       columnWidths: const {
         0: FlexColumnWidth(2.2),
@@ -524,7 +708,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
         5: FlexColumnWidth(1.1),
       },
       headerLabels: const [
-        'PRESTATAIRE', 'PACK', 'DÉBUT', 'RENOUVELLEMENT', 'MONTANT', 'STATUT',
+        'PROVIDER', 'PACK', 'START', 'RENEWAL', 'AMOUNT', 'STATUS',
       ],
       dataRows: _subscriptions.asMap().entries.map((e) {
         final s = e.value;
@@ -589,7 +773,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                     color: Color(0xFF16A34A), size: 28),
               ),
               const SizedBox(height: 12),
-              const Text('Aucun paiement échoué',
+              const Text('No failed payments found',
                   style: TextStyle(
                       color: AppColors.mutedForeground,
                       fontSize: 15,
@@ -597,6 +781,89 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
             ],
           ),
         ),
+      );
+    }
+
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 768;
+    if (isMobile) {
+      return Column(
+        children: _failedPayments.asMap().entries.map((e) {
+          final f = e.value;
+          final subId = f['id'] as String? ?? '';
+          return Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.card,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border.withOpacity(0.5)),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withOpacity(0.02),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    _Avatar(name: f['provider'] ?? 'Expert', danger: true),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(f['provider'] ?? 'Expert',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.foreground,
+                              fontSize: 15)),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(f['amount'] ?? '--',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.foreground,
+                            fontSize: 16)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _InfoPill(icon: LucideIcons.calendarDays, label: f['date'] ?? '--'),
+                    _AttemptsIndicator(count: (f['attempts'] as int?) ?? 1),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _ActionButton(
+                      label: 'Retry',
+                      icon: LucideIcons.refreshCw,
+                      color: AppColors.primary,
+                      bg: const Color(0xFFEFF6FF),
+                      onTap: () => _confirmReactivate(subId),
+                    ),
+                    const SizedBox(width: 10),
+                    _ActionButton(
+                      label: 'Suspend',
+                      icon: LucideIcons.ban,
+                      color: AppColors.destructive,
+                      bg: const Color(0xFFFEF2F2),
+                      onTap: () => _confirmSuspend(subId),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }).toList(),
       );
     }
 
@@ -609,7 +876,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
         4: FlexColumnWidth(2.0),
       },
       headerLabels: const [
-        'PRESTATAIRE', 'MONTANT', 'DATE ÉCHEC', 'TENTATIVES', 'ACTIONS',
+        'PROVIDER', 'AMOUNT', 'FAILED DATE', 'ATTEMPTS', 'ACTIONS',
       ],
       dataRows: _failedPayments.asMap().entries.map((e) {
         final f = e.value;
@@ -643,7 +910,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
               alignment: Alignment.centerLeft,
               child: Row(children: [
                 _ActionButton(
-                  label: 'Relancer',
+                  label: 'Retry',
                   icon: LucideIcons.refreshCw,
                   color: AppColors.primary,
                   bg: const Color(0xFFEFF6FF),
@@ -651,7 +918,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                 ),
                 const SizedBox(width: 8),
                 _ActionButton(
-                  label: 'Suspendre',
+                  label: 'Suspend',
                   icon: LucideIcons.ban,
                   color: AppColors.destructive,
                   bg: const Color(0xFFFEF2F2),
@@ -672,19 +939,19 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Relancer l\'abonnement',
+        title: const Text('Retry Subscription',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         content: const Text(
-            'Souhaitez-vous réactiver cet abonnement et restaurer l\'accès Premium ?'),
+            'Do you want to reactivate this subscription and restore Premium access?'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary, foregroundColor: Colors.white),
-            child: const Text('Relancer'),
+            child: const Text('Retry'),
           ),
         ],
       ),
@@ -696,7 +963,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Abonnement relancé avec succès.'),
+                content: Text('Subscription retried successfully.'),
                 backgroundColor: Colors.green),
           );
         }
@@ -704,7 +971,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                content: Text('Error: $e'), backgroundColor: Colors.red),
           );
         }
       }
@@ -716,20 +983,20 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Suspendre l\'abonnement',
+        title: const Text('Suspend Subscription',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         content: const Text(
-            'Souhaitez-vous suspendre définitivement cet abonnement ? L\'accès Premium sera coupé immédiatement.'),
+            'Do you want to permanently suspend this subscription? Premium access will be cut immediately.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.destructive,
                 foregroundColor: Colors.white),
-            child: const Text('Suspendre'),
+            child: const Text('Suspend'),
           ),
         ],
       ),
@@ -741,7 +1008,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('Abonnement suspendu.'),
+                content: Text('Subscription suspended.'),
                 backgroundColor: Colors.orange),
           );
         }
@@ -749,7 +1016,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text('Erreur: $e'), backgroundColor: Colors.red),
+                content: Text('Error: $e'), backgroundColor: Colors.red),
           );
         }
       }
@@ -759,8 +1026,10 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
   // ── PREMIUM PRICING SETTINGS ────────────────────────────────────────────────
 
   Widget _buildPremiumPricingCard() {
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 768;
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(isMobile ? 18 : 24),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(20),
@@ -775,54 +1044,103 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Configuration du Pack Premium',
+          const Text('Premium Pack Configuration',
               style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: AppColors.foreground,
                   letterSpacing: -0.2)),
           const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Prix Premium mensuel (DH)',
-                        style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.mutedForeground,
-                            letterSpacing: 0.5)),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      initialValue: _premiumPriceInput,
-                      keyboardType: TextInputType.number,
-                      onChanged: (v) => _premiumPriceInput = v,
-                      style: const TextStyle(fontSize: 14, color: AppColors.foreground),
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                        fillColor: AppColors.muted.withOpacity(0.1),
-                        filled: true,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
-                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
-                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+          Builder(builder: (context) {
+            final double screenWidth = MediaQuery.of(context).size.width;
+            final bool isMobile = screenWidth < 768;
+            if (isMobile) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Monthly Premium Price (DH)',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.mutedForeground,
+                              letterSpacing: 0.5)),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        initialValue: _premiumPriceInput,
+                        keyboardType: TextInputType.number,
+                        onChanged: (v) => _premiumPriceInput = v,
+                        style: const TextStyle(fontSize: 14, color: AppColors.foreground),
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          fillColor: AppColors.muted.withOpacity(0.1),
+                          filled: true,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+                        ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _isUpdatingPrice ? null : _updatePremiumPrice,
+                    icon: _isUpdatingPrice 
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Icon(LucideIcons.save, size: 14),
+                    label: const Text('Save and Apply', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.foreground,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      elevation: 0,
                     ),
-                  ],
+                  ),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Monthly Premium Price (DH)',
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.mutedForeground,
+                              letterSpacing: 0.5)),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        initialValue: _premiumPriceInput,
+                        keyboardType: TextInputType.number,
+                        onChanged: (v) => _premiumPriceInput = v,
+                        style: const TextStyle(fontSize: 14, color: AppColors.foreground),
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          fillColor: AppColors.muted.withOpacity(0.1),
+                          filled: true,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
+                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 24.0),
+                const SizedBox(width: 16),
+                SizedBox(
+                  width: 220,
                   child: ElevatedButton.icon(
                     onPressed: _isUpdatingPrice ? null : _updatePremiumPrice,
                     icon: _isUpdatingPrice 
                         ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : const Icon(LucideIcons.save, size: 14),
-                    label: const Text('Sauvegarder et Appliquer', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    label: const Text('Save and Apply', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.foreground,
                       foregroundColor: Colors.white,
@@ -832,11 +1150,11 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                     ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            );
+          }),
           const SizedBox(height: 12),
-          const Text('Attention : la modification du prix mettra à jour le montant de tous les abonnements existants.',
+          const Text('Warning: Modifying the price will update the amount for all existing subscriptions.',
               style: TextStyle(fontSize: 12, color: AppColors.mutedForeground, fontStyle: FontStyle.italic)),
         ],
       ),
@@ -848,7 +1166,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
     if (newPrice == null || newPrice <= 0) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Veuillez entrer un prix valide.'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Please enter a valid price.'), backgroundColor: Colors.red),
         );
       }
       return;
@@ -858,14 +1176,14 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Confirmation de mise à jour', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        content: Text('Êtes-vous sûr de vouloir appliquer le prix de ${newPrice.toStringAsFixed(2)} DH à tous les abonnements ?'),
+        title: const Text('Update Confirmation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: Text('Are you sure you want to apply the price of ${newPrice.toStringAsFixed(2)} DH to all subscriptions?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary, foregroundColor: Colors.white),
-            child: const Text('Confirmer'),
+            child: const Text('Confirm'),
           ),
         ],
       ),
@@ -882,13 +1200,13 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       await _loadData(); // reload the UI
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Prix mis à jour avec succès pour tous les abonnements.'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('Price updated successfully for all subscriptions.'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -923,6 +1241,10 @@ class _TableShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 768;
+    final isTablet = screenWidth < 1024;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
       decoration: BoxDecoration(
@@ -939,12 +1261,43 @@ class _TableShell extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: LayoutBuilder(builder: (context, constraints) {
         final minW = constraints.maxWidth > 0 ? constraints.maxWidth : 800.0;
+        
+        // Adjust column widths for mobile
+        Map<int, TableColumnWidth> responsiveColumnWidths = {};
+        if (isMobile) {
+          // Mobile: Simplified layout with fewer columns
+          responsiveColumnWidths = columnWidths.map((key, value) {
+            switch (key) {
+              case 0: return MapEntry(key, const FlexColumnWidth(3.0)); // Provider
+              case 1: return MapEntry(key, const FlexColumnWidth(1.5)); // Pack/Amount
+              case 2: return MapEntry(key, const FlexColumnWidth(1.2)); // Start/Date
+              case 3: return MapEntry(key, const FlexColumnWidth(1.0)); // Renewal/Attempts
+              case 4: return MapEntry(key, const FlexColumnWidth(0.8)); // Amount/Actions
+              default: return MapEntry(key, value);
+            }
+          });
+        } else if (isTablet) {
+          // Tablet: Medium layout
+          responsiveColumnWidths = columnWidths.map((key, value) {
+            switch (key) {
+              case 0: return MapEntry(key, const FlexColumnWidth(2.5));
+              case 1: return MapEntry(key, const FlexColumnWidth(1.2));
+              case 2: return MapEntry(key, const FlexColumnWidth(1.1));
+              case 3: return MapEntry(key, const FlexColumnWidth(1.3));
+              case 4: return MapEntry(key, const FlexColumnWidth(0.9));
+              default: return MapEntry(key, value);
+            }
+          });
+        } else {
+          responsiveColumnWidths = columnWidths;
+        }
+        
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: ConstrainedBox(
             constraints: BoxConstraints(minWidth: minW),
             child: Table(
-              columnWidths: columnWidths,
+              columnWidths: responsiveColumnWidths,
               defaultVerticalAlignment: TableCellVerticalAlignment.middle,
               children: [
                 // ── Header row
@@ -954,14 +1307,20 @@ class _TableShell extends StatelessWidget {
                   ),
                   children: headerLabels
                       .map((label) => Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 14),
-                            child: Text(label,
-                                style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.mutedForeground,
-                                    letterSpacing: 0.7)),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isMobile ? 8 : 16, 
+                              vertical: isMobile ? 10 : 14
+                            ),
+                            child: Text(
+                              isMobile ? _shortenLabel(label) : label,
+                              style: TextStyle(
+                                  fontSize: isMobile ? 10 : 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.mutedForeground,
+                                  letterSpacing: 0.7),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
                           ))
                       .toList(),
                 ),
@@ -978,8 +1337,10 @@ class _TableShell extends StatelessWidget {
                       ),
                       children: row.cells
                           .map((cell) => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 14),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isMobile ? 8 : 16, 
+                                  vertical: isMobile ? 10 : 14
+                                ),
                                 child: cell,
                               ))
                           .toList(),
@@ -990,6 +1351,21 @@ class _TableShell extends StatelessWidget {
         );
       }),
     );
+  }
+  
+  String _shortenLabel(String label) {
+    switch (label) {
+      case 'PROVIDER': return 'PROV.';
+      case 'PACK': return 'PACK';
+      case 'START': return 'START';
+      case 'RENEWAL': return 'RENEW.';
+      case 'AMOUNT': return 'AMOUNT';
+      case 'STATUS': return 'STATUS';
+      case 'FAILED DATE': return 'DATE';
+      case 'ATTEMPTS': return 'ATT.';
+      case 'ACTIONS': return 'ACT.';
+      default: return label;
+    }
   }
 }
 
@@ -1105,6 +1481,36 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
+class _InfoPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _InfoPill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.muted.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: AppColors.mutedForeground),
+          const SizedBox(width: 6),
+          Text(label,
+              style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.mutedForeground)),
+        ],
+      ),
+    );
+  }
+}
+
 class _AttemptsIndicator extends StatelessWidget {
   final int count;
   const _AttemptsIndicator({required this.count});
@@ -1189,6 +1595,7 @@ class _TabButton extends StatelessWidget {
   final int count;
   final Color activeColor;
   final Color activeBg;
+  final bool isMobile;
 
   const _TabButton({
     required this.index,
@@ -1198,6 +1605,7 @@ class _TabButton extends StatelessWidget {
     required this.count,
     required this.activeColor,
     required this.activeBg,
+    this.isMobile = false,
   });
 
   @override

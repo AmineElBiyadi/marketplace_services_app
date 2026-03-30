@@ -18,13 +18,10 @@ class ChatService {
     final uid = currentUserId;
     if (uid.isEmpty) throw Exception('Vous devez être connecté.');
 
-    final messagesRef = _db
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages');
-
     final chatRef = _db.collection('chats').doc(chatId);
+    final messagesRef = chatRef.collection('messages');
 
+    // 1. Ajouter le message
     await messagesRef.add({
       'SenderId':  uid,
       'contenu':   contenu,
@@ -35,55 +32,67 @@ class ChatService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    await chatRef.update({
+    // 2. Récupérer les infos du chat pour la notification et les compteurs
+    final chatDoc = await chatRef.get();
+    if (!chatDoc.exists) return;
+    
+    final data = chatDoc.data() as Map<String, dynamic>;
+    final bool isClientSender = data['idClient'] == uid;
+
+    // 3. Préparer et envoyer les mises à jour du chat (dernier message + compteurs)
+    final Map<String, dynamic> updates = {
       'dernierMessage': {
-        'contenu':   contenu,
-        'senderId':  uid,
-        'type':      'TEXT',
+        'contenu': contenu,
+        'senderId': uid,
+        'type': 'TEXT',
         'createdAt': FieldValue.serverTimestamp(),
       },
-      'nbMessagesNonLus': FieldValue.increment(1),
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
 
-    // Send push notification to the receiver
-    final chatDoc = await chatRef.get();
-    if (chatDoc.exists) {
-      final data = chatDoc.data()!;
-      final String idClient = data['idClient'] ?? '';
-      final String idExpert = data['idExpert'] ?? '';
-      final String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
-      final String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+    if (isClientSender) {
+      updates['unreadCountExpert'] = FieldValue.increment(1);
+    } else {
+      updates['unreadCountClient'] = FieldValue.increment(1);
+    }
 
-      if (uid == idClient) {
-        // Sender is client, notify expert
-        final expertDoc = await _db.collection('experts').doc(idExpert).get();
-        if (expertDoc.exists) {
-          final String expertAuthId = expertDoc.data()?['idUtilisateur'] ?? '';
-          if (expertAuthId.isNotEmpty) {
-            await NotificationService().sendNotification(
-              idUtilisateur: expertAuthId,
-              titre: "New message from $clientName",
-              corps: contenu,
-              type: "chat",
-              relatedId: chatId,
-            );
-          }
-        }
-      } else {
-        // Sender is expert, notify client
-        if (idClient.isNotEmpty) {
+    await chatRef.update(updates);
+
+    // 4. Envoyer la notification Push au destinataire
+    final String idClient = data['idClient'] ?? '';
+    final String idExpert = data['idExpert'] ?? '';
+    final String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+    final String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+
+    if (isClientSender) {
+      // L'expéditeur est le client, on notifie l'expert
+      final expertDoc = await _db.collection('experts').doc(idExpert).get();
+      if (expertDoc.exists) {
+        final String expertAuthId = expertDoc.data()?['idUtilisateur'] ?? '';
+        if (expertAuthId.isNotEmpty) {
           await NotificationService().sendNotification(
-            idUtilisateur: idClient,
-            titre: "New message from $expertName",
+            idUtilisateur: expertAuthId,
+            titre: "New message from $clientName",
             corps: contenu,
             type: "chat",
             relatedId: chatId,
           );
         }
       }
+    } else {
+      // L'expéditeur est l'expert, on notifie le client
+      if (idClient.isNotEmpty) {
+        await NotificationService().sendNotification(
+          idUtilisateur: idClient,
+          titre: "New message from $expertName",
+          corps: contenu,
+          type: "chat",
+          relatedId: chatId,
+        );
+      }
     }
   }
+
 
   // ─── Real-time stream of messages ────────────────────────────
   Stream<List<MessageModel>> getMessages(String chatId) {
@@ -175,8 +184,15 @@ class ChatService {
 
   // ─── Mark all unread messages as LU ──────────────────────────
   Future<void> markMessagesAsRead(String chatId) async {
+    final chatDoc = await _db.collection('chats').doc(chatId).get();
+    if (!chatDoc.exists) return;
+    final data = chatDoc.data()!;
+    final uid = currentUserId;
+
+    bool isClient = data['idClient'] == uid;
+    
     await _db.collection('chats').doc(chatId).update({
-      'nbMessagesNonLus': 0,
+      if (isClient) 'unreadCountClient': 0 else 'unreadCountExpert': 0,
     });
 
     final unread = await _db
@@ -225,7 +241,8 @@ class ChatService {
       'idIntervention':    idIntervention,
       'estOuvert':         true,
       'DateFin':           null,
-      'nbMessagesNonLus':  0,
+      'unreadCountClient': 0,
+      'unreadCountExpert': 0,
       'clientSnapshot':    clientSnapshot,
       'expertSnapshot':    expertSnapshot,
       'dernierMessage':    null,
@@ -242,6 +259,40 @@ class ChatService {
       'estOuvert': false,
       'DateFin':   FieldValue.serverTimestamp(),
     });
+  }
+
+  // ─── Stream of total unread messages for a user ────────────────
+  Stream<int> getTotalUnreadCount(String userRole, {String? expertId}) {
+    if (userRole == 'client') {
+      final uid = currentUserId;
+      if (uid.isEmpty) return Stream.value(0);
+      return _db
+          .collection('chats')
+          .where('idClient', isEqualTo: uid)
+          .snapshots()
+          .map((snap) {
+            int total = 0;
+            for (var doc in snap.docs) {
+              total += (doc.data()['unreadCountClient'] ?? 0) as int;
+            }
+            return total;
+          });
+    } else {
+      // For expert, we need to be careful with expertId resolution in a stream
+      // Using a simple where query on idExpert
+      if (expertId == null) return Stream.value(0);
+      return _db
+          .collection('chats')
+          .where('idExpert', isEqualTo: expertId)
+          .snapshots()
+          .map((snap) {
+            int total = 0;
+            for (var doc in snap.docs) {
+              total += (doc.data()['unreadCountExpert'] ?? 0) as int;
+            }
+            return total;
+          });
+    }
   }
 
   // ─── Fetch a single chat by ID ────────────────────────────────

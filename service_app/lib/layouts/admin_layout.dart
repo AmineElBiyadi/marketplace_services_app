@@ -24,21 +24,27 @@ class _AdminLayoutState extends State<AdminLayout> {
 
     return Scaffold(
       drawer: isMobile 
-          ? AdminSidebar(activeRoute: widget.activeRoute, isMobile: true) 
+          ? SafeArea(
+              top: true,
+              bottom: true,
+              child: AdminSidebar(activeRoute: widget.activeRoute, isMobile: true),
+            )
           : null,
       backgroundColor: const Color(0xFFF8FAFC),
-      body: Row(
-        children: [
-          if (!isMobile)
-            AdminSidebar(
-              activeRoute: widget.activeRoute,
-              isOpen: _sidebarOpen,
-              onToggle: () => setState(() => _sidebarOpen = !_sidebarOpen),
+      body: SafeArea(
+        child: Row(
+          children: [
+            if (!isMobile)
+              AdminSidebar(
+                activeRoute: widget.activeRoute,
+                isOpen: _sidebarOpen,
+                onToggle: () => setState(() => _sidebarOpen = !_sidebarOpen),
+              ),
+            Expanded(
+              child: widget.child,
             ),
-          Expanded(
-            child: widget.child,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

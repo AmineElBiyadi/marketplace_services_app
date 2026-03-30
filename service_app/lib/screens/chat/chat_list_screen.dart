@@ -3,7 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/chat_service.dart';
 import '../../models/chat_model.dart';
-import 'chat_screen.dart';
+import '../chat/chat_screen.dart';
+import '../../widgets/shared/client_header.dart';
 
 class ChatListScreen extends StatelessWidget {
   final String currentUserRole; // "client" or "expert"
@@ -79,6 +80,12 @@ class ChatListScreen extends StatelessWidget {
                         color: Color(0xFF1E293B),
                       ),
                     ),
+                  )
+                else
+                  const ClientHeader(
+                    title: "Messages",
+                    subtitle: "Chat with your service providers",
+                    bottomPadding: 10,
                   ),
                 Expanded(
                   child: Center(
@@ -124,6 +131,12 @@ class ChatListScreen extends StatelessWidget {
                       color: Color(0xFF1E293B),
                     ),
                   ),
+                )
+              else
+                const ClientHeader(
+                  title: "Messages",
+                  subtitle: "Chat with your service providers",
+                  bottomPadding: 10,
                 ),
               Expanded(
                 child: ListView.separated(
@@ -145,12 +158,11 @@ class ChatListScreen extends StatelessWidget {
                     final lastText =
                         chat.dernierMessage?.contenu ?? 'No messages';
                     final lastTime = chat.updatedAt.toDate();
-                    final unread = chat.nbMessagesNonLus;
+                    final unread = currentUserRole == 'client'
+                        ? chat.unreadCountClient
+                        : chat.unreadCountExpert;
 
-                    // Only show unread badge if the last message was NOT sent by me
-                    final isLastMessageMine =
-                        chat.dernierMessage?.senderId == currentUserId;
-                    final showUnread = unread > 0 && !isLastMessageMine;
+                    final showUnread = unread > 0;
 
                     final serviceNom = chat.tacheSnapshot?['serviceNom'] as String? ?? 'Request';
                     final taskNom = chat.tacheSnapshot?['nom'] as String? ?? 'General discussion';
@@ -288,27 +300,30 @@ class ChatListScreen extends StatelessWidget {
   }
 
   Widget _buildAvatar(String photo, String name, bool isOpen) {
-    Widget avatar;
-    if (photo.isNotEmpty) {
-      avatar = CircleAvatar(
-        radius: 24,
-        backgroundImage: NetworkImage(photo),
-        onBackgroundImageError: (_, __) {},
-      );
-    } else {
-      avatar = CircleAvatar(
-        radius: 24,
-        backgroundColor: _primaryBlue.withOpacity(0.15),
-        child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : '?',
-          style: const TextStyle(
-            color: _primaryBlue,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-      );
-    }
+    final initials = name.isNotEmpty ? name.split(' ').map((e) => e[0]).take(2).join().toUpperCase() : '?';
+    
+    Widget avatar = Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: _primaryBlue.withOpacity(0.1),
+        shape: BoxShape.circle,
+        image: photo.isNotEmpty && photo.startsWith('http')
+            ? DecorationImage(image: NetworkImage(photo), fit: BoxFit.cover)
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: photo.isEmpty || !photo.startsWith('http')
+          ? Text(
+              initials,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: _primaryBlue,
+              ),
+            )
+          : null,
+    );
 
     if (!isOpen) {
       return Stack(

@@ -8,6 +8,7 @@ import '../screens/chat/chat_list_screen.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
+import '../services/chat_service.dart';
 
 class ProviderSidebar extends StatefulWidget {
   final String activeRoute;
@@ -115,7 +116,19 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
                   '/provider/:expertId/agenda',
                   badge: _isPremium ? '⭐' : null,
                 ),
-                _sidebarItem(Icons.message, 'Messages', '/provider/:expertId/messages'),
+                StreamBuilder<int>(
+                  stream: ChatService().getTotalUnreadCount('expert', expertId: widget.expertId),
+                  builder: (context, snapshot) {
+                    final count = snapshot.data ?? 0;
+                    return _sidebarItem(
+                      Icons.message,
+                      'Messages',
+                      '/provider/:expertId/messages',
+                      badge: count > 0 ? count.toString() : null,
+                      isNumericBadge: count > 0,
+                    );
+                  },
+                ),
                 _sidebarItem(Icons.person, 'Profile', '/provider/:expertId/profile'),
               ],
             ),
@@ -132,7 +145,7 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
     );
   }
 
-  Widget _sidebarItem(IconData icon, String label, String route, {bool isDestructive = false, String? badge}) {
+  Widget _sidebarItem(IconData icon, String label, String route, {bool isDestructive = false, String? badge, bool isNumericBadge = false}) {
     final bool active = widget.activeRoute == route;
     final bool showLabel = widget.isOpen || widget.isMobile;
 
@@ -191,7 +204,9 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
                   ),
                 ),
                 if (badge != null)
-                  Text(badge, style: const TextStyle(fontSize: 12)),
+                  isNumericBadge
+                      ? Badge(label: Text(badge))
+                      : Text(badge, style: const TextStyle(fontSize: 12)),
               ],
             ],
           ),

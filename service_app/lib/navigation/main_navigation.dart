@@ -6,6 +6,7 @@ import '../screens/client/search_screen.dart';
 import '../screens/client/bookings_screen.dart';
 import '../screens/client/profile_screen.dart';
 import '../screens/chat/chat_list_screen.dart';
+import '../services/chat_service.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({Key? key}) : super(key: key);
@@ -18,6 +19,7 @@ class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
   String _clientId = '';
   bool _isLoading = true;
+  final ChatService _chatService = ChatService();
 
   @override
   void initState() {
@@ -59,7 +61,7 @@ class _MainNavigationState extends State<MainNavigation> {
         selectedItemColor: const Color(0xFF3D5A99),
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        items: const [
+        items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home),
@@ -71,8 +73,28 @@ class _MainNavigationState extends State<MainNavigation> {
             label: 'Search',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            activeIcon: Icon(Icons.chat_bubble),
+            icon: StreamBuilder<int>(
+              stream: _chatService.getTotalUnreadCount('client'),
+              builder: (context, snapshot) {
+                final count = snapshot.data ?? 0;
+                return Badge(
+                  label: Text(count.toString()),
+                  isLabelVisible: count > 0,
+                  child: const Icon(Icons.chat_bubble_outline),
+                );
+              },
+            ),
+            activeIcon: StreamBuilder<int>(
+              stream: _chatService.getTotalUnreadCount('client'),
+              builder: (context, snapshot) {
+                final count = snapshot.data ?? 0;
+                return Badge(
+                  label: Text(count.toString()),
+                  isLabelVisible: count > 0,
+                  child: const Icon(Icons.chat_bubble),
+                );
+              },
+            ),
             label: 'Messages',
           ),
           BottomNavigationBarItem(

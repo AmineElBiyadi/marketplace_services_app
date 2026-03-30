@@ -197,7 +197,8 @@ class InterventionService {
       'idIntervention': interventionRef.id,
       'estOuvert': true,
       'DateFin': null,
-      'nbMessagesNonLus': 0,
+      'unreadCountClient': 0,
+      'unreadCountExpert': 0,
       'clientSnapshot': clientSnapshot,
       'expertSnapshot': expertSnapshot,
       'tacheSnapshot': {

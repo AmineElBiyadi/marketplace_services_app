@@ -6,6 +6,7 @@ import '../../services/chat_service.dart';
 import '../../models/chat_model.dart';
 import '../../models/message_model.dart';
 import '../../widgets/message_bubble.dart';
+import '../../theme/app_colors.dart';
 
 class ChatScreen extends StatefulWidget {
   final ChatModel chat;
@@ -29,7 +30,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isChatOpen = true;
   StreamSubscription<DocumentSnapshot>? _chatSubscription;
 
-  static const _primaryBlue = Color(0xFF3D5A99);
+  static const _primaryBlue = AppColors.primary;
 
   @override
   void initState() {
@@ -45,12 +46,21 @@ class _ChatScreenState extends State<ChatScreen> {
         .listen((snapshot) {
       if (snapshot.exists) {
         final data = snapshot.data() as Map<String, dynamic>?;
-        if (data != null && data.containsKey('estOuvert')) {
+        if (data != null) {
           final isOpen = data['estOuvert'] == true;
           if (isOpen != _isChatOpen && mounted) {
             setState(() {
               _isChatOpen = isOpen;
             });
+          }
+          
+          // Clear unread count if it's > 0 for current user
+          final unread = widget.currentUserRole == 'client' 
+              ? (data['unreadCountClient'] ?? 0) 
+              : (data['unreadCountExpert'] ?? 0);
+              
+          if (unread > 0) {
+            _chatService.markMessagesAsRead(widget.chat.chatId);
           }
         }
       }
@@ -134,7 +144,15 @@ class _ChatScreenState extends State<ChatScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F0),
       appBar: AppBar(
-        backgroundColor: _primaryBlue,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [AppColors.primary, Color(0xFF818CF8)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         foregroundColor: Colors.white,
         elevation: 0,
         titleSpacing: 0,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_colors.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../services/chat_service.dart';
 
 class ProviderBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -60,7 +61,7 @@ class ProviderBottomNav extends StatelessWidget {
           unselectedItemColor: const Color(0xFF64748B),
           selectedFontSize: 12,
           unselectedFontSize: 12,
-          items: const [
+          items: [
             BottomNavigationBarItem(
                 icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
             BottomNavigationBarItem(
@@ -70,7 +71,29 @@ class ProviderBottomNav extends StatelessWidget {
             BottomNavigationBarItem(
                 icon: Icon(Icons.event_outlined), activeIcon: Icon(Icons.event), label: 'Agenda'),
             BottomNavigationBarItem(
-                icon: Icon(LucideIcons.messageSquare), activeIcon: Icon(Icons.message), label: 'Messages'),
+                icon: StreamBuilder<int>(
+                  stream: ChatService().getTotalUnreadCount('expert', expertId: expertId),
+                  builder: (context, snapshot) {
+                    final count = snapshot.data ?? 0;
+                    return Badge(
+                      label: Text(count.toString()),
+                      isLabelVisible: count > 0,
+                      child: const Icon(LucideIcons.messageSquare),
+                    );
+                  },
+                ),
+                activeIcon: StreamBuilder<int>(
+                  stream: ChatService().getTotalUnreadCount('expert', expertId: expertId),
+                  builder: (context, snapshot) {
+                    final count = snapshot.data ?? 0;
+                    return Badge(
+                      label: Text(count.toString()),
+                      isLabelVisible: count > 0,
+                      child: const Icon(Icons.message),
+                    );
+                  },
+                ),
+                label: 'Messages'),
             BottomNavigationBarItem(
                 icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
           ],

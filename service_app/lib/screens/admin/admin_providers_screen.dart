@@ -28,9 +28,9 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
   List<Map<String, dynamic>> _filteredProviders = [];
   final TextEditingController _searchController = TextEditingController();
   
-  String _selectedStatus = 'Tous';
-  String _selectedSub = 'Tous';
-  String _selectedSort = 'Plus récents';
+  String _selectedStatus = 'All';
+  String _selectedSub = 'All';
+  String _selectedSort = 'Newest';
 
   @override
   void initState() {
@@ -42,12 +42,25 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     setState(() => _loading = true);
     try {
       final data = await _service.getAllProviders();
+      
+      // Normalize statuses in memory
+      final normalizedData = data.map((p) {
+        final rawStatus = (p['status'] ?? '').toString().toUpperCase();
+        String normalizedStatus = rawStatus;
+        if (rawStatus == 'ACTIVE') normalizedStatus = 'ACTIVE';
+        else if (rawStatus == 'SUSPENDUE') normalizedStatus = 'SUSPENDED';
+        else if (rawStatus == 'DESACTIVE' || rawStatus == 'INACTIVE') normalizedStatus = 'DEACTIVATED';
+        else if (rawStatus == 'EN_ATTENTE' || rawStatus == 'En attente') normalizedStatus = 'PENDING';
+        
+        return {...p, 'status': normalizedStatus};
+      }).toList();
+
       if (mounted) {
         setState(() {
-          _allProviders = data;
-          _filteredProviders = data;
+          _allProviders = normalizedData;
           _loading = false;
         });
+        _applyFilters();
       }
     } catch (e) {
       if (mounted) setState(() => _loading = false);
@@ -59,18 +72,18 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     setState(() {
       _filteredProviders = _allProviders.where((p) {
         final nameMatches = p['name'].toString().toLowerCase().contains(query);
-        final statusMatches = _selectedStatus == 'Tous' || p['status'] == _selectedStatus;
-        final subMatches = _selectedSub == 'Tous' || 
-            (_selectedSub == 'Premium' && p['hasSubscription'] == true) ||
-            (_selectedSub == 'Gratuit' && p['hasSubscription'] == false);
-        return nameMatches && statusMatches && subMatches;
-      }).toList();
-      
-      if (_selectedSort == 'Plus récents') {
-        _filteredProviders.sort((a, b) => (b['rawDate'] as DateTime).compareTo(a['rawDate'] as DateTime));
-      } else if (_selectedSort == 'Plus anciens') {
-        _filteredProviders.sort((a, b) => (a['rawDate'] as DateTime).compareTo(b['rawDate'] as DateTime));
-      }
+      final statusMatches = _selectedStatus == 'All' || p['status'] == _selectedStatus;
+      final subMatches = _selectedSub == 'All' || 
+          (_selectedSub == 'Premium' && p['hasSubscription'] == true) ||
+          (_selectedSub == 'Free' && p['hasSubscription'] == false);
+      return nameMatches && statusMatches && subMatches;
+    }).toList();
+    
+    if (_selectedSort == 'Newest') {
+      _filteredProviders.sort((a, b) => (b['rawDate'] as DateTime).compareTo(a['rawDate'] as DateTime));
+    } else if (_selectedSort == 'Oldest') {
+      _filteredProviders.sort((a, b) => (a['rawDate'] as DateTime).compareTo(b['rawDate'] as DateTime));
+    }
     });
   }
 
@@ -80,13 +93,13 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
       _loadData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Statut mis à jour : $newStatus'), backgroundColor: Colors.green),
+          SnackBar(content: Text('Status updated: $newStatus'), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erreur lors de la mise à jour'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Error during update'), backgroundColor: Colors.red),
         );
       }
     }
@@ -113,8 +126,8 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
 
   Widget _buildTopBar(bool isMobile) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: isMobile ? 48 : 64,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
       decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: _border))),
       child: Row(
         children: [
@@ -125,22 +138,43 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          const Text('Gestion des Prestataires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
-          const Spacer(),
-          ElevatedButton.icon(
-            onPressed: _exportProviders,
-            icon: const Icon(LucideIcons.fileText, size: 14),
-            label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _textPrimary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
+          Expanded(
+            child: Text(
+              'Provider Management', 
+              style: TextStyle(
+                fontSize: isMobile ? 16 : 18, 
+                fontWeight: FontWeight.bold, 
+                color: _textPrimary
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(width: 12),
-          IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
+          if (!isMobile) ...[
+            const SizedBox(width: 12),
+            SizedBox(
+              height: 36,
+              child: ElevatedButton.icon(
+                onPressed: _exportProviders,
+                icon: const Icon(LucideIcons.fileText, size: 14),
+                label: const Text('Export PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _textPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
+          ] else ...[
+            IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
+            IconButton(
+              onPressed: _exportProviders,
+              icon: const Icon(LucideIcons.fileText, size: 18, color: _textPrimary),
+            ),
+          ],
         ],
       ),
     );
@@ -163,7 +197,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                       controller: _searchController,
                       onChanged: (_) => _applyFilters(),
                       decoration: InputDecoration(
-                        hintText: 'Rechercher un prestataire...',
+                        hintText: 'Search for a provider...',
                         prefixIcon: const Icon(LucideIcons.search, size: 18),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                         filled: true,
@@ -176,10 +210,10 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                       children: [
                         Expanded(
                           child: _buildDropdownFilter(
-                            value: _selectedStatus,
-                            items: ['Tous', 'ACTIVE', 'DESACTIVE', 'SUSPENDUE'],
-                            label: 'Statut',
-                            onChanged: (val) {
+                          value: _selectedStatus,
+                          items: ['All', 'ACTIVE', 'DEACTIVATED', 'SUSPENDED', 'PENDING'],
+                          label: 'Status',
+                          onChanged: (val) {
                               if (val != null) {
                                 setState(() => _selectedStatus = val);
                                 _applyFilters();
@@ -191,8 +225,8 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                         Expanded(
                           child: _buildDropdownFilter(
                             value: _selectedSub,
-                            items: ['Tous', 'Premium', 'Gratuit'],
-                            label: 'Offre',
+                            items: ['All', 'Premium', 'Free'],
+                            label: 'Plan',
                             onChanged: (val) {
                               if (val != null) {
                                 setState(() => _selectedSub = val);
@@ -206,8 +240,8 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                     const SizedBox(height: 12),
                     _buildDropdownFilter(
                       value: _selectedSort,
-                      items: ['Plus récents', 'Plus anciens'],
-                      label: 'Tri',
+                      items: ['Newest', 'Oldest'],
+                      label: 'Sort',
                       onChanged: (val) {
                         if (val != null) {
                           setState(() => _selectedSort = val);
@@ -225,7 +259,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                         controller: _searchController,
                         onChanged: (_) => _applyFilters(),
                         decoration: InputDecoration(
-                          hintText: 'Rechercher un prestataire...',
+                          hintText: 'Search for a provider...',
                           prefixIcon: const Icon(LucideIcons.search, size: 18),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                           filled: true,
@@ -238,8 +272,8 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                     Expanded(
                       child: _buildDropdownFilter(
                         value: _selectedStatus,
-                        items: ['Tous', 'ACTIVE', 'DESACTIVE', 'SUSPENDUE'],
-                        label: 'Statut',
+                        items: ['All', 'ACTIVE', 'DESACTIVE', 'SUSPENDUE', 'EN_ATTENTE'],
+                        label: 'Status',
                         onChanged: (val) {
                           if (val != null) {
                             setState(() => _selectedStatus = val);
@@ -252,8 +286,8 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                     Expanded(
                       child: _buildDropdownFilter(
                         value: _selectedSub,
-                        items: ['Tous', 'Premium', 'Gratuit'],
-                        label: 'Offre',
+                        items: ['All', 'Premium', 'Free'],
+                        label: 'Plan',
                         onChanged: (val) {
                           if (val != null) {
                             setState(() => _selectedSub = val);
@@ -266,8 +300,8 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                     Expanded(
                       child: _buildDropdownFilter(
                         value: _selectedSort,
-                        items: ['Plus récents', 'Plus anciens'],
-                        label: 'Tri',
+                        items: ['Newest', 'Oldest'],
+                        label: 'Sort',
                         onChanged: (val) {
                           if (val != null) {
                             setState(() => _selectedSort = val);
@@ -282,7 +316,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
           const SizedBox(height: 24),
           // Table
           if (_filteredProviders.isEmpty)
-            const Padding(padding: EdgeInsets.all(48), child: Center(child: Text('Aucun prestataire trouvé')))
+            const Padding(padding: EdgeInsets.all(48), child: Center(child: Text('No providers found')))
           else if (isMobile)
             ListView.separated(
               shrinkWrap: true,
@@ -306,12 +340,12 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                         showCheckboxColumn: false,
                         headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, color: _textSecondary),
                         columns: const [
-                          DataColumn(label: Text('Prestataire')),
+                          DataColumn(label: Text('Provider')),
                           DataColumn(label: Text('Services')),
-                          DataColumn(label: Text('Abonnement')),
+                          DataColumn(label: Text('Subscription')),
                           DataColumn(label: Text('Interventions')),
-                          DataColumn(label: Text('Note')),
-                          DataColumn(label: Text('Statut')),
+                          DataColumn(label: Text('Rating')),
+                          DataColumn(label: Text('Status')),
                           DataColumn(label: Text('Actions')),
                         ],
                         rows: _filteredProviders.map((p) {
@@ -366,14 +400,14 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(p['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(p['name'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
               ],
             ),
           ],
         ),
       ),
       DataCell(Text('$services$moreServices', style: const TextStyle(fontSize: 12))),
-      DataCell(_badge(p['pack'] ?? 'Gratuit', p['hasSubscription'] ? Colors.purple : _textSecondary)),
+      DataCell(_badge(p['pack'] ?? 'Free', p['hasSubscription'] ? Colors.purple : _textSecondary)),
       DataCell(Center(child: Text(p['interventionsCount'].toString()))),
       DataCell(Row(
         children: [
@@ -388,7 +422,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
           children: [
             IconButton(
               icon: const Icon(LucideIcons.eye, size: 18, color: _primary),
-              tooltip: 'Détails',
+              tooltip: 'Details',
               onPressed: () {
                 showDialog(
                   context: context,
@@ -399,19 +433,19 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
             if (status != 'ACTIVE')
               IconButton(
                 icon: const Icon(LucideIcons.checkCircle, size: 18, color: Colors.green),
-                tooltip: 'Activer',
+                tooltip: 'Activate',
                 onPressed: () => _updateStatus(p['id'], 'ACTIVE'),
               ),
             if (status == 'ACTIVE')
               IconButton(
                 icon: const Icon(LucideIcons.xCircle, size: 18, color: Colors.orange),
-                tooltip: 'Désactiver',
+                tooltip: 'Deactivate',
                 onPressed: () => _updateStatus(p['id'], 'DESACTIVE'),
               ),
             if (status != 'SUSPENDUE')
               IconButton(
                 icon: const Icon(LucideIcons.alertTriangle, size: 18, color: Colors.red),
-                tooltip: 'Suspendre',
+                tooltip: 'Suspend',
                 onPressed: () => _updateStatus(p['id'], 'SUSPENDUE'),
               ),
           ],
@@ -426,19 +460,21 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
 
   Widget _statusBadge(String status) {
     Color color;
-    String label;
-    switch (status) {
-      case 'ACTIVE':
-        color = Colors.green;
-        label = 'Actif';
-        break;
-      case 'SUSPENDUE':
-        color = Colors.red;
-        label = 'Suspendu';
-        break;
-      default:
-        color = Colors.orange;
-        label = 'Désactivé';
+    String label = status;
+    final s = status.toUpperCase();
+    
+    if (s == 'ACTIVE') {
+      color = Colors.green;
+      label = 'Active';
+    } else if (s == 'SUSPENDUE' || s == 'SUSPENDED') {
+      color = Colors.red;
+      label = 'Suspended';
+    } else if (s == 'EN_ATTENTE' || s == 'PENDING') {
+      color = Colors.blue;
+      label = 'Pending';
+    } else {
+      color = Colors.orange;
+      label = 'Deactivated';
     }
     return _badge(label, color);
   }
@@ -460,10 +496,11 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
           style: const TextStyle(fontSize: 13, color: _textPrimary, fontWeight: FontWeight.w500),
           items: items.map((item) {
             String display = item;
-            if (item == 'Tous') display = '$label: Tous';
-            else if (item == 'ACTIVE') display = 'Actif';
-            else if (item == 'DESACTIVE') display = 'Désactivé';
-            else if (item == 'SUSPENDUE') display = 'Suspendu';
+            if (item == 'All') display = '$label: All';
+            else if (item == 'ACTIVE') display = 'Active';
+            else if (item == 'DESACTIVE') display = 'Deactivated';
+            else if (item == 'SUSPENDUE') display = 'Suspended';
+            else if (item == 'EN_ATTENTE') display = 'Pending';
             return DropdownMenuItem(value: item, child: Text(display));
           }).toList(),
           onChanged: onChanged,
@@ -513,7 +550,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(p['name'] ?? 'Inconnu', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      Text(p['name'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     ],
                   ),
                 ),
@@ -527,7 +564,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Note', style: TextStyle(fontSize: 10, color: _textSecondary)),
+                    const Text('Rating', style: TextStyle(fontSize: 10, color: _textSecondary)),
                     Row(
                       children: [
                         const Icon(Icons.star, color: Colors.amber, size: 14),
@@ -540,8 +577,8 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Offre', style: TextStyle(fontSize: 10, color: _textSecondary)),
-                    _badge(p['pack'] ?? 'Gratuit', p['hasSubscription'] ? Colors.purple : _textSecondary),
+                    const Text('Plan', style: TextStyle(fontSize: 10, color: _textSecondary)),
+                    _badge(p['pack'] ?? 'Free', p['hasSubscription'] ? Colors.purple : _textSecondary),
                   ],
                 ),
                 Column(
@@ -591,7 +628,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
   }
 
   void _exportProviders() async {
-    final headers = ['Nom', 'Pack', 'Évaluations', 'Interventions', 'Statut'];
+    final headers = ['Name', 'Plan', 'Ratings', 'Interventions', 'Status'];
     final rows = _filteredProviders.map((p) => [
       p['name'] ?? '',
       p['pack'] ?? '',
@@ -602,12 +639,12 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
 
     await AdminExportUtil.exportPageToPdf(
       filename: 'providers_presto_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-      title: 'Registre des Prestataires',
-      subtitle: 'Liste des experts et professionnels inscrits sur Presto',
+      title: 'Provider Registry',
+      subtitle: 'List of experts and professionals registered on Presto',
       kpis: [
         {'label': 'Total Experts', 'value': _allProviders.length.toString()},
         {'label': 'Premium', 'value': _allProviders.where((p) => p['pack'] == 'Premium').length.toString()},
-        {'label': 'En Attente', 'value': _allProviders.where((p) => p['status'] == 'EN_ATTENTE' || p['status'] == 'En attente').length.toString()},
+        {'label': 'Pending', 'value': _allProviders.where((p) => p['status'] == 'EN_ATTENTE' || p['status'] == 'En attente').length.toString()},
       ],
       tableHeaders: headers,
       tableRows: rows,

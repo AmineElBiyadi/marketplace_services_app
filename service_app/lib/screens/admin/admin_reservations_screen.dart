@@ -28,9 +28,9 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
   List<Map<String, dynamic>> _filteredReservations = [];
   final TextEditingController _searchController = TextEditingController();
   
-  String _selectedStatus = 'TOUS';
+  String _selectedStatus = 'ALL';
   DateTimeRange? _selectedDateRange;
-  final List<String> _statuses = ['TOUS', 'EN_ATTENTE', 'ACCEPTEE', 'EN_COURS', 'TERMINEE', 'ANNULEE', 'REFUSEE'];
+  final List<String> _statuses = ['ALL', 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'REJECTED'];
 
   @override
   void initState() {
@@ -41,10 +41,26 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
   Future<void> _loadData() async {
     setState(() => _loading = true);
     try {
-      final data = await _service.getFilteredReservations(limit: 500); // Load a large batch for local filtering
+      final data = await _service.getFilteredReservations(limit: 500);
+      
+      // Normalize statuses for local filtering and display consistency
+      final normalizedData = data.map((r) {
+        final rawStatus = (r['status'] ?? '').toString().toUpperCase();
+        String normalizedStatus = rawStatus;
+        
+        if (rawStatus == 'ACCEPTEE') normalizedStatus = 'ACCEPTED';
+        else if (rawStatus == 'TERMINEE') normalizedStatus = 'COMPLETED';
+        else if (rawStatus == 'EN_ATTENTE' || rawStatus == 'EN ATTENTE') normalizedStatus = 'PENDING';
+        else if (rawStatus == 'REFUSEE') normalizedStatus = 'REJECTED';
+        else if (rawStatus == 'ANNULEE') normalizedStatus = 'CANCELLED';
+        else if (rawStatus == 'EN_COURS') normalizedStatus = 'IN_PROGRESS';
+        
+        return {...r, 'status': normalizedStatus};
+      }).toList();
+
       if (mounted) {
         setState(() {
-          _allReservations = data;
+          _allReservations = normalizedData;
           _applyFilters();
           _loading = false;
         });
@@ -58,7 +74,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
     final query = _searchController.text.toLowerCase();
     setState(() {
       _filteredReservations = _allReservations.where((r) {
-        final statusMatches = _selectedStatus == 'TOUS' || r['status'] == _selectedStatus;
+        final statusMatches = _selectedStatus == 'ALL' || r['status'] == _selectedStatus;
         
         final qMatches = query.isEmpty || 
             (r['clientName'] ?? '').toLowerCase().contains(query) || 
@@ -133,8 +149,8 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
 
   Widget _buildTopBar(bool isMobile) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: isMobile ? 48 : 64,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: _border)),
@@ -148,33 +164,59 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          const Text(
-            'Gestion des Réservations',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary),
-          ),
-          const Spacer(),
-          ElevatedButton.icon(
-            onPressed: _exportReservations,
-            icon: const Icon(LucideIcons.fileText, size: 14),
-            label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _textPrimary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
+          Expanded(
+            child: Text(
+              'Reservation Management',
+              style: TextStyle(
+                fontSize: isMobile ? 16 : 18,
+                fontWeight: FontWeight.bold,
+                color: _textPrimary,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(width: 12),
-          IconButton(
-            onPressed: () {
-              _searchController.clear();
-              _selectedStatus = 'TOUS';
-              _selectedDateRange = null;
-              _loadData();
-            },
-            icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary),
-          ),
+          if (!isMobile) ...[
+            const SizedBox(width: 12),
+            SizedBox(
+              height: 36,
+              child: ElevatedButton.icon(
+                onPressed: _exportReservations,
+                icon: const Icon(LucideIcons.fileText, size: 14),
+                label: const Text('Export PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _textPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              onPressed: () {
+                _searchController.clear();
+                _selectedStatus = 'ALL';
+                _selectedDateRange = null;
+                _loadData();
+              },
+              icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary),
+            ),
+          ] else ...[
+            IconButton(
+              onPressed: () {
+                _searchController.clear();
+                _selectedStatus = 'ALL';
+                _selectedDateRange = null;
+                _loadData();
+              },
+              icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary),
+            ),
+            IconButton(
+              onPressed: _exportReservations,
+              icon: const Icon(LucideIcons.fileText, size: 18, color: _textPrimary),
+            ),
+          ],
         ],
       ),
     );
@@ -197,7 +239,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
           style: const TextStyle(fontSize: 13, color: _textPrimary, fontWeight: FontWeight.w500),
           items: items.map((item) {
             String display = item;
-            if (item == 'TOUS') display = '$label: Tous';
+            if (item == 'ALL') display = '$label: All';
             else display = item.replaceAll('_', ' ');
             return DropdownMenuItem(value: item, child: Text(display));
           }).toList(),
@@ -224,52 +266,75 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
             child: Row(
               children: [
                 Expanded(
-                  flex: 2,
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (v) => _applyFilters(),
-                    onSubmitted: (_) => _applyFilters(),
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher un client, expert ou service...',
-                      prefixIcon: const Icon(LucideIcons.search, size: 18),
-                      suffixIcon: _searchController.text.isNotEmpty 
-                        ? IconButton(
-                            icon: const Icon(LucideIcons.x, size: 16),
-                            onPressed: () {
-                              _searchController.clear();
-                              _applyFilters();
-                            },
-                          )
-                        : null,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                    ),
+                  flex: isMobile ? 1 : 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _searchController,
+                        onChanged: (v) => _applyFilters(),
+                        onSubmitted: (_) => _applyFilters(),
+                        decoration: InputDecoration(
+                          hintText: 'Search by customer, provider, service or ID...',
+                          prefixIcon: const Icon(LucideIcons.search, size: 18),
+                          suffixIcon: _searchController.text.isNotEmpty 
+                            ? IconButton(
+                                icon: const Icon(LucideIcons.x, size: 16),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _applyFilters();
+                                },
+                              )
+                            : null,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                        ),
+                      ),
+                      if (isMobile) const SizedBox(height: 12),
+                      if (isMobile) Row(
+                        children: [
+                          Expanded(
+                            child: _buildDropdownFilter(
+                              value: _selectedStatus,
+                              items: _statuses,
+                              label: 'Status',
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setState(() => _selectedStatus = v);
+                                  _applyFilters();
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: _selectDateRange,
+                            icon: Icon(LucideIcons.calendar, color: _selectedDateRange == null ? _textSecondary : _primary),
+                            style: IconButton.styleFrom(
+                              backgroundColor: const Color(0xFFF1F5F9),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDropdownFilter(
-                    value: _selectedStatus,
-                    items: _statuses,
-                    label: 'Statut',
-                    onChanged: (v) {
-                      if (v != null) {
-                        setState(() => _selectedStatus = v);
-                        _applyFilters();
-                      }
-                    },
-                  ),
-                ),
-                if (isMobile) ...[
+                if (!isMobile) ...[
                   const SizedBox(width: 12),
-                  IconButton(
-                    onPressed: _selectDateRange,
-                    icon: Icon(LucideIcons.calendar, color: _selectedDateRange == null ? _textSecondary : _primary),
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFFF1F5F9),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  Expanded(
+                    child: _buildDropdownFilter(
+                      value: _selectedStatus,
+                      items: _statuses,
+                      label: 'Status',
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() => _selectedStatus = v);
+                          _applyFilters();
+                        }
+                      },
                     ),
                   ),
                 ],
@@ -303,7 +368,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
               children: [
                 const Icon(LucideIcons.calendar, size: 18, color: _primary),
                 const SizedBox(width: 10),
-                const Text('Période', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const Text('Period', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 const Spacer(),
                 if (_selectedDateRange != null)
                   IconButton(
@@ -312,7 +377,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                       setState(() => _selectedDateRange = null);
                       _loadData();
                     },
-                    tooltip: 'Réinitialiser',
+                    tooltip: 'Reset',
                   ),
               ],
             ),
@@ -339,7 +404,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
             onPressed: () => setState(() => _viewMonth = DateTime(_viewMonth.year, _viewMonth.month - 1)),
           ),
           Text(
-            DateFormat('MMMM yyyy', 'fr').format(_viewMonth).toUpperCase(),
+            DateFormat('MMMM yyyy', 'en_US').format(_viewMonth).toUpperCase(),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: _textPrimary),
           ),
           IconButton(
@@ -357,7 +422,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
     final daysInMonth = lastDay.day;
     final firstWeekday = firstDay.weekday; // 1 = Monday, 7 = Sunday
 
-    final List<String> weekDays = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+    final List<String> weekDays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -441,27 +506,27 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('UTILISATION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary, letterSpacing: 0.5)),
+          const Text('USAGE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary, letterSpacing: 0.5)),
           const SizedBox(height: 12),
-          _usageItem(LucideIcons.mousePointerClick, 'Cliquez sur un jour pour filtrer par date.'),
+          _usageItem(LucideIcons.mousePointerClick, 'Click a day to filter by date.'),
           const SizedBox(height: 8),
-          _usageItem(LucideIcons.calendarRange, 'Sélectionnez un deuxième jour pour définir une période.'),
+          _usageItem(LucideIcons.calendarRange, 'Select a second day to define a period.'),
           const Divider(height: 24),
-          const Text('STATUTS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary, letterSpacing: 0.5)),
+          const Text('STATUSES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary, letterSpacing: 0.5)),
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _statusDot(Colors.orange, 'En attente'),
-              _statusDot(Colors.green, 'Acceptée'),
+              _statusDot(Colors.orange, 'Pending'),
+              _statusDot(Colors.green, 'Accepted'),
             ],
           ),
           const SizedBox(height: 4),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _statusDot(Colors.blue, 'Terminée'),
-              _statusDot(Colors.red, 'Annulée'),
+              _statusDot(Colors.blue, 'Completed'),
+              _statusDot(Colors.red, 'Cancelled'),
             ],
           ),
         ],
@@ -524,11 +589,11 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                       columnWidths: const {
                         0: FlexColumnWidth(1),   // ID
                         1: FlexColumnWidth(2),   // Service
-                        2: FlexColumnWidth(1.5), // Client
-                        3: FlexColumnWidth(1.5), // Expert
+                        2: FlexColumnWidth(1.5), // Customer
+                        3: FlexColumnWidth(1.5), // Provider
                         4: FlexColumnWidth(1.5), // Date
-                        5: FlexColumnWidth(1.2), // Montant
-                        6: FlexColumnWidth(1.2), // Statut
+                        5: FlexColumnWidth(1.2), // Amount
+                        6: FlexColumnWidth(1.2), // Status
                         7: FixedColumnWidth(60), // Actions
                       },
                       children: [
@@ -552,7 +617,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
           children: [
             Icon(LucideIcons.calendarX, size: 48, color: Colors.grey[300]),
             const SizedBox(height: 16),
-            const Text('Aucune réservation trouvée', style: TextStyle(color: _textSecondary, fontSize: 16)),
+            const Text('No reservations found', style: TextStyle(color: _textSecondary, fontSize: 16)),
           ],
         ),
       ),
@@ -625,11 +690,11 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
       children: [
         _headerCell('ID #'),
         _headerCell('Service'),
-        _headerCell('Client'),
-        _headerCell('Expert'),
-        _headerCell('Date / Heure'),
-        _headerCell('Prix'),
-        _headerCell('Statut'),
+        _headerCell('Customer'),
+        _headerCell('Provider'),
+        _headerCell('Date / Time'),
+        _headerCell('Price'),
+        _headerCell('Status'),
         _headerCell(''),
       ],
     );
@@ -675,20 +740,38 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
   }
 
   Widget _buildStatusBadge(String status) {
-    Color color;
-    switch (status) {
-      case 'ACCEPTEE': color = Colors.green; break;
-      case 'TERMINEE': color = Colors.blue; break;
-      case 'EN_ATTENTE': color = Colors.orange; break;
-      case 'REFUSEE': color = Colors.red; break;
-      case 'ANNULEE': color = Colors.grey; break;
-      default: color = Colors.grey;
+    String label = status;
+    Color color = Colors.grey;
+
+    final s = status.toUpperCase();
+    if (s == 'ACCEPTED' || s == 'ACCEPTEE') {
+      label = 'ACCEPTED';
+      color = Colors.green;
+    } else if (s == 'COMPLETED' || s == 'TERMINEE') {
+      label = 'COMPLETED';
+      color = Colors.blue;
+    } else if (s == 'PENDING' || s == 'EN_ATTENTE' || s == 'EN ATTENTE') {
+      label = 'PENDING';
+      color = Colors.orange;
+    } else if (s == 'REJECTED' || s == 'REFUSEE') {
+      label = 'REJECTED';
+      color = Colors.red;
+    } else if (s == 'CANCELLED' || s == 'ANNULEE') {
+      label = 'CANCELLED';
+      color = Colors.grey;
+    } else if (s == 'IN_PROGRESS' || s == 'EN_COURS') {
+      label = 'IN PROGRESS';
+      color = Colors.indigo;
     }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
       child: Text(
-        status.replaceAll('_', ' '),
+        label,
         style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold),
       ),
     );
@@ -702,7 +785,7 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
   }
 
   void _exportReservations() async {
-    final headers = ['Client', 'Expert', 'Service', 'Date', 'Heure', 'Montant (DH)', 'Statut'];
+    final headers = ['Customer', 'Provider', 'Service', 'Date', 'Time', 'Amount (DH)', 'Status'];
     final rows = _filteredReservations.map((r) => [
       r['clientName'] ?? '',
       r['expertName'] ?? '',
@@ -715,18 +798,18 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
 
     final double totalAmount = _filteredReservations.fold(
       0.0, (sum, r) => sum + ((r['amount'] as num?) ?? 0).toDouble());
-    final terminees = _filteredReservations.where((r) => r['status'] == 'TERMINEE').length;
-    final enAttente = _filteredReservations.where((r) => r['status'] == 'EN_ATTENTE').length;
+    final completed = _filteredReservations.where((r) => r['status'] == 'COMPLETED').length;
+    final pending = _filteredReservations.where((r) => r['status'] == 'PENDING').length;
 
     await AdminExportUtil.exportPageToPdf(
       filename: 'reservations_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-      title: 'Rapport des Réservations',
-      subtitle: 'Liste des interventions et réservations filtrées',
+      title: 'Reservation Report',
+      subtitle: 'List of filtered interventions and reservations',
       kpis: [
-        {'label': 'Total Réservations', 'value': _filteredReservations.length.toString()},
-        {'label': 'Terminées', 'value': terminees.toString()},
-        {'label': 'En Attente', 'value': enAttente.toString()},
-        {'label': 'Montant Total', 'value': '${totalAmount.toStringAsFixed(0)} DH'},
+        {'label': 'Total Reservations', 'value': _filteredReservations.length.toString()},
+        {'label': 'Completed', 'value': completed.toString()},
+        {'label': 'Pending', 'value': pending.toString()},
+        {'label': 'Total Amount', 'value': '${totalAmount.toStringAsFixed(0)} DH'},
       ],
       tableHeaders: headers,
       tableRows: rows,

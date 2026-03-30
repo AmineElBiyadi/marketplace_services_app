@@ -17,10 +17,10 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
   static const Color _textSecondary = Color(0xFF64748B);
 
   final List<Map<String, dynamic>> _notifications = [
-    {'title': 'Nouveau prestataire', 'msg': 'Ahmed Khalil attend sa validation.', 'time': '5 min', 'type': 'warning'},
-    {'title': 'Réclamation urgente', 'msg': 'Un client signale un retard important.', 'time': '12 min', 'type': 'error'},
-    {'title': 'Paiement reçu', 'msg': 'Nouveau pack Premium activé par Fatima.', 'time': '1h', 'type': 'success'},
-    {'title': 'Système', 'msg': 'La sauvegarde automatique a réussi.', 'time': '3h', 'type': 'info'},
+    {'title': 'New Provider', 'msg': 'Ahmed Khalil is waiting for approval.', 'time': '5 min', 'type': 'warning'},
+    {'title': 'Urgent Claim', 'msg': 'A customer reported a major delay.', 'time': '12 min', 'type': 'error'},
+    {'title': 'Payment Received', 'msg': 'A new Premium plan was activated by Fatima.', 'time': '1h', 'type': 'success'},
+    {'title': 'System', 'msg': 'Automatic backup completed successfully.', 'time': '3h', 'type': 'info'},
   ];
 
   @override
@@ -40,8 +40,8 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> {
 
   Widget _buildTopBar(bool isMobile) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: isMobile ? 48 : 64,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
       decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: _border))),
       child: Row(
         children: [

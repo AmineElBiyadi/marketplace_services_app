@@ -1258,6 +1258,7 @@ class FirestoreService {
           'expertNom': expertNom,
           'description': data['description'] ?? '',
           'etat': data['etatReclamation'] ?? 'EN_ATTENTE',
+          'adminResponse': data['adminResponse'] ?? '',
           'date': data['createdAt'],
           'idIntervention': data['idIntervention'] ?? '',
         };
@@ -1835,6 +1836,7 @@ class FirestoreService {
 
       // Check if expert is premium to determine initial photo visibility
       final isPremium = (await isExpertPremium(expertId).first);
+      final freePortfolioLimit = await getFreePortfolioLimit();
 
       batch.set(imgRef, {
         'image': imageData['image'],
@@ -1843,7 +1845,7 @@ class FirestoreService {
         'idTacheExpert': linkedId ?? '',
         'publicId': imageData['publicId'] ?? '',
         'storageType': imageData['storageType'] ?? 'base64',
-        'isVisibleByPlan': isPremium || imagesWithTasks.indexOf(imageData) < 3,
+        'isVisibleByPlan': isPremium || imagesWithTasks.indexOf(imageData) < freePortfolioLimit,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
@@ -1869,12 +1871,37 @@ class FirestoreService {
   }
 
   Future<void> toggleServiceExpertsActive(String docId, bool status) async {
+    // Only check for ongoing interventions when deactivating (status = false)
+    if (!status) {
+      // Get the serviceExpert document to retrieve expertId and serviceId
+      final serviceDoc = await _firestore.collection('serviceExperts').doc(docId).get();
+      if (!serviceDoc.exists) {
+        throw Exception("Service non trouvé.");
+      }
+      
+      final serviceData = serviceDoc.data() as Map<String, dynamic>;
+      final expertId = serviceData['idExpert'] as String;
+      final serviceId = serviceData['idService'] as String;
+      
+      // Check for ongoing interventions
+      final hasOngoing = await hasOngoingInterventionsForService(expertId, serviceId);
+      if (hasOngoing) {
+        throw Exception("Ce service ne peut pas être désactivé car il a des interventions en cours ou en attente.");
+      }
+    }
+
     await _firestore.collection('serviceExperts').doc(docId).update({
       'estActive': status,
     });
   }
 
   Future<void> deleteExpertService(String expertId, String serviceId) async {
+    // Check for ongoing interventions first
+    final hasOngoing = await hasOngoingInterventionsForService(expertId, serviceId);
+    if (hasOngoing) {
+      throw Exception("Ce service ne peut pas être supprimé car il a des interventions en cours ou en attente.");
+    }
+
     final batch = _firestore.batch();
 
     // Delete from serviceExperts
@@ -2078,6 +2105,7 @@ class FirestoreService {
     
     // 4. Add all images linked to the service expert instance
     final isPremium = (await isExpertPremium(expertId).first);
+    final freePortfolioLimit = await getFreePortfolioLimit();
     
     for (var imageData in imagesWithTasks) {
       final imgRef = _firestore.collection('imagesExemplaires').doc();
@@ -2099,7 +2127,7 @@ class FirestoreService {
         'idTacheExpert': linkedId ?? '',
         'publicId': imageData['publicId'] ?? '',
         'storageType': imageData['storageType'] ?? 'base64',
-        'isVisibleByPlan': isPremium || imagesWithTasks.indexOf(imageData) < 3,
+        'isVisibleByPlan': isPremium || imagesWithTasks.indexOf(imageData) < freePortfolioLimit,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }

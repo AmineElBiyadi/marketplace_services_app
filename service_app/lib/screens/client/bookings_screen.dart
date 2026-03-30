@@ -9,6 +9,7 @@ import '../../models/chat_model.dart';
 import '../chat/chat_screen.dart';
 import '../../routes/routes.dart';
 import '../../services/firestore_service.dart';
+import '../../widgets/shared/client_header.dart';
 
 
 const _tabs = ["Pending", "Confirmed", "Completed", "Cancelled", "Refused"];
@@ -709,76 +710,11 @@ class _BookingsScreenState extends State<BookingsScreen> {
         child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // En-tête avec gradient
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 50, 20, 20),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primary, Color(0xFF818CF8)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
-              ),
-            ),
-            child: Row(
-              children: [
-                if (widget.showBackButton) ...
-                  [
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Image.asset(
-                            'assets/logo.png',
-                            height: 30,
-                            errorBuilder: (context, error, stackTrace) => const SizedBox(height: 30),
-                          ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: Text(
-                              'Presto — snap your fingers, we handle the rest.',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'My Bookings',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Manage your appointments',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          ClientHeader(
+            title: 'My Bookings',
+            subtitle: 'Manage your appointments',
+            showBackButton: widget.showBackButton,
+            bottomPadding: 16,
           ),
           const SizedBox(height: 16),
           Padding(

@@ -797,28 +797,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                    image: clientPhoto.isNotEmpty
-                        ? DecorationImage(image: NetworkImage(clientPhoto), fit: BoxFit.cover)
-                        : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: clientPhoto.isEmpty
-                      ? Text(
-                          avatarInitials,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        )
-                      : null,
-                ),
+                _buildAvatar(clientPhoto, clientName, size: 44),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -1140,6 +1119,32 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAvatar(String photo, String name, {double size = 40}) {
+    final initials = name.isNotEmpty ? name.split(' ').map((e) => e[0]).take(2).join().toUpperCase() : '?';
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.1),
+        shape: BoxShape.circle,
+        image: photo.isNotEmpty && photo.startsWith('http')
+            ? DecorationImage(image: NetworkImage(photo), fit: BoxFit.cover)
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: photo.isEmpty || !photo.startsWith('http')
+          ? Text(
+              initials,
+              style: TextStyle(
+                fontSize: size * 0.35,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            )
+          : null,
     );
   }
 }
