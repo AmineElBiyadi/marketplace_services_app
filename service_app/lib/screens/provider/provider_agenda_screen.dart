@@ -364,7 +364,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
               ),
               // Positioning interventions
               ...interventions.map((interv) {
-                final date = interv.dateDebutIntervention!;
+                final date = interv.dateDebutIntervention ?? interv.dateFinIntervention ?? interv.createdAt ?? DateTime.now();
                 final dayInWeek = date.weekday - 1; 
                 final startHour = date.hour;
                 final startMin = date.minute;
@@ -394,28 +394,37 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                         ],
                       ),
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            interv.tacheSnapshot?['serviceNom'] ?? 'Intervention',
-                            style: TextStyle(
-                              fontSize: height < 40 ? 10 : 12,
-                              fontWeight: FontWeight.w800,
-                              color: _getStatusColor(interv.statut),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (height > 45)
+                      child: SingleChildScrollView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                             Text(
-                              interv.clientSnapshot?['nom'] ?? '',
-                              style: TextStyle(fontSize: 10, color: _getStatusColor(interv.statut).withOpacity(0.9), fontWeight: FontWeight.bold),
+                              interv.tacheSnapshot?['serviceNom'] ?? 'Intervention',
+                              style: TextStyle(
+                                fontSize: height < 30 ? 8 : (height < 45 ? 10 : 12),
+                                fontWeight: FontWeight.w800,
+                                color: _getStatusColor(interv.statut),
+                              ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                        ],
+                            if (height > 50) ...[
+                              const SizedBox(height: 1),
+                              Text(
+                                interv.clientSnapshot?['nom'] ?? '',
+                                style: TextStyle(
+                                  fontSize: 9, 
+                                  color: _getStatusColor(interv.statut).withOpacity(0.9), 
+                                  fontWeight: FontWeight.bold
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -476,7 +485,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                           style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E293B), fontSize: 13),
                         ),
                         Text(
-                          "${DateFormat('dd/MM HH:mm', 'en_US').format(interv.dateDebutIntervention!)} • ${interv.clientSnapshot?['nom'] ?? 'Client'}",
+                          "${DateFormat('dd/MM HH:mm', 'en_US').format(interv.dateDebutIntervention ?? interv.dateFinIntervention ?? interv.createdAt ?? DateTime.now())} • ${interv.clientSnapshot?['nom'] ?? 'Client'}",
                           style: const TextStyle(fontSize: 11, color: Colors.grey),
                         ),
                       ],
@@ -493,9 +502,9 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'ACCEPTEE': return Colors.green;
-      case 'TERMINEE': return Colors.blue;
-      case 'EN_ATTENTE': return Colors.orange;
+      case 'ACCEPTEE': return AppColors.primary;
+      case 'TERMINEE': return const Color(0xFF10B981);
+      case 'EN_ATTENTE': return const Color(0xFFF5C518);
       case 'REFUSEE': return Colors.red;
       case 'ANNULEE': return Colors.grey;
       default: return AppColors.primary;
@@ -539,8 +548,8 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
               _modalHeader(interv),
               const Divider(height: 32),
               _detailRow("Service", interv.tacheSnapshot?['serviceNom']),
-              _detailRow("Date", DateFormat('dd MMMM yyyy', 'en_US').format(interv.dateDebutIntervention!)),
-              _detailRow("Schedule", "${DateFormat('HH:mm').format(interv.dateDebutIntervention!)} - ${DateFormat('HH:mm').format(interv.dateFinIntervention ?? interv.dateDebutIntervention!.add(const Duration(hours: 1)))}"),
+              _detailRow("Date", DateFormat('dd MMMM yyyy', 'en_US').format(interv.dateDebutIntervention ?? interv.dateFinIntervention ?? interv.createdAt ?? DateTime.now())),
+              _detailRow("Schedule", "${DateFormat('HH:mm').format(interv.dateDebutIntervention ?? interv.dateFinIntervention ?? interv.createdAt ?? DateTime.now())} - ${DateFormat('HH:mm').format(interv.dateFinIntervention ?? (interv.dateDebutIntervention?.add(const Duration(hours: 1)) ?? (interv.createdAt?.add(const Duration(hours: 1)) ?? DateTime.now().add(const Duration(hours: 1)))))}"),
               _detailRow("Price", "${interv.prixNegocie} DH"),
               _detailRow("Status", interv.statut),
               const SizedBox(height: 8),
