@@ -853,7 +853,7 @@ class AdminDashboardService {
           ? "The complaint has been processed by the administration."
           : (response != null ? "The admin responded to the complaint: $response" : "The complaint has been updated by the admin.");
 
-      // Notify caller (the one who created the claim)
+      // 3. Notify ONLY the caller (the one who created the claim)
       final String? callerAuthId = isClientUser ? clientAuthId : expertAuthId;
       if (callerAuthId != null) {
         await _notificationService.sendNotification(
@@ -861,18 +861,6 @@ class AdminDashboardService {
           titre: notifTitle,
           corps: notifBody,
           type: 'claim_response',
-          relatedId: id,
-        );
-      }
-
-      // Optional: Notify the other party as well if it's resolved or if admin responded
-      final String? otherAuthId = isClientUser ? expertAuthId : clientAuthId;
-      if (otherAuthId != null) {
-        await _notificationService.sendNotification(
-          idUtilisateur: otherAuthId,
-          titre: "Update on a complaint",
-          corps: notifBody,
-          type: 'claim_update',
           relatedId: id,
         );
       }

@@ -1235,6 +1235,7 @@ class FirestoreService {
       final snapshot = await _firestore
           .collection('reclamations')
           .where('idClient', whereIn: clientIds)
+          .where('typeReclamateur', isEqualTo: 'CLIENT')
           .get();
 
       final results = await Future.wait(snapshot.docs.map((doc) async {
@@ -1244,13 +1245,26 @@ class FirestoreService {
 
         if (idExpert != null && idExpert.isNotEmpty) {
           try {
-            final expertDoc = await _firestore.collection('experts').doc(idExpert).get();
-            final idUtilisateur = expertDoc.data()?['idUtilisateur'];
-            if (idUtilisateur != null) {
-              final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
-              expertNom = userDoc.data()?['nom'] ?? 'Expert';
+            // 1. Try if idExpert is a document in 'experts' collection
+            var expertDoc = await _firestore.collection('experts').doc(idExpert).get();
+            String? userId;
+            
+            if (expertDoc.exists) {
+              userId = expertDoc.data()?['idUtilisateur'];
+            } else {
+              // 2. Or maybe idExpert IS actually the idUtilisateur
+              userId = idExpert;
             }
-          } catch (_) {}
+
+            if (userId != null) {
+              final userDoc = await _firestore.collection('utilisateurs').doc(userId).get();
+              if (userDoc.exists) {
+                expertNom = userDoc.data()?['nom'] ?? userDoc.data()?['email'] ?? 'Expert';
+              }
+            }
+          } catch (e) {
+            debugPrint('Error resolving expert name in client complaints: $e');
+          }
         }
 
         return {
@@ -1284,6 +1298,7 @@ class FirestoreService {
       final snapshot = await _firestore
           .collection('reclamations')
           .where('idExpert', isEqualTo: expertId)
+          .where('typeReclamateur', isEqualTo: 'EXPERT')
           .get();
 
       final results = await Future.wait(snapshot.docs.map((doc) async {
@@ -1293,13 +1308,26 @@ class FirestoreService {
 
         if (idClient != null && idClient.isNotEmpty) {
           try {
-            final clientDoc = await _firestore.collection('clients').doc(idClient).get();
-            final idUtilisateur = clientDoc.data()?['idUtilisateur'];
-            if (idUtilisateur != null) {
-              final userDoc = await _firestore.collection('utilisateurs').doc(idUtilisateur).get();
-              clientNom = userDoc.data()?['nom'] ?? 'Client';
+            // 1. Try if idClient is a document in 'clients' collection
+            var clientDoc = await _firestore.collection('clients').doc(idClient).get();
+            String? userId;
+            
+            if (clientDoc.exists) {
+              userId = clientDoc.data()?['idUtilisateur'];
+            } else {
+              // 2. Or maybe idClient IS actually the idUtilisateur (common in some parts of the app)
+              userId = idClient;
             }
-          } catch (_) {}
+
+            if (userId != null) {
+              final userDoc = await _firestore.collection('utilisateurs').doc(userId).get();
+              if (userDoc.exists) {
+                clientNom = userDoc.data()?['nom'] ?? userDoc.data()?['email'] ?? 'Client';
+              }
+            }
+          } catch (e) {
+            debugPrint('Error resolving client name in expert complaints: $e');
+          }
         }
 
         return {
