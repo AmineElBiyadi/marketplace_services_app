@@ -683,14 +683,14 @@ class AdminDashboardService {
 
       _sendNotification(
         userId: idClient,
-        title: 'Mise à jour de votre réservation',
-        body: 'Le statut de votre réservation pour $service est passé à $newStatus.',
+        title: 'Booking update',
+        body: 'The status of your booking for $service has been changed to $newStatus.',
       );
 
       _sendNotification(
         userId: idExpert,
-        title: 'Mise à jour de l\'intervention',
-        body: 'Le statut de l\'intervention pour $service est passé à $newStatus.',
+        title: 'Intervention update',
+        body: 'The status of the intervention for $service has been changed to $newStatus.',
       );
     }
   }
@@ -848,10 +848,10 @@ class AdminDashboardService {
       if (userId != null) {
         await _notificationService.sendNotification(
           idUtilisateur: userId,
-          titre: "Réponse à votre réclamation",
+          titre: "Response to your complaint",
           corps: status == 'REGLEE' 
-              ? "Votre réclamation a été traitée par l'administration."
-              : (response != null ? "L'admin a répondu à votre réclamation : $response" : "Votre réclamation a été mise à jour par l'admin."),
+              ? "Your complaint has been processed by the administration."
+              : (response != null ? "The admin responded to your complaint: $response" : "Your complaint has been updated by the admin."),
           type: 'claim_response',
           relatedId: id,
         );
@@ -1109,13 +1109,13 @@ class AdminDashboardService {
     await _notificationService.sendNotification(
       idUtilisateur: id,
       titre: status == 'ACTIVE' 
-          ? "Compte Activé" 
-          : (status == 'SUSPENDUE' ? "Compte Suspendu" : "Compte Désactivé"),
+          ? "Account Activated" 
+          : (status == 'SUSPENDUE' ? "Account Suspended" : "Account Deactivated"),
       corps: status == 'ACTIVE' 
-          ? "Bonne nouvelle ! Votre compte a été activé par l'administration." 
+          ? "Good news! Your account has been activated by the administration." 
           : (status == 'SUSPENDUE' 
-              ? "Votre compte a été suspendu temporairement pour vérification." 
-              : "Votre compte a été désactivé par un administrateur."),
+              ? "Your account has been temporarily suspended for verification." 
+              : "Your account has been deactivated by an administrator."),
       type: 'account',
       relatedId: id,
     );
@@ -1478,16 +1478,16 @@ class AdminDashboardService {
           if (!isActive) {
             await _notificationService.sendNotification(
               idUtilisateur: userId,
-              titre: "Service Désactivé : $serviceName",
-              corps: "L'administration a désactivé le service '$serviceName'. Vous ne recevrez plus de nouvelles demandes pour ce service. Les interventions en cours doivent être terminées.",
+              titre: "Service Deactivated: $serviceName",
+              corps: "Administration has deactivated the service '$serviceName'. You will no longer receive new requests for this service. Ongoing interventions must be completed.",
               type: "SERVICE_DEACTIVATED",
               relatedId: id,
             );
           } else {
             await _notificationService.sendNotification(
               idUtilisateur: userId,
-              titre: "Service Activé : $serviceName",
-              corps: "L'administration a réactivé le service '$serviceName'. Vos tâches associées ont été réactivées avec succès et vous pouvez de nouveau recevoir des demandes.",
+              titre: "Service Activated: $serviceName",
+              corps: "Administration has reactivated the service '$serviceName'. Your associated tasks have been successfully reactivated and you can receive requests again.",
               type: "SERVICE_ACTIVATED",
               relatedId: id,
             );
@@ -1573,16 +1573,16 @@ class AdminDashboardService {
             if (!isActive) {
               await _notificationService.sendNotification(
                 idUtilisateur: userId,
-                titre: "Tâche Désactivée : $taskName",
-                corps: "L'administration a désactivé la tâche '$taskName'. Vous ne recevrez plus de nouvelles demandes pour cette tâche. Les interventions en cours doivent être terminées.",
+                titre: "Task Deactivated: $taskName",
+                corps: "Administration has deactivated the task '$taskName'. You will no longer receive new requests for this task. Ongoing interventions must be completed.",
                 type: "TASK_DEACTIVATED",
                 relatedId: id,
               );
             } else {
               await _notificationService.sendNotification(
                 idUtilisateur: userId,
-                titre: "Tâche Activée : $taskName",
-                corps: "L'administration a réactivé la tâche '$taskName'. Votre tâche a été réactivée avec succès et est de nouveau disponible.",
+                titre: "Task Activated: $taskName",
+                corps: "Administration has reactivated the task '$taskName'. Your task has been successfully reactivated and is available again.",
                 type: "TASK_ACTIVATED",
                 relatedId: id,
               );
