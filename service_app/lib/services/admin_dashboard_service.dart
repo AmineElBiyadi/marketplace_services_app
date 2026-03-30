@@ -1430,11 +1430,12 @@ class AdminDashboardService {
     final serviceName = serviceDoc.data()?['nom'] ?? 'Service';
     await _db.collection('services').doc(id).update(data);
 
-    // Si on désactive le service, on désactive uniquement les tâches catalogue (idExpert == "").
-    if (data.containsKey('estActive') && data['estActive'] == false) {
+    // Si on modifie l'état d'activation, on cascade sur les tâches catalogue et les instances tacheExperts
+    if (data.containsKey('estActive')) {
+      final bool isActive = data['estActive'];
       final batch = _db.batch();
 
-      // 1. Désactiver uniquement les tâches catalogue (idExpert == "" ou null)
+      // 1. Mettre à jour l'état des tâches catalogue (idExpert == "" ou null)
       final tasksSnap = await _db
           .collection('taches')
           .where('idService', isEqualTo: id)
@@ -1443,13 +1444,13 @@ class AdminDashboardService {
         final expertId = doc.data()['idExpert'] ?? '';
         if (expertId == '') {
           batch.update(doc.reference, {
-            'estActive': false,
+            'estActive': isActive,
             'updatedAt': FieldValue.serverTimestamp(),
           });
         }
       }
 
-      // 2. Désactiver les instances tacheExperts liées à ce service
+      // 2. Mettre à jour l'état des instances tacheExperts liées à ce service
       final tacheExpertsSnap = await _db
           .collection('tacheExperts')
           .where('idService', isEqualTo: id)
@@ -1458,7 +1459,7 @@ class AdminDashboardService {
       final Set<String> expertIdsToNotify = {};
       for (var doc in tacheExpertsSnap.docs) {
         batch.update(doc.reference, {
-          'estActive': false,
+          'estActive': isActive,
           'updatedAt': FieldValue.serverTimestamp(),
         });
         final expertId = doc.data()['idExpert'];
@@ -1474,13 +1475,23 @@ class AdminDashboardService {
         final expertDoc = await _db.collection('experts').doc(expertId).get();
         final userId = expertDoc.data()?['idUtilisateur'];
         if (userId != null) {
-          await _notificationService.sendNotification(
-            idUtilisateur: userId,
-            titre: "Service Désactivé : $serviceName",
-            corps: "L'administration a désactivé le service '$serviceName'. Vous ne recevrez plus de nouvelles demandes pour ce service. Les interventions en cours doivent être terminées.",
-            type: "SERVICE_DEACTIVATED",
-            relatedId: id,
-          );
+          if (!isActive) {
+            await _notificationService.sendNotification(
+              idUtilisateur: userId,
+              titre: "Service Désactivé : $serviceName",
+              corps: "L'administration a désactivé le service '$serviceName'. Vous ne recevrez plus de nouvelles demandes pour ce service. Les interventions en cours doivent être terminées.",
+              type: "SERVICE_DEACTIVATED",
+              relatedId: id,
+            );
+          } else {
+            await _notificationService.sendNotification(
+              idUtilisateur: userId,
+              titre: "Service Activé : $serviceName",
+              corps: "L'administration a réactivé le service '$serviceName'. Vos tâches associées ont été réactivées avec succès et vous pouvez de nouveau recevoir des demandes.",
+              type: "SERVICE_ACTIVATED",
+              relatedId: id,
+            );
+          }
         }
       }
     }
@@ -1532,39 +1543,47 @@ class AdminDashboardService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    // If deactivating a catalog task, cascade to all expert task instances (tacheExperts)
+    // If changing active status of a catalog task, cascade to all expert task instances (tacheExperts)
     if (data.containsKey('estActive')) {
       final bool isActive = data['estActive'];
-      if (!isActive) {
-        final tacheExpertsSnap = await _db
-            .collection('tacheExperts')
-            .where('idTache', isEqualTo: id)
-            .get();
+      final tacheExpertsSnap = await _db
+          .collection('tacheExperts')
+          .where('idTache', isEqualTo: id)
+          .get();
 
-        if (tacheExpertsSnap.docs.isNotEmpty) {
-          final batch = _db.batch();
-          final Set<String> expertIdsToNotify = {};
+      if (tacheExpertsSnap.docs.isNotEmpty) {
+        final batch = _db.batch();
+        final Set<String> expertIdsToNotify = {};
 
-          for (var doc in tacheExpertsSnap.docs) {
-            batch.update(doc.reference, {
-              'estActive': false,
-              'updatedAt': FieldValue.serverTimestamp(),
-            });
-            final expertId = doc.data()['idExpert'];
-            if (expertId != null) expertIdsToNotify.add(expertId);
-          }
-          await batch.commit();
+        for (var doc in tacheExpertsSnap.docs) {
+          batch.update(doc.reference, {
+            'estActive': isActive,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          final expertId = doc.data()['idExpert'];
+          if (expertId != null) expertIdsToNotify.add(expertId);
+        }
+        await batch.commit();
 
-          // Notify Experts
-          for (String expertId in expertIdsToNotify) {
-            final expertDoc = await _db.collection('experts').doc(expertId).get();
-            final userId = expertDoc.data()?['idUtilisateur'];
-            if (userId != null) {
+        // Notify Experts
+        for (String expertId in expertIdsToNotify) {
+          final expertDoc = await _db.collection('experts').doc(expertId).get();
+          final userId = expertDoc.data()?['idUtilisateur'];
+          if (userId != null) {
+            if (!isActive) {
               await _notificationService.sendNotification(
                 idUtilisateur: userId,
                 titre: "Tâche Désactivée : $taskName",
                 corps: "L'administration a désactivé la tâche '$taskName'. Vous ne recevrez plus de nouvelles demandes pour cette tâche. Les interventions en cours doivent être terminées.",
                 type: "TASK_DEACTIVATED",
+                relatedId: id,
+              );
+            } else {
+              await _notificationService.sendNotification(
+                idUtilisateur: userId,
+                titre: "Tâche Activée : $taskName",
+                corps: "L'administration a réactivé la tâche '$taskName'. Votre tâche a été réactivée avec succès et est de nouveau disponible.",
+                type: "TASK_ACTIVATED",
                 relatedId: id,
               );
             }
