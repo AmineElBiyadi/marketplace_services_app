@@ -782,8 +782,8 @@ class _ClaimDetailModalState extends State<_ClaimDetailModal> {
       if (userId != null) {
         await _notificationService.sendNotification(
           idUtilisateur: userId,
-          titre: "Réponse à votre réclamation",
-          corps: "Un administrateur a répondu à votre réclamation concernant l'intervention ${widget.claim['idIntervention']}.",
+          titre: "Response to your complaint",
+          corps: "An administrator responded to your complaint regarding intervention ${widget.claim['idIntervention']}.",
           type: 'claim',
           relatedId: widget.claim['id'],
         );

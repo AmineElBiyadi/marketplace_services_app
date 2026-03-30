@@ -292,10 +292,6 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
                     "Criminal Record",
                     _expertModel?.casierJudiciaireUrl,
                   ),
-                  _buildDocumentCard(
-                    "Certificate / Diploma",
-                    _expertModel?.certificatDocs,
-                  ),
                   
                   const SizedBox(height: 40),
                 ],

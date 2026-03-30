@@ -215,8 +215,8 @@ class InterventionService {
     // 4. Send Notification to Expert
     await _notificationService.sendNotification(
       idUtilisateur: expertId,
-      titre: "Nouvelle Demande",
-      corps: "${clientSnapshot['nom']} vous a envoyé une demande pour : $serviceNom ($taskNom).",
+      titre: "New Request",
+      corps: "${clientSnapshot['nom']} sent you a request for: $serviceNom ($taskNom).",
       type: 'booking',
       relatedId: interventionRef.id,
     );
