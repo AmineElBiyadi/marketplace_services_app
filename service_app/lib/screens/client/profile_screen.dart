@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/firestore_service.dart';
+import '../../../services/notification_service.dart';
 import '../../../theme/app_colors.dart';
 import 'edit_profile_screen.dart';
 import 'my_reviews_screen.dart';
@@ -86,6 +87,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _handleLogout() async {
+    final user = _authService.currentUser;
+    if (user != null) {
+      // Delete FCM token so this device stops receiving notifications for this account
+      await NotificationService.deleteUserToken(user.uid);
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     await _authService.signOut();

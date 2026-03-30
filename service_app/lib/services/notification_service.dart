@@ -214,6 +214,39 @@ class NotificationService {
     }
   }
 
+  /// Fetches all admin UIDs dynamically from Firestore (admins collection → idUtilisateur)
+  /// and sends each one a notification. No hardcoded IDs.
+  Future<void> notifyAdmins({
+    required String titre,
+    required String corps,
+    required String type,
+    String? relatedId,
+  }) async {
+    try {
+      final adminsSnap = await _firestore.collection('admins').get();
+      if (adminsSnap.docs.isEmpty) {
+        print("No admin documents found in 'admins' collection.");
+        return;
+      }
+
+      for (final adminDoc in adminsSnap.docs) {
+        final idUtilisateur = adminDoc.data()['idUtilisateur'] as String?;
+        if (idUtilisateur != null && idUtilisateur.isNotEmpty) {
+          await sendNotification(
+            idUtilisateur: idUtilisateur,
+            titre: titre,
+            corps: corps,
+            type: type,
+            relatedId: relatedId,
+          );
+          print("Admin notification sent to $idUtilisateur");
+        }
+      }
+    } catch (e) {
+      print("Error notifying admins: $e");
+    }
+  }
+
   static Future<void> updateUserToken(String userId) async {
     try {
       String? token = await _firebaseMessaging.getToken();
@@ -226,6 +259,25 @@ class NotificationService {
       }
     } catch (e) {
       print("Error updating user FCM token: $e");
+    }
+  }
+
+  /// Call this on LOGOUT to prevent the old account from receiving notifications
+  /// on this device after another account logs in.
+  static Future<void> deleteUserToken(String userId) async {
+    try {
+      // 1. Invalidate the FCM token on Firebase side (new token will be generated on next login)
+      await _firebaseMessaging.deleteToken();
+      print("FCM Token deleted from Firebase for user $userId");
+
+      // 2. Remove the token from Firestore so no one can send to this stale token
+      await FirebaseFirestore.instance.collection('utilisateurs').doc(userId).update({
+        'token': FieldValue.delete(),
+        'updated_At': FieldValue.serverTimestamp(),
+      });
+      print("FCM Token removed from Firestore for user $userId");
+    } catch (e) {
+      print("Error deleting user FCM token: $e");
     }
   }
 }

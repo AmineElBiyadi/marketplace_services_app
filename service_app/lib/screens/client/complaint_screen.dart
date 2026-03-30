@@ -76,9 +76,8 @@ class _ComplaintScreenState extends State<ComplaintScreen> {
 
       await FirebaseFirestore.instance.collection('reclamations').add(complaintData);
 
-      // Notify Admin
-      await _notificationService.sendNotification(
-        idUtilisateur: 'user_admin_001',
+      // Notify all Admins (fetched dynamically from Firestore)
+      await _notificationService.notifyAdmins(
         titre: "New Complaint",
         corps: "A new complaint has been filed by ${widget.role == 'expert' ? 'an expert' : 'a client'} for intervention ID: ${widget.interventionId}.",
         type: 'claim',
