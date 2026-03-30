@@ -134,10 +134,16 @@ class FirestoreService {
         .map((snapshot) {
           final list = snapshot.docs.map((doc) => InterventionModel.fromFirestore(doc)).toList();
           
-          // Filter by date range only — show ALL statuses so expert sees full agenda
+          // Filter by date range – check if scheduled start OR actual end falls in this month
           return list.where((interv) {
-            final date = interv.dateDebutIntervention;
+            final start = interv.dateDebutIntervention;
+            final end = interv.dateFinIntervention ?? start;
+            final created = interv.createdAt;
+
+            // Priority logic: 1. Start date (scheduled), 2. End date (completed), 3. Creation date
+            final date = start ?? end ?? created;
             if (date == null) return false;
+            
             return !date.isBefore(firstDay) && !date.isAfter(lastDay);
           }).toList();
         });

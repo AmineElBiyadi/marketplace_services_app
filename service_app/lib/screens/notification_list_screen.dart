@@ -117,9 +117,20 @@ class NotificationListScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(n.titre, style: TextStyle(fontSize: 14, fontWeight: isUnread ? FontWeight.bold : FontWeight.w600, color: const Color(0xFF0F172A))),
+                      Expanded(
+                        child: Text(
+                          n.titre,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
+                            color: const Color(0xFF0F172A),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Text(timeStr, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
                     ],
                   ),

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/message_model.dart';
 import '../models/chat_model.dart';
+import 'notification_service.dart';
 
 class ChatService {
   final FirebaseFirestore _db   = FirebaseFirestore.instance;
@@ -17,13 +18,10 @@ class ChatService {
     final uid = currentUserId;
     if (uid.isEmpty) throw Exception('Vous devez être connecté.');
 
-    final messagesRef = _db
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages');
-
     final chatRef = _db.collection('chats').doc(chatId);
+    final messagesRef = chatRef.collection('messages');
 
+    // 1. Ajouter le message
     await messagesRef.add({
       'SenderId':  uid,
       'contenu':   contenu,
@@ -34,9 +32,14 @@ class ChatService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    final data = (await chatRef.get()).data() as Map<String, dynamic>;
+    // 2. Récupérer les infos du chat pour la notification et les compteurs
+    final chatDoc = await chatRef.get();
+    if (!chatDoc.exists) return;
+    
+    final data = chatDoc.data() as Map<String, dynamic>;
     final bool isClientSender = data['idClient'] == uid;
 
+    // 3. Préparer et envoyer les mises à jour du chat (dernier message + compteurs)
     final Map<String, dynamic> updates = {
       'dernierMessage': {
         'contenu': contenu,
@@ -54,7 +57,42 @@ class ChatService {
     }
 
     await chatRef.update(updates);
+
+    // 4. Envoyer la notification Push au destinataire
+    final String idClient = data['idClient'] ?? '';
+    final String idExpert = data['idExpert'] ?? '';
+    final String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+    final String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+
+    if (isClientSender) {
+      // L'expéditeur est le client, on notifie l'expert
+      final expertDoc = await _db.collection('experts').doc(idExpert).get();
+      if (expertDoc.exists) {
+        final String expertAuthId = expertDoc.data()?['idUtilisateur'] ?? '';
+        if (expertAuthId.isNotEmpty) {
+          await NotificationService().sendNotification(
+            idUtilisateur: expertAuthId,
+            titre: "New message from $clientName",
+            corps: contenu,
+            type: "chat",
+            relatedId: chatId,
+          );
+        }
+      }
+    } else {
+      // L'expéditeur est l'expert, on notifie le client
+      if (idClient.isNotEmpty) {
+        await NotificationService().sendNotification(
+          idUtilisateur: idClient,
+          titre: "New message from $expertName",
+          corps: contenu,
+          type: "chat",
+          relatedId: chatId,
+        );
+      }
+    }
   }
+
 
   // ─── Real-time stream of messages ────────────────────────────
   Stream<List<MessageModel>> getMessages(String chatId) {

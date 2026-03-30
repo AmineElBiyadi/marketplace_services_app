@@ -35,10 +35,10 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
   Color _statusColor(String status) {
     switch (status) {
       case "ACCEPTEE": return AppColors.primary;
-      case "TERMINEE": return Colors.green;
+      case "TERMINEE": return const Color(0xFF10B981); // Green
       case "ANNULEE": return Colors.red;
       case "REFUSEE": return Colors.red.shade900;
-      default: return const Color(0xFFF5C518); // EN_ATTENTE
+      default: return const Color(0xFFF5C518); // Pending
     }
   }
 
@@ -47,6 +47,7 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
       case "EN_ATTENTE": return const Color(0xFF7A5C00);
       case "ANNULEE": return Colors.red.shade700;
       case "REFUSEE": return Colors.red.shade100;
+      case "TERMINEE": return Colors.white;
       default: return Colors.white;
     }
   }
