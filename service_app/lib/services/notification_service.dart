@@ -214,6 +214,39 @@ class NotificationService {
     }
   }
 
+  /// Fetches all admin UIDs dynamically from Firestore (admins collection → idUtilisateur)
+  /// and sends each one a notification. No hardcoded IDs.
+  Future<void> notifyAdmins({
+    required String titre,
+    required String corps,
+    required String type,
+    String? relatedId,
+  }) async {
+    try {
+      final adminsSnap = await _firestore.collection('admins').get();
+      if (adminsSnap.docs.isEmpty) {
+        print("No admin documents found in 'admins' collection.");
+        return;
+      }
+
+      for (final adminDoc in adminsSnap.docs) {
+        final idUtilisateur = adminDoc.data()['idUtilisateur'] as String?;
+        if (idUtilisateur != null && idUtilisateur.isNotEmpty) {
+          await sendNotification(
+            idUtilisateur: idUtilisateur,
+            titre: titre,
+            corps: corps,
+            type: type,
+            relatedId: relatedId,
+          );
+          print("Admin notification sent to $idUtilisateur");
+        }
+      }
+    } catch (e) {
+      print("Error notifying admins: $e");
+    }
+  }
+
   static Future<void> updateUserToken(String userId) async {
     try {
       String? token = await _firebaseMessaging.getToken();
