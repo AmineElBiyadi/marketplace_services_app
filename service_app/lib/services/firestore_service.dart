@@ -1302,6 +1302,7 @@ class FirestoreService {
           'etat': data['etatReclamation'] ?? 'EN_ATTENTE',
           'date': data['createdAt'],
           'idIntervention': data['idIntervention'] ?? '',
+          'adminResponse': data['adminResponse'] ?? '',
         };
       }).toList());
 
@@ -1463,8 +1464,8 @@ class FirestoreService {
     // Notify Admin of new registration
     await _notificationService.sendNotification(
       idUtilisateur: 'user_admin_001', 
-      titre: "Nouveau Client",
-      corps: "Un nouveau client ($name) s'est inscrit sur la plateforme.",
+      titre: "New Client",
+      corps: "A new client ($name) has registered on the platform.",
       type: 'registration',
       relatedId: clientDoc.id,
     );
@@ -1828,6 +1829,7 @@ class FirestoreService {
 
       // Check if expert is premium to determine initial photo visibility
       final isPremium = (await isExpertPremium(expertId).first);
+      final freePortfolioLimit = await getFreePortfolioLimit();
 
       batch.set(imgRef, {
         'image': imageData['image'],
@@ -1836,7 +1838,7 @@ class FirestoreService {
         'idTacheExpert': linkedId ?? '',
         'publicId': imageData['publicId'] ?? '',
         'storageType': imageData['storageType'] ?? 'base64',
-        'isVisibleByPlan': isPremium || imagesWithTasks.indexOf(imageData) < 3,
+        'isVisibleByPlan': isPremium || imagesWithTasks.indexOf(imageData) < freePortfolioLimit,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
@@ -1862,12 +1864,37 @@ class FirestoreService {
   }
 
   Future<void> toggleServiceExpertsActive(String docId, bool status) async {
+    // Only check for ongoing interventions when deactivating (status = false)
+    if (!status) {
+      // Get the serviceExpert document to retrieve expertId and serviceId
+      final serviceDoc = await _firestore.collection('serviceExperts').doc(docId).get();
+      if (!serviceDoc.exists) {
+        throw Exception("Service non trouvé.");
+      }
+      
+      final serviceData = serviceDoc.data() as Map<String, dynamic>;
+      final expertId = serviceData['idExpert'] as String;
+      final serviceId = serviceData['idService'] as String;
+      
+      // Check for ongoing interventions
+      final hasOngoing = await hasOngoingInterventionsForService(expertId, serviceId);
+      if (hasOngoing) {
+        throw Exception("Ce service ne peut pas être désactivé car il a des interventions en cours ou en attente.");
+      }
+    }
+
     await _firestore.collection('serviceExperts').doc(docId).update({
       'estActive': status,
     });
   }
 
   Future<void> deleteExpertService(String expertId, String serviceId) async {
+    // Check for ongoing interventions first
+    final hasOngoing = await hasOngoingInterventionsForService(expertId, serviceId);
+    if (hasOngoing) {
+      throw Exception("Ce service ne peut pas être supprimé car il a des interventions en cours ou en attente.");
+    }
+
     final batch = _firestore.batch();
 
     // Delete from serviceExperts
@@ -2071,6 +2098,7 @@ class FirestoreService {
     
     // 4. Add all images linked to the service expert instance
     final isPremium = (await isExpertPremium(expertId).first);
+    final freePortfolioLimit = await getFreePortfolioLimit();
     
     for (var imageData in imagesWithTasks) {
       final imgRef = _firestore.collection('imagesExemplaires').doc();
@@ -2092,7 +2120,7 @@ class FirestoreService {
         'idTacheExpert': linkedId ?? '',
         'publicId': imageData['publicId'] ?? '',
         'storageType': imageData['storageType'] ?? 'base64',
-        'isVisibleByPlan': isPremium || imagesWithTasks.indexOf(imageData) < 3,
+        'isVisibleByPlan': isPremium || imagesWithTasks.indexOf(imageData) < freePortfolioLimit,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }
@@ -2166,8 +2194,8 @@ class FirestoreService {
     // Notify Admin of new registration
     await _notificationService.sendNotification(
       idUtilisateur: 'user_admin_001',
-      titre: "Nouveau Prestataire",
-      corps: "Un nouveau prestataire ($name) s'est inscrit et est en attente de validation.",
+      titre: "New Provider",
+      corps: "A new provider ($name) has registered and is awaiting validation.",
       type: 'registration',
       relatedId: expertRef.id,
     );
@@ -2320,8 +2348,8 @@ class FirestoreService {
     if (idUtilisateur != null) {
       await _notificationService.sendNotification(
         idUtilisateur: idUtilisateur,
-        titre: "Compte Désactivé",
-        corps: "Vous avez désactivé votre compte. Votre profil n'est plus visible par les clients.",
+        titre: "Account Deactivated",
+        corps: "You have deactivated your account. Your profile is no longer visible to clients.",
         type: 'account',
         relatedId: expertId,
       );
@@ -2333,7 +2361,7 @@ class FirestoreService {
     final doc = await _firestore.collection('experts').doc(expertId).get();
     final data = doc.data() as Map<String, dynamic>?;
     if (doc.exists && (data?['desactiveParAdmin'] ?? false) == true) {
-      throw Exception("Compte désactivé par l'administrateur. Veuillez contacter le support.");
+      throw Exception("Account deactivated by the administrator. Please contact support.");
     }
 
     await _firestore.collection('experts').doc(expertId).update({
@@ -2345,8 +2373,8 @@ class FirestoreService {
     if (data?['idUtilisateur'] != null) {
       await _notificationService.sendNotification(
         idUtilisateur: data!['idUtilisateur'],
-        titre: "Compte Réactivé",
-        corps: "Bon retour ! Votre compte est à nouveau actif et visible.",
+        titre: "Account Reactivated",
+        corps: "Welcome back! Your account is active and visible again.",
         type: 'account',
         relatedId: expertId,
       );

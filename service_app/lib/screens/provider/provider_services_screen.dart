@@ -245,8 +245,17 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   final List<Map<String, dynamic>> _imagesWithTasks = [];
   bool _isSaving = false;
 
+  int get _visiblePhotosCount {
+    return _imagesWithTasks
+        .where((img) => (img['isVisibleByPlan'] ?? true) == true)
+        .length;
+  }
+
   Future<void> _pickImage(StateSetter setSheetState) async {
-    final visiblePhotosCount = _imagesWithTasks.where((img) => (img['isVisibleByPlan'] as bool? ?? true) == true).length;
+    // Count only visible photos already in the list
+    final visiblePhotosCount = _visiblePhotosCount;
+    
+    // For free users, block adding more photos once we reach the dynamic limit
     if (visiblePhotosCount >= _freePortfolioLimit && !_isPremium) {
       showDialog(
         context: context,
@@ -280,7 +289,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  "Unlock Premium",
+                  "Limit Reached",
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF1E293B)),
                 ),
                 const SizedBox(height: 12),
@@ -323,8 +332,10 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
     }
 
     if (_selectedTasks.isEmpty && _customTasks.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Please add at least one skill before adding photos")),
+      _showErrorDialog(
+        title: "Skills Required",
+        message: "Please add at least one skill before adding photos. This helps clients understand what specific services you offer.",
+        icon: Icons.build_circle,
       );
       return;
     }
@@ -371,6 +382,8 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
       );
 
       if (selectedTaskName != null) {
+        // For free users, all photos within the limit are visible
+        // For premium users, all photos are visible
         setSheetState(() {
           _imagesWithTasks.add({
             'image': base64,
@@ -382,6 +395,86 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
         setState(() {});
       }
     }
+  }
+
+  void _showErrorDialog({required String title, required String message, required IconData icon}) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with red color
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 30),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Center(
+                  child: Icon(icon, color: Colors.white, size: 54),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Body
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.red.shade100),
+                      ),
+                      child: Text(
+                        message,
+                        style: const TextStyle(fontSize: 14, color: Colors.red, height: 1.5, fontWeight: FontWeight.w600),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+              // Action Button
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 0,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Got it!", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _resetAddForm() {
@@ -399,9 +492,20 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   }
 
   Future<void> _saveService() async {
-    if (_selectedCategory == null || _descriptionController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Category and Description are required")),
+    if (_selectedCategory == null) {
+      _showErrorDialog(
+        title: "Missing Information",
+        message: "Please select a service category before saving.",
+        icon: Icons.category,
+      );
+      return;
+    }
+    
+    if (_descriptionController.text.trim().isEmpty) {
+      _showErrorDialog(
+        title: "Description Required",
+        message: "Please add a description of your service to help clients understand what you offer.",
+        icon: Icons.description,
       );
       return;
     }
@@ -457,9 +561,11 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   }
 
   Future<void> _saveEditedService(Map<String, dynamic> serviceData) async {
-    if (_descriptionController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Description is required")),
+    if (_descriptionController.text.trim().isEmpty) {
+      _showErrorDialog(
+        title: "Description Required",
+        message: "Please add a description of your service to help clients understand what you offer.",
+        icon: Icons.description,
       );
       return;
     }
@@ -847,10 +953,34 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
           decoration: InputDecoration(
             hintText: "Describe your service...",
             filled: true,
-            fillColor: Colors.white,
+            fillColor: _descriptionController.text.trim().isEmpty ? Colors.red.shade50 : Colors.white,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: BorderSide(
+                color: _descriptionController.text.trim().isEmpty ? Colors.red.shade300 : Colors.grey.shade300,
+              ),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: _descriptionController.text.trim().isEmpty ? Colors.red.shade300 : Colors.grey.shade300,
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(
+                color: _descriptionController.text.trim().isEmpty ? Colors.red.shade500 : AppColors.primary,
+              ),
+            ),
+            suffixIcon: _descriptionController.text.trim().isEmpty
+                ? const Icon(Icons.error_outline, color: Colors.red, size: 20)
+                : const Icon(Icons.check_circle, color: Colors.green, size: 20),
+            helperText: _descriptionController.text.trim().isEmpty
+                ? "Description is required"
+                : "Describe what you offer to help clients choose you",
+            helperStyle: TextStyle(
+              color: _descriptionController.text.trim().isEmpty ? Colors.red.shade700 : Colors.grey.shade600,
+              fontSize: 12,
             ),
           ),
           onChanged: (val) => setSheetState(() {}),
@@ -926,10 +1056,38 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
           ],
         ),
         const SizedBox(height: 24),
-        const Text(
-          "Photos (Max 3)",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        Text(
+          _isPremium
+              ? "Photos (Unlimited)"
+              : "Photos ($_visiblePhotosCount/$_freePortfolioLimit)",
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
+        if (!_isPremium && _visiblePhotosCount >= _freePortfolioLimit)
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.block, color: Colors.red, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    "Photo limit reached. Upgrade to Premium to add more photos!",
+                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => context.push('/provider/${widget.expertId}/subscription'),
+                  child: const Text("Upgrade", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.red)),
+                ),
+              ],
+            ),
+          ),
         if (!_isPremium && _imagesWithTasks.any((img) => (img['isVisibleByPlan'] as bool? ?? true) == false))
           Container(
             margin: const EdgeInsets.only(top: 8),
@@ -969,11 +1127,35 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
                   height: 100,
                   margin: const EdgeInsets.only(top: 10, bottom: 10),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
+                    color: (!_isPremium && _visiblePhotosCount >= _freePortfolioLimit) 
+                        ? Colors.grey.shade100 
+                        : Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(
+                      color: (!_isPremium && _visiblePhotosCount >= _freePortfolioLimit) 
+                          ? Colors.grey.shade300 
+                          : Colors.grey.shade300,
+                    ),
                   ),
-                  child: const Icon(Icons.add_a_photo, color: Colors.grey),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_a_photo, 
+                        color: (!_isPremium && _visiblePhotosCount >= _freePortfolioLimit) 
+                            ? Colors.grey.shade400 
+                            : Colors.grey,
+                      ),
+                      if (!_isPremium && _visiblePhotosCount >= _freePortfolioLimit)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Text(
+                            "Limit",
+                            style: TextStyle(fontSize: 8, color: Colors.grey, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
