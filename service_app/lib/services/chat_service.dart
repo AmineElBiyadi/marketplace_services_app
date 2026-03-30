@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/message_model.dart';
 import '../models/chat_model.dart';
+import 'notification_service.dart';
 
 class ChatService {
   final FirebaseFirestore _db   = FirebaseFirestore.instance;
@@ -44,6 +45,44 @@ class ChatService {
       'nbMessagesNonLus': FieldValue.increment(1),
       'updatedAt': FieldValue.serverTimestamp(),
     });
+
+    // Send push notification to the receiver
+    final chatDoc = await chatRef.get();
+    if (chatDoc.exists) {
+      final data = chatDoc.data()!;
+      final String idClient = data['idClient'] ?? '';
+      final String idExpert = data['idExpert'] ?? '';
+      final String clientName = data['clientSnapshot']?['nom'] ?? 'Client';
+      final String expertName = data['expertSnapshot']?['nom'] ?? 'Expert';
+
+      if (uid == idClient) {
+        // Sender is client, notify expert
+        final expertDoc = await _db.collection('experts').doc(idExpert).get();
+        if (expertDoc.exists) {
+          final String expertAuthId = expertDoc.data()?['idUtilisateur'] ?? '';
+          if (expertAuthId.isNotEmpty) {
+            await NotificationService().sendNotification(
+              idUtilisateur: expertAuthId,
+              titre: "New message from $clientName",
+              corps: contenu,
+              type: "chat",
+              relatedId: chatId,
+            );
+          }
+        }
+      } else {
+        // Sender is expert, notify client
+        if (idClient.isNotEmpty) {
+          await NotificationService().sendNotification(
+            idUtilisateur: idClient,
+            titre: "New message from $expertName",
+            corps: contenu,
+            type: "chat",
+            relatedId: chatId,
+          );
+        }
+      }
+    }
   }
 
   // ─── Real-time stream of messages ────────────────────────────
