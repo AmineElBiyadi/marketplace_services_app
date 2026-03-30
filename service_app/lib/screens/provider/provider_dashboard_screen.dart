@@ -709,24 +709,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF1F5F9),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                avatarText,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
-          ),
+          _buildAvatar(req.clientSnapshot?['photo'] ?? '', clientName, size: 56),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -808,6 +791,8 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [
+            _buildAvatar(booking.clientSnapshot?['photo'] ?? '', clientName, size: 48),
+            const SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -847,6 +832,31 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           ],
         ),
       ),
+    );
+  }
+  Widget _buildAvatar(String photo, String name, {double size = 40}) {
+    final initials = name.isNotEmpty ? name.split(' ').map((e) => e[0]).take(2).join().toUpperCase() : '?';
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withOpacity(0.1),
+        shape: BoxShape.circle,
+        image: photo.isNotEmpty
+            ? DecorationImage(image: NetworkImage(photo), fit: BoxFit.cover)
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: photo.isEmpty
+          ? Text(
+              initials,
+              style: TextStyle(
+                fontSize: size * 0.35,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
+            )
+          : null,
     );
   }
 }

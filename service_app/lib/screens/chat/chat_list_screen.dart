@@ -300,27 +300,30 @@ class ChatListScreen extends StatelessWidget {
   }
 
   Widget _buildAvatar(String photo, String name, bool isOpen) {
-    Widget avatar;
-    if (photo.isNotEmpty) {
-      avatar = CircleAvatar(
-        radius: 24,
-        backgroundImage: NetworkImage(photo),
-        onBackgroundImageError: (_, __) {},
-      );
-    } else {
-      avatar = CircleAvatar(
-        radius: 24,
-        backgroundColor: _primaryBlue.withOpacity(0.15),
-        child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : '?',
-          style: const TextStyle(
-            color: _primaryBlue,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-      );
-    }
+    final initials = name.isNotEmpty ? name.split(' ').map((e) => e[0]).take(2).join().toUpperCase() : '?';
+    
+    Widget avatar = Container(
+      width: 48,
+      height: 48,
+      decoration: BoxDecoration(
+        color: _primaryBlue.withOpacity(0.1),
+        shape: BoxShape.circle,
+        image: photo.isNotEmpty && photo.startsWith('http')
+            ? DecorationImage(image: NetworkImage(photo), fit: BoxFit.cover)
+            : null,
+      ),
+      alignment: Alignment.center,
+      child: photo.isEmpty || !photo.startsWith('http')
+          ? Text(
+              initials,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: _primaryBlue,
+              ),
+            )
+          : null,
+    );
 
     if (!isOpen) {
       return Stack(

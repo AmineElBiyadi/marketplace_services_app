@@ -31,18 +31,20 @@ class _AdminLayoutState extends State<AdminLayout> {
             )
           : null,
       backgroundColor: const Color(0xFFF8FAFC),
-      body: Row(
-        children: [
-          if (!isMobile)
-            AdminSidebar(
-              activeRoute: widget.activeRoute,
-              isOpen: _sidebarOpen,
-              onToggle: () => setState(() => _sidebarOpen = !_sidebarOpen),
+      body: SafeArea(
+        child: Row(
+          children: [
+            if (!isMobile)
+              AdminSidebar(
+                activeRoute: widget.activeRoute,
+                isOpen: _sidebarOpen,
+                onToggle: () => setState(() => _sidebarOpen = !_sidebarOpen),
+              ),
+            Expanded(
+              child: widget.child,
             ),
-          Expanded(
-            child: widget.child,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
