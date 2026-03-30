@@ -4,6 +4,7 @@ import '../../models/expert.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/smart_image.dart';
 import '../../widgets/start_chat_sheet.dart';
+import '../../theme/app_colors.dart';
 
 class ExpertProfileScreen extends StatefulWidget {
   final Expert expert;
@@ -32,7 +33,7 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
   bool _isLoadingExtra = true;
   late Expert _expert;
 
-  static const Color _kPrimary = Color(0xFF3D5A99);
+  static const Color _kPrimary = AppColors.primary;
   static const Color _kBg = Color(0xFFF9F6EE); // matches screenshot off-white
   static const Color _kTextBlue = Color(0xFF3D5A99);
   static const Color _kGold = Color(0xFFFFC107);
@@ -178,7 +179,11 @@ class _ExpertProfileScreenState extends State<ExpertProfileScreen>
                     flexibleSpace: const FlexibleSpaceBar(
                       background: DecoratedBox(
                         decoration: BoxDecoration(
-                          color: _kPrimary,
+                          gradient: LinearGradient(
+                            colors: [AppColors.primary, Color(0xFF818CF8)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.only(
                             bottomLeft: Radius.circular(24),
                             bottomRight: Radius.circular(24),

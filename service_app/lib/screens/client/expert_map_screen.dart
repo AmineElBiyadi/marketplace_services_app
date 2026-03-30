@@ -11,7 +11,9 @@ import 'expert_details_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-const _kBlue = Color(0xFF2A4278);
+import '../../theme/app_colors.dart';
+
+const _kBlue = AppColors.primary;
 
 class ExpertMapScreen extends StatefulWidget {
   const ExpertMapScreen({super.key});

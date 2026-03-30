@@ -47,7 +47,8 @@ class ChatModel {
   final String idIntervention;
   final bool estOuvert;
   final Timestamp? dateFin;
-  final int nbMessagesNonLus;
+  final int unreadCountClient;
+  final int unreadCountExpert;
   final Timestamp createdAt;
   final Timestamp updatedAt;
   final UserSnapshot clientSnapshot;
@@ -62,7 +63,8 @@ class ChatModel {
     required this.idIntervention,
     required this.estOuvert,
     this.dateFin,
-    required this.nbMessagesNonLus,
+    required this.unreadCountClient,
+    required this.unreadCountExpert,
     required this.createdAt,
     required this.updatedAt,
     required this.clientSnapshot,
@@ -80,7 +82,8 @@ class ChatModel {
       idIntervention:   data['idIntervention'] ?? '',
       estOuvert:        data['estOuvert'] ?? true,
       dateFin:          data['DateFin'],
-      nbMessagesNonLus: data['nbMessagesNonLus'] ?? 0,
+      unreadCountClient: data['unreadCountClient'] ?? 0,
+      unreadCountExpert: data['unreadCountExpert'] ?? 0,
       createdAt:        data['createdAt'] ?? Timestamp.now(),
       updatedAt:        data['updatedAt'] ?? Timestamp.now(),
       clientSnapshot:   UserSnapshot.fromMap(

@@ -3,7 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/chat_service.dart';
 import '../../models/chat_model.dart';
-import 'chat_screen.dart';
+import '../chat/chat_screen.dart';
+import '../../widgets/shared/client_header.dart';
 
 class ChatListScreen extends StatelessWidget {
   final String currentUserRole; // "client" or "expert"
@@ -79,6 +80,12 @@ class ChatListScreen extends StatelessWidget {
                         color: Color(0xFF1E293B),
                       ),
                     ),
+                  )
+                else
+                  const ClientHeader(
+                    title: "Messages",
+                    subtitle: "Chat with your service providers",
+                    bottomPadding: 10,
                   ),
                 Expanded(
                   child: Center(
@@ -124,6 +131,12 @@ class ChatListScreen extends StatelessWidget {
                       color: Color(0xFF1E293B),
                     ),
                   ),
+                )
+              else
+                const ClientHeader(
+                  title: "Messages",
+                  subtitle: "Chat with your service providers",
+                  bottomPadding: 10,
                 ),
               Expanded(
                 child: ListView.separated(
@@ -145,12 +158,11 @@ class ChatListScreen extends StatelessWidget {
                     final lastText =
                         chat.dernierMessage?.contenu ?? 'No messages';
                     final lastTime = chat.updatedAt.toDate();
-                    final unread = chat.nbMessagesNonLus;
+                    final unread = currentUserRole == 'client'
+                        ? chat.unreadCountClient
+                        : chat.unreadCountExpert;
 
-                    // Only show unread badge if the last message was NOT sent by me
-                    final isLastMessageMine =
-                        chat.dernierMessage?.senderId == currentUserId;
-                    final showUnread = unread > 0 && !isLastMessageMine;
+                    final showUnread = unread > 0;
 
                     final serviceNom = chat.tacheSnapshot?['serviceNom'] as String? ?? 'Request';
                     final taskNom = chat.tacheSnapshot?['nom'] as String? ?? 'General discussion';

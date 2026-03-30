@@ -34,16 +34,26 @@ class ChatService {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    await chatRef.update({
+    final data = (await chatRef.get()).data() as Map<String, dynamic>;
+    final bool isClientSender = data['idClient'] == uid;
+
+    final Map<String, dynamic> updates = {
       'dernierMessage': {
-        'contenu':   contenu,
-        'senderId':  uid,
-        'type':      'TEXT',
+        'contenu': contenu,
+        'senderId': uid,
+        'type': 'TEXT',
         'createdAt': FieldValue.serverTimestamp(),
       },
-      'nbMessagesNonLus': FieldValue.increment(1),
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+
+    if (isClientSender) {
+      updates['unreadCountExpert'] = FieldValue.increment(1);
+    } else {
+      updates['unreadCountClient'] = FieldValue.increment(1);
+    }
+
+    await chatRef.update(updates);
   }
 
   // ─── Real-time stream of messages ────────────────────────────
@@ -136,8 +146,15 @@ class ChatService {
 
   // ─── Mark all unread messages as LU ──────────────────────────
   Future<void> markMessagesAsRead(String chatId) async {
+    final chatDoc = await _db.collection('chats').doc(chatId).get();
+    if (!chatDoc.exists) return;
+    final data = chatDoc.data()!;
+    final uid = currentUserId;
+
+    bool isClient = data['idClient'] == uid;
+    
     await _db.collection('chats').doc(chatId).update({
-      'nbMessagesNonLus': 0,
+      if (isClient) 'unreadCountClient': 0 else 'unreadCountExpert': 0,
     });
 
     final unread = await _db
@@ -186,7 +203,8 @@ class ChatService {
       'idIntervention':    idIntervention,
       'estOuvert':         true,
       'DateFin':           null,
-      'nbMessagesNonLus':  0,
+      'unreadCountClient': 0,
+      'unreadCountExpert': 0,
       'clientSnapshot':    clientSnapshot,
       'expertSnapshot':    expertSnapshot,
       'dernierMessage':    null,
@@ -203,6 +221,40 @@ class ChatService {
       'estOuvert': false,
       'DateFin':   FieldValue.serverTimestamp(),
     });
+  }
+
+  // ─── Stream of total unread messages for a user ────────────────
+  Stream<int> getTotalUnreadCount(String userRole, {String? expertId}) {
+    if (userRole == 'client') {
+      final uid = currentUserId;
+      if (uid.isEmpty) return Stream.value(0);
+      return _db
+          .collection('chats')
+          .where('idClient', isEqualTo: uid)
+          .snapshots()
+          .map((snap) {
+            int total = 0;
+            for (var doc in snap.docs) {
+              total += (doc.data()['unreadCountClient'] ?? 0) as int;
+            }
+            return total;
+          });
+    } else {
+      // For expert, we need to be careful with expertId resolution in a stream
+      // Using a simple where query on idExpert
+      if (expertId == null) return Stream.value(0);
+      return _db
+          .collection('chats')
+          .where('idExpert', isEqualTo: expertId)
+          .snapshots()
+          .map((snap) {
+            int total = 0;
+            for (var doc in snap.docs) {
+              total += (doc.data()['unreadCountExpert'] ?? 0) as int;
+            }
+            return total;
+          });
+    }
   }
 
   // ─── Fetch a single chat by ID ────────────────────────────────

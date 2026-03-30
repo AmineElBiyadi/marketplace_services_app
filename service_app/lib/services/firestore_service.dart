@@ -1252,6 +1252,7 @@ class FirestoreService {
           'expertNom': expertNom,
           'description': data['description'] ?? '',
           'etat': data['etatReclamation'] ?? 'EN_ATTENTE',
+          'adminResponse': data['adminResponse'] ?? '',
           'date': data['createdAt'],
           'idIntervention': data['idIntervention'] ?? '',
         };
