@@ -644,7 +644,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  _badge(c['status'], isUrgent ? _destructive : Colors.amber),
+                  _badge(c['status'], Colors.amber),
                 ],
               ),
             ],
