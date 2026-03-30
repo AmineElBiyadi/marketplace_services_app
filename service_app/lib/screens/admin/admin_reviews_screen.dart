@@ -81,8 +81,8 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
 
   Widget _buildTopBar(bool isMobile) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: isMobile ? 48 : 64,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
       decoration: BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: _border.withOpacity(0.5)))),
       child: Row(
         children: [
@@ -93,7 +93,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             )),
           Expanded(
             child: Text(
-              'Avis & Réclamations', 
+              'Reviews & Claims', 
               style: TextStyle(
                 fontSize: isMobile ? 18 : 22, 
                 fontWeight: FontWeight.bold, 
@@ -109,7 +109,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
               child: ElevatedButton.icon(
                 onPressed: _exportData,
                 icon: const Icon(LucideIcons.fileText, size: 14),
-                label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                label: const Text('Export PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _textPrimary,
                   foregroundColor: Colors.white,
@@ -148,15 +148,15 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   }
 
   Widget _buildBentoKPIs(bool isMobile) {
-    double cardWidth = isMobile ? 180 : 250;
+    double cardWidth = isMobile ? MediaQuery.of(context).size.width - 48 : 250;
     return Wrap(
       spacing: 16,
       runSpacing: 16,
       children: [
-        _buildStatCard('Note Moyenne', '${_stats?.averageRating.toStringAsFixed(1)} ⭐', LucideIcons.star, Colors.amber, cardWidth),
-        _buildStatCard('Réclamations', _allClaims.where((c) => c['etat'] == 'EN_ATTENTE').length.toString(), LucideIcons.alertCircle, Colors.orange, cardWidth),
-        _buildStatCard('Total Avis', _allReviews.length.toString(), LucideIcons.messageSquare, Colors.blue, cardWidth),
-        _buildStatCard('SLA Réponse', '98%', LucideIcons.shieldCheck, Colors.green, cardWidth),
+        _buildStatCard('Average Rating', '${_stats?.averageRating.toStringAsFixed(1)} ⭐', LucideIcons.star, Colors.amber, cardWidth),
+        _buildStatCard('Claims', _allClaims.where((c) => c['etat'] == 'EN_ATTENTE').length.toString(), LucideIcons.alertCircle, Colors.orange, cardWidth),
+        _buildStatCard('Total Reviews', _allReviews.length.toString(), LucideIcons.messageSquare, Colors.blue, cardWidth),
+        _buildStatCard('Response SLA', '98%', LucideIcons.shieldCheck, Colors.green, cardWidth),
       ],
     );
   }
@@ -185,18 +185,18 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
     if (isMobile) {
       return Column(
         children: [
-          _bentoGridItem('Répartition des Étoiles', _buildRatingDistributionChart(true)),
+          _bentoGridItem('Star Distribution', _buildRatingDistributionChart(true)),
           const SizedBox(height: 20),
-          _bentoGridItem('Satisfaction Globale', _buildRadialGauge()),
+          _bentoGridItem('Overall Satisfaction', _buildRadialGauge()),
         ],
       );
     }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(flex: 3, child: _bentoGridItem('Distribution des Notes', _buildRatingDistributionChart(false))),
+        Expanded(flex: 3, child: _bentoGridItem('Score Distribution', _buildRatingDistributionChart(false))),
         const SizedBox(width: 20),
-        Expanded(flex: 2, child: _bentoGridItem('Satisfaction Globale', _buildRadialGauge())),
+        Expanded(flex: 2, child: _bentoGridItem('Overall Satisfaction', _buildRadialGauge())),
       ],
     );
   }
@@ -251,10 +251,10 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
     if (isMobile) {
       return Column(
         children: [
-          _sectionSubHeader('Avis Récents', LucideIcons.star, Colors.amber, () => _showAllReviewsModal()),
+          _sectionSubHeader('Recent Reviews', LucideIcons.star, Colors.amber, () => _showAllReviewsModal()),
           ..._allReviews.take(2).map((r) => _buildReviewCard(r)),
           const SizedBox(height: 32),
-          _sectionSubHeader('Réclamations Prioritaires', LucideIcons.alertTriangle, Colors.redAccent, () => _showAllClaimsModal()),
+          _sectionSubHeader('Priority Claims', LucideIcons.alertTriangle, Colors.redAccent, () => _showAllClaimsModal()),
           ..._allClaims.take(2).map((c) => _buildClaimCard(c)),
         ],
       );
@@ -266,7 +266,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionSubHeader('Dernières Évaluations', LucideIcons.star, Colors.amber, () => _showAllReviewsModal()),
+              _sectionSubHeader('Latest Evaluations', LucideIcons.star, Colors.amber, () => _showAllReviewsModal()),
               const SizedBox(height: 16),
               ..._allReviews.take(2).map((r) => _buildReviewCard(r)),
             ],
@@ -277,7 +277,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionSubHeader('Réclamations en Cours', LucideIcons.alertTriangle, Colors.redAccent, () => _showAllClaimsModal()),
+              _sectionSubHeader('Ongoing Claims', LucideIcons.alertTriangle, Colors.redAccent, () => _showAllClaimsModal()),
               const SizedBox(height: 16),
               ..._allClaims.take(2).map((c) => _buildClaimCard(c)),
             ],
@@ -301,7 +301,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
           ),
         ),
         const SizedBox(width: 8),
-        TextButton(onPressed: onSeeAll, child: const Text('Afficher tout', style: TextStyle(fontSize: 12))),
+        TextButton(onPressed: onSeeAll, child: const Text('Show all', style: TextStyle(fontSize: 12))),
       ],
     );
   }
@@ -324,7 +324,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(review['clientName'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                    Text('Expert: ${review['expertName']}', style: TextStyle(fontSize: 11, color: _textSecondary)),
+                    Text('Provider: ${review['expertName']}', style: TextStyle(fontSize: 11, color: _textSecondary)),
                   ],
                 ),
               ),
@@ -360,7 +360,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _statusBadge(claim['etat'], statusColor),
+              _statusBadge(claim['etat'] == 'TRAITEE' ? 'RESOLVED' : 'PENDING', statusColor),
               Text(claim['date'], style: const TextStyle(fontSize: 10, color: _textSecondary)),
             ],
           ),
@@ -370,24 +370,24 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
             spacing: 6,
             runSpacing: 6,
             children: [
-              const Text('Plaintif:', style: TextStyle(fontSize: 11, color: _textSecondary)),
+              const Text('Plaintiff:', style: TextStyle(fontSize: 11, color: _textSecondary)),
               _clickableName(
                 claim['typeReclamateur'] == 'EXPERT' ? claim['expertName'] : claim['clientName'], 
                 claim['typeReclamateur'] == 'EXPERT' ? claim['idExpert'] : claim['idClient'], 
-                claim['typeReclamateur'] == 'EXPERT' ? 'Prestataire' : 'Client'
+                claim['typeReclamateur'] == 'EXPERT' ? 'Provider' : 'Customer'
               ),
               const SizedBox(width: 6),
-              const Text('Contre:', style: TextStyle(fontSize: 11, color: _textSecondary)),
+              const Text('Against:', style: TextStyle(fontSize: 11, color: _textSecondary)),
               _clickableName(
                 claim['typeReclamateur'] == 'EXPERT' ? claim['clientName'] : claim['expertName'], 
                 claim['typeReclamateur'] == 'EXPERT' ? claim['idClient'] : claim['idExpert'], 
-                claim['typeReclamateur'] == 'EXPERT' ? 'Client' : 'Prestataire'
+                claim['typeReclamateur'] == 'EXPERT' ? 'Customer' : 'Provider'
               ),
               if ((claim['targetClaimCount'] ?? 0) > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(color: Colors.red.withOpacity(0.1), borderRadius: BorderRadius.circular(4)),
-                  child: Text('⚠ ${claim['targetClaimCount']} plaintes au total', style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold)),
+                  child: Text('⚠ ${claim['targetClaimCount']} total complaints', style: const TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold)),
                 ),
             ],
           ),
@@ -398,7 +398,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
           const Divider(height: 32),
           Row(
             children: [
-              _textAction('Gérer', () => _viewClaimDetail(claim)),
+              _textAction('Manage', () => _viewClaimDetail(claim)),
               const Spacer(),
               if (claim['etat'] == 'EN_ATTENTE')
                 _miniIconAction(LucideIcons.check, Colors.green, () => _markAsTreated(claim)),
@@ -514,7 +514,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   }
 
   void _showAllReviewsModal() => showDialog(context: context, builder: (context) => _BaseFullListModal(
-    title: 'Toutes les Évaluations', 
+    title: 'All Evaluations', 
     icon: LucideIcons.star, 
     color: Colors.amber, 
     items: _allReviews, 
@@ -523,7 +523,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   ));
 
   void _showAllClaimsModal() => showDialog(context: context, builder: (context) => _BaseFullListModal(
-    title: 'Toutes les Réclamations', 
+    title: 'All Claims', 
     icon: LucideIcons.alertTriangle, 
     color: Colors.redAccent, 
     items: _allClaims, 
@@ -538,7 +538,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   }
 
   Future<void> _deleteReview(Map<String, dynamic> r) async {
-    final confirm = await _showConfirm('Supprimer cet avis ?');
+    final confirm = await _showConfirm('Delete this review?');
     if (confirm == true) {
       await _service.deleteEvaluation(r['id']);
       _loadData();
@@ -551,44 +551,44 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   }
 
   Future<void> _deleteClaim(Map<String, dynamic> c) async {
-    final confirm = await _showConfirm('Supprimer cette réclamation ?');
+    final confirm = await _showConfirm('Delete this claim?');
     if (confirm == true) {
       await _service.deleteClaim(c['id']);
       _loadData();
     }
   }
 
-  Future<bool?> _showConfirm(String msg) => showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: Text(msg), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirmer'))]));
+  Future<bool?> _showConfirm(String msg) => showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: Text(msg), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm'))]));
 
   void _viewClaimDetail(Map<String, dynamic> claim) => showDialog(context: context, builder: (context) => _ClaimDetailModal(claim: claim, onUpdate: _loadData));
 
   void _exportData() async {
-    final headers = ['Type', 'Client', 'Expert / Sujet', 'Date', 'Statut / Info'];
+    final headers = ['Type', 'Customer', 'Provider / Subject', 'Date', 'Status / Info'];
     final reviewRows = _allReviews.map((r) => [
-      'AVIS',
+      'REVIEW',
       r['clientName'] ?? '',
       r['expertName'] ?? '',
       r['date'] ?? '',
-      'Note: ${(r['note'] ?? 0).toStringAsFixed(1)}/5',
+      'Rating: ${(r['note'] ?? 0).toStringAsFixed(1)}/5',
     ]).toList();
 
     final claimRows = _allClaims.map((c) => [
-      'RÉCLAMATION',
+      'CLAIM',
       c['clientName'] ?? '',
       c['description'] ?? '',
       c['date'] ?? '',
-      c['status'] ?? 'EN ATTENTE',
+      c['status'] ?? 'PENDING',
     ]).toList();
 
     await AdminExportUtil.exportPageToPdf(
-      filename: 'avis_et_reclamations_presto_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-      title: 'Avis & Réclamations',
-      subtitle: 'Synthèse des retours clients et réclamations de la plateforme Presto',
+      filename: 'reviews_and_claims_presto_${DateFormat('yyyyMMdd').format(DateTime.now())}',
+      title: 'Reviews & Claims',
+      subtitle: 'Summary of customer feedback and claims on the Presto platform',
       kpis: [
-        {'label': 'Total Avis', 'value': _allReviews.length.toString()},
-        {'label': 'Note Moyenne', 'value': _stats != null ? '${_stats!.averageRating.toStringAsFixed(1)}/5' : 'N/A'},
-        {'label': 'Réclamations', 'value': _allClaims.length.toString()},
-        {'label': 'Note Globale', 'value': _stats != null ? _stats!.averageRating.toStringAsFixed(1) : '0.0'},
+        {'label': 'Total Reviews', 'value': _allReviews.length.toString()},
+        {'label': 'Average Rating', 'value': _stats != null ? '${_stats!.averageRating.toStringAsFixed(1)}/5' : 'N/A'},
+        {'label': 'Claims', 'value': _allClaims.length.toString()},
+        {'label': 'Global Rating', 'value': _stats != null ? _stats!.averageRating.toStringAsFixed(1) : '0.0'},
       ],
       tableHeaders: headers,
       tableRows: [...reviewRows, ...claimRows],
@@ -619,7 +619,7 @@ class _BaseFullListModal extends StatefulWidget {
 
 class _BaseFullListModalState extends State<_BaseFullListModal> {
   String _search = '';
-  String _selectedFilter = 'TOUT'; // 'TOUT', or 1-5 for reviews, or 'EN_ATTENTE'/'TRAITEE' for claims
+  String _selectedFilter = 'ALL'; // 'ALL', or 1-5 for reviews, or 'EN_ATTENTE'/'TRAITEE' for claims
   late List<Map<String, dynamic>> _filtered;
 
   @override
@@ -642,7 +642,7 @@ class _BaseFullListModalState extends State<_BaseFullListModal> {
         if (!matchesSearch) return false;
 
         // Custom filter
-        if (_selectedFilter == 'TOUT') return true;
+        if (_selectedFilter == 'ALL') return true;
 
         if (widget.filterType == 'REVIEW') {
           return item['note'].toString() == _selectedFilter;
@@ -701,7 +701,7 @@ class _BaseFullListModalState extends State<_BaseFullListModal> {
                   child: TextField(
                     onChanged: (v) { _search = v; _applyFilter(); },
                     decoration: InputDecoration(
-                      hintText: isMobile ? 'Rechercher...' : 'Rechercher un mot-clé, client...',
+                      hintText: isMobile ? 'Search...' : 'Search keyword, customer...',
                       prefixIcon: const Icon(LucideIcons.search, size: 18),
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
@@ -728,7 +728,7 @@ class _BaseFullListModalState extends State<_BaseFullListModal> {
             // List
             Expanded(
               child: _filtered.isEmpty
-                  ? const Center(child: Text('Aucun résultat trouvé'))
+                  ? const Center(child: Text('No results found'))
                   : ListView.builder(
                       itemCount: _filtered.length,
                       itemBuilder: (context, index) => widget.itemBuilder(context, _filtered[index]),
@@ -743,9 +743,9 @@ class _BaseFullListModalState extends State<_BaseFullListModal> {
   Widget _buildFilterDropdown(bool isMobile) {
     List<DropdownMenuItem<String>> menuItems = [
       DropdownMenuItem(
-        value: 'TOUT', 
+        value: 'ALL', 
         child: Text(
-          isMobile ? 'Tous' : 'Tous les éléments',
+          isMobile ? 'All' : 'All items',
           style: TextStyle(fontSize: isMobile ? 12 : 14),
         ),
       ),
@@ -794,14 +794,14 @@ class _BaseFullListModalState extends State<_BaseFullListModal> {
         DropdownMenuItem(
           value: 'EN_ATTENTE', 
           child: Text(
-            'En attente',
+            'Pending',
             style: TextStyle(fontSize: isMobile ? 12 : 14),
           ),
         ),
         DropdownMenuItem(
           value: 'TRAITEE', 
           child: Text(
-            'Traitées',
+            'Resolved',
             style: TextStyle(fontSize: isMobile ? 12 : 14),
           ),
         ),
@@ -852,15 +852,15 @@ class _ClaimDetailModalState extends State<_ClaimDetailModal> {
         child: Column(
           mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Gestion de Réclamation', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            const Text('Claim Management', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),
             Text(widget.claim['description'], style: const TextStyle(fontSize: 14, height: 1.5)),
             const Divider(height: 48),
-            const Text('Réponse Administrateur', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+            const Text('Administrator Response', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
             const SizedBox(height: 8),
-            TextField(controller: _responseController, maxLines: 3, decoration: InputDecoration(hintText: 'Votre message...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: const Color(0xFFF8FAFC))),
+            TextField(controller: _responseController, maxLines: 3, decoration: InputDecoration(hintText: 'Your message...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: const Color(0xFFF8FAFC))),
             const SizedBox(height: 24),
-            SizedBox(width: double.infinity, height: 48, child: ElevatedButton(onPressed: _submitting ? null : () => _submit(), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3D5A99), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Enregistrer la réponse'))),
+            SizedBox(width: double.infinity, height: 48, child: ElevatedButton(onPressed: _submitting ? null : () => _submit(), style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF3D5A99), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))), child: const Text('Save Response'))),
           ],
         ),
       ),
@@ -883,8 +883,8 @@ class _ClaimDetailModalState extends State<_ClaimDetailModal> {
       if (userId != null) {
         await _notificationService.sendNotification(
           idUtilisateur: userId,
-          titre: "Response to your complaint",
-          corps: "An administrator responded to your complaint regarding intervention ${widget.claim['idIntervention']}.",
+          titre: "Response to your claim",
+          corps: "An administrator has responded to your claim regarding intervention ${widget.claim['idIntervention']}.",
           type: 'claim',
           relatedId: widget.claim['id'],
         );

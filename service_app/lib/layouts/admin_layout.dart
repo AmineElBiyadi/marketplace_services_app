@@ -24,7 +24,11 @@ class _AdminLayoutState extends State<AdminLayout> {
 
     return Scaffold(
       drawer: isMobile 
-          ? AdminSidebar(activeRoute: widget.activeRoute, isMobile: true) 
+          ? SafeArea(
+              top: true,
+              bottom: true,
+              child: AdminSidebar(activeRoute: widget.activeRoute, isMobile: true),
+            )
           : null,
       backgroundColor: const Color(0xFFF8FAFC),
       body: Row(

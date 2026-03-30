@@ -86,7 +86,7 @@ class _ProviderReclamationsScreenState extends State<ProviderReclamationsScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Mes Réclamations',
+                          'My Claims',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w800,
@@ -95,7 +95,7 @@ class _ProviderReclamationsScreenState extends State<ProviderReclamationsScreen>
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'Gérez les litiges et retours clients',
+                          'Manage client disputes and returns',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.white70,
@@ -113,11 +113,11 @@ class _ProviderReclamationsScreenState extends State<ProviderReclamationsScreen>
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  _buildChip('Tout', 'ALL'),
+                  _buildChip('All', 'ALL'),
                   const SizedBox(width: 8),
-                  _buildChip('En attente', 'EN_ATTENTE'),
+                  _buildChip('Pending', 'EN_ATTENTE'),
                   const SizedBox(width: 8),
-                  _buildChip('Traitée', 'TRAITEE'),
+                  _buildChip('Resolved', 'TRAITEE'),
                 ],
               ),
             ),
@@ -172,9 +172,9 @@ class _ProviderReclamationsScreenState extends State<ProviderReclamationsScreen>
         children: [
           Icon(Icons.assignment_turned_in_outlined, size: 64, color: Colors.grey.shade300),
           const SizedBox(height: 16),
-          Text('Aucune réclamation', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey.shade500)),
+          Text('No claims found', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey.shade500)),
           const SizedBox(height: 8),
-          const Text("Les réclamations liées à vos services apparaîtront ici.", style: TextStyle(color: Colors.grey)),
+          const Text("Claims associated with your services will appear here.", style: TextStyle(color: Colors.grey)),
         ],
       ),
     );
@@ -182,9 +182,10 @@ class _ProviderReclamationsScreenState extends State<ProviderReclamationsScreen>
 
   Widget _buildComplaintCard(Map<String, dynamic> complaint) {
     final String etat = complaint['etat'] ?? 'EN_ATTENTE';
-    final bool isResolved = etat == 'TRAITEE';
+    final bool isResolved = etat == 'TRAITEE' || etat == 'REGLEE';
     final String clientNom = complaint['clientNom'] ?? 'Client';
     final String description = complaint['description'] ?? '';
+    final String adminResponse = complaint['adminResponse'] ?? '';
     final dynamic date = complaint['date'];
 
     String dateStr = '';
@@ -237,7 +238,7 @@ class _ProviderReclamationsScreenState extends State<ProviderReclamationsScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
-                  isResolved ? 'Traitée' : 'En attente',
+                  isResolved ? 'Resolved' : 'Pending',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -251,7 +252,7 @@ class _ProviderReclamationsScreenState extends State<ProviderReclamationsScreen>
           const Divider(),
           const SizedBox(height: 8),
           const Text(
-            'Description du problème :',
+            'Problem Description:',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
           ),
           const SizedBox(height: 4),
@@ -259,10 +260,41 @@ class _ProviderReclamationsScreenState extends State<ProviderReclamationsScreen>
             description,
             style: const TextStyle(fontSize: 14, color: Color(0xFF334155), height: 1.5),
           ),
+          if (adminResponse.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.admin_panel_settings, size: 14, color: AppColors.primary),
+                      SizedBox(width: 4),
+                      Text(
+                        'Admin Response:',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    adminResponse,
+                    style: const TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                  ),
+                ],
+              ),
+            ),
+          ],
           if (complaint['idIntervention'] != null) ...[
             const SizedBox(height: 12),
             Text(
-              'Intervention: ${complaint['idIntervention']}',
+              'Booking ID: ${complaint['idIntervention']}',
               style: const TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: Color(0xFF94A3B8)),
             ),
           ],

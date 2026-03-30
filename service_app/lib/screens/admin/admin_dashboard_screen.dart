@@ -128,8 +128,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   // ─── Top Bar ───────────────────────────────────────────────────────────────
   Widget _buildTopBar(bool isMobile) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: isMobile ? 48 : 64,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: _border)),
@@ -187,8 +187,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Tableau de bord', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: _textPrimary)),
-          const Text('Vue d\'ensemble de la plateforme', style: TextStyle(fontSize: 14, color: _textSecondary)),
+          const Text('Dashboard', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: _textPrimary)),
+          const Text('Platform overview', style: TextStyle(fontSize: 14, color: _textSecondary)),
           const SizedBox(height: 24),
           
           Row(
@@ -197,7 +197,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               ElevatedButton.icon(
                 onPressed: _exporting || _stats == null ? null : _exportPdf,
                 icon: _exporting ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(LucideIcons.fileText, size: 16),
-                label: Text(_exporting ? 'Génération...' : 'Exporter Rapport PDF'),
+                label: Text(_exporting ? 'Generating...' : 'Export PDF Report'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _primary,
                   foregroundColor: Colors.white,
@@ -232,12 +232,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       spacing: 16,
       runSpacing: 16,
       children: [
-        _kpiItem('Total Clients', s.totalClients.toString(), LucideIcons.users, _primary.withOpacity(0.1), _primary, s.userGrowth),
-        _kpiItem('Réservations du mois', s.reservationsThisMonth.toString(), LucideIcons.calendarDays, Colors.blue.withOpacity(0.1), Colors.blue, ''),
-        _kpiItem('Revenus totaux', '${NumberFormat("#,##0", "fr_FR").format(s.totalRevenue)} DH', LucideIcons.dollarSign, Colors.green.withOpacity(0.1), Colors.green, s.revenueGrowth),
-        _kpiItem('Total Pros', s.totalProviders.toString(), LucideIcons.briefcase, Colors.amber.withOpacity(0.1), Colors.amber, ''),
-        _kpiItem('Terminées', s.totalFinishedReservations.toString(), LucideIcons.checkSquare, Colors.teal.withOpacity(0.1), Colors.teal, ''),
-        _kpiItem('Taux d\'annulation', '${cancellationRate.toStringAsFixed(1)}%', LucideIcons.ban, Colors.red.withOpacity(0.1), Colors.red, ''),
+        _kpiItem('Total Customers', s.totalClients.toString(), LucideIcons.users, _primary.withOpacity(0.1), _primary, s.userGrowth),
+        _kpiItem('Monthly Bookings', s.reservationsThisMonth.toString(), LucideIcons.calendarDays, Colors.blue.withOpacity(0.1), Colors.blue, ''),
+        _kpiItem('Total Revenue', '${NumberFormat("#,##0", "en_US").format(s.totalRevenue)} DH', LucideIcons.dollarSign, Colors.green.withOpacity(0.1), Colors.green, s.revenueGrowth),
+        _kpiItem('Total Providers', s.totalProviders.toString(), LucideIcons.briefcase, Colors.amber.withOpacity(0.1), Colors.amber, ''),
+        _kpiItem('Completed', s.totalFinishedReservations.toString(), LucideIcons.checkSquare, Colors.teal.withOpacity(0.1), Colors.teal, ''),
+        _kpiItem('Cancellation Rate', '${cancellationRate.toStringAsFixed(1)}%', LucideIcons.ban, Colors.red.withOpacity(0.1), Colors.red, ''),
       ],
     );
   }
@@ -300,26 +300,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       children: [
           Row(
           children: [
-            Expanded(flex: 1, child: _chartCard('Évolution des inscriptions (30j)', Screenshot(controller: _inscriptionController, child: _buildInscriptionsChart()))),
+            Expanded(flex: 1, child: _chartCard('Sign-up Trends (30d)', Screenshot(controller: _inscriptionController, child: _buildInscriptionsChart()))),
             const SizedBox(width: 24),
-            if (isPageWide) Expanded(flex: 1, child: _chartCard('Réservations par catégorie', Screenshot(controller: _categoryController, child: _buildCategoryChart()))),
+            if (isPageWide) Expanded(flex: 1, child: _chartCard('Bookings by Category', Screenshot(controller: _categoryController, child: _buildCategoryChart()))),
           ],
         ),
         if (!isPageWide) ...[
           const SizedBox(height: 24),
-          _chartCard('Réservations par catégorie', Screenshot(controller: _categoryController, child: _buildCategoryChart())),
+          _chartCard('Bookings by Category', Screenshot(controller: _categoryController, child: _buildCategoryChart())),
         ],
         const SizedBox(height: 24),
         Row(
           children: [
-            Expanded(flex: 1, child: _chartCard('Répartition Gratuit vs Premium', Screenshot(controller: _packController, child: _buildPackChart()))),
+            Expanded(flex: 1, child: _chartCard('Free vs Premium Split', Screenshot(controller: _packController, child: _buildPackChart()))),
             const SizedBox(width: 24),
-            if (isPageWide) Expanded(flex: 1, child: _chartCard('Revenus mensuels', Screenshot(controller: _revenueController, child: _buildRevenueChart()))),
+            if (isPageWide) Expanded(flex: 1, child: _chartCard('Monthly Revenue', Screenshot(controller: _revenueController, child: _buildRevenueChart()))),
           ],
         ),
         if (!isPageWide) ...[
           const SizedBox(height: 24),
-          _chartCard('Revenus mensuels', Screenshot(controller: _revenueController, child: _buildRevenueChart())),
+          _chartCard('Monthly Revenue', Screenshot(controller: _revenueController, child: _buildRevenueChart())),
         ],
       ],
     );
@@ -346,7 +346,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildInscriptionsChart() {
-    if (_dailyInscriptions.isEmpty) return _emptyState('Pas de données');
+    if (_dailyInscriptions.isEmpty) return _emptyState('No data');
     
     return LineChart(
       LineChartData(
@@ -360,7 +360,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               reservedSize: 22, 
               getTitlesWidget: (v, m) {
                 if (v % 5 != 0) return const SizedBox();
-                return Text('J${v.toInt()}', style: const TextStyle(fontSize: 10, color: _textSecondary));
+                return Text('D${v.toInt()}', style: const TextStyle(fontSize: 10, color: _textSecondary));
               }
             )
           ),
@@ -440,7 +440,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildPackChart() {
     final premium = _stats?.premiumProviders.toDouble() ?? 0;
     final free = _stats?.freeProviders.toDouble() ?? 0;
-    if (premium == 0 && free == 0) return _emptyState('Aucun prestataire');
+    if (premium == 0 && free == 0) return _emptyState('No providers');
 
     return PieChart(
       PieChartData(
@@ -455,7 +455,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildRevenueChart() {
-    if (_monthlyRevenue.isEmpty) return _emptyState('Pas de données');
+    if (_monthlyRevenue.isEmpty) return _emptyState('No data');
     
     double maxRev = 100;
     for (var m in _monthlyRevenue) if (m['revenue'] > maxRev) maxRev = m['revenue'].toDouble();
@@ -515,15 +515,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _panelWrapper('Réclamations urgentes', _buildClaimsList(), '/admin/reviews')),
+              Expanded(child: _panelWrapper('Urgent Claims', _buildClaimsList(), '/admin/reviews')),
               const SizedBox(width: 24),
-              Expanded(child: _panelWrapper('Derniers Clients', _buildUsersList(), '/admin/users')),
+              Expanded(child: _panelWrapper('Latest Customers', _buildUsersList(), '/admin/users')),
             ],
           )
         else ...[
-          _panelWrapper('Réclamations urgentes', _buildClaimsList(), '/admin/reviews'),
+          _panelWrapper('Urgent Claims', _buildClaimsList(), '/admin/reviews'),
           const SizedBox(height: 24),
-          _panelWrapper('Derniers Clients', _buildUsersList(), '/admin/users'),
+          _panelWrapper('Latest Customers', _buildUsersList(), '/admin/users'),
         ],
       ],
     );
@@ -549,7 +549,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 onTap: () => context.go(path),
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: const Text('Voir tout →', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _primary)),
+                  child: const Text('View all →', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _primary)),
                 ),
               ),
             ],
@@ -568,7 +568,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       p['category'].toString().toLowerCase().contains(query)
     ).toList();
 
-    if (filtered.isEmpty) return _emptyState('Aucun résultat');
+    if (filtered.isEmpty) return _emptyState('No results');
     return Column(
       children: filtered.map((p) {
         return Padding(
@@ -591,7 +591,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(p['name'] ?? 'Nom inconnu', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
+                    Text(p['name'] ?? 'Unknown name', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
                     Text('${p['category'] ?? 'Service'} • ${p['date']}', style: const TextStyle(fontSize: 10, color: _textSecondary)),
                   ],
                 ),
@@ -623,7 +623,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       c['from'].toString().toLowerCase().contains(query)
     ).toList();
 
-    if (filtered.isEmpty) return _emptyState('Aucun résultat');
+    if (filtered.isEmpty) return _emptyState('No results');
     return Column(
       children: filtered.map((c) {
         final isUrgent = c['priority'].toString().toUpperCase() == 'URGENT';
@@ -663,7 +663,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       u['type'].toString().toLowerCase().contains(query)
     ).toList();
 
-    if (filtered.isEmpty) return _emptyState('Aucun résultat');
+    if (filtered.isEmpty) return _emptyState('No results');
     return Column(
       children: filtered.map((u) {
         return Padding(
@@ -686,7 +686,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(u['name'] ?? 'Sans nom', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
+                    Text(u['name'] ?? 'Unnamed', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _textPrimary)),
                     Text(u['date'], style: const TextStyle(fontSize: 10, color: _textSecondary)),
                   ],
                 ),
@@ -730,11 +730,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         children: [
           const Icon(LucideIcons.alertTriangle, size: 48, color: _destructive),
           const SizedBox(height: 16),
-          const Text('Erreur de chargement', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const Text('Loading error', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           Text(_error ?? '', style: const TextStyle(color: _textSecondary)),
           const SizedBox(height: 24),
-          ElevatedButton(onPressed: _loadData, style: ElevatedButton.styleFrom(backgroundColor: _primary), child: const Text('Réessayer', style: TextStyle(color: Colors.white))),
+          ElevatedButton(onPressed: _loadData, style: ElevatedButton.styleFrom(backgroundColor: _primary), child: const Text('Retry', style: TextStyle(color: Colors.white))),
         ],
       ),
     );
@@ -748,15 +748,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       // 1. Prepare KPIs
       final kpis = [
-        {'label': 'Clients', 'value': s.totalClients.toString()},
-        {'label': 'Prestataires', 'value': s.totalProviders.toString()},
-        {'label': 'Réservations/Mois', 'value': s.reservationsThisMonth.toString()},
-        {'label': 'Revenus totaux', 'value': '${NumberFormat("#,##0", "fr_FR").format(s.totalRevenue)} DH'},
-        {'label': 'Terminées', 'value': s.totalFinishedReservations.toString()},
-        {'label': 'Note Moyenne', 'value': s.averageRating.toStringAsFixed(1)},
-        {'label': 'En attente', 'value': s.pendingProviders.toString()},
-        {'label': 'Réclamations', 'value': s.openClaims.toString()},
-        {'label': 'Taux d\'annulation', 'value': '${cancellationRate.toStringAsFixed(1)}%'},
+        {'label': 'Customers', 'value': s.totalClients.toString()},
+        {'label': 'Providers', 'value': s.totalProviders.toString()},
+        {'label': 'Monthly Bookings', 'value': s.reservationsThisMonth.toString()},
+        {'label': 'Total Revenue', 'value': '${NumberFormat("#,##0", "en_US").format(s.totalRevenue)} DH'},
+        {'label': 'Completed', 'value': s.totalFinishedReservations.toString()},
+        {'label': 'Average Rating', 'value': s.averageRating.toStringAsFixed(1)},
+        {'label': 'Pending', 'value': s.pendingProviders.toString()},
+        {'label': 'Claims', 'value': s.openClaims.toString()},
+        {'label': 'Cancellation Rate', 'value': '${cancellationRate.toStringAsFixed(1)}%'},
       ];
 
       // 2. Fetch full lists for the report (literally everything)
@@ -778,25 +778,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ]);
 
       // 4. Prepare Context Table
-      final tableHeaders = ['Type', 'Nom / Sujet', 'Date', 'Statut / Info'];
+      final tableHeaders = ['Type', 'Name / Subject', 'Date', 'Status / Info'];
       final tableRows = [
-        ...fullPending.map((p) => ['EN ATTENTE', p['name'] ?? '', p['date'] ?? '', p['category'] ?? '']),
-        ...fullUsers.map((u) => ['NOUVEAU CLIENT', u['name'] ?? '', u['date'] ?? '', u['type'] ?? '']),
-        ...fullClaims.map((c) => ['RÉCLAMATION', c['subject'] ?? '', c['date'] ?? '', c['priority'] ?? '']),
+        ...fullPending.map((p) => ['PENDING', p['name'] ?? '', p['date'] ?? '', p['category'] ?? '']),
+        ...fullUsers.map((u) => ['NEW CUSTOMER', u['name'] ?? '', u['date'] ?? '', u['type'] ?? '']),
+        ...fullClaims.map((c) => ['CLAIM', c['subject'] ?? '', c['date'] ?? '', c['priority'] ?? '']),
       ];
 
       // 5. Export
       await AdminExportUtil.exportPageToPdf(
         filename: 'dashboard_presto_${DateFormat('yyyyMMdd').format(DateTime.now())}',
-        title: 'Tableau de Bord Presto',
-        subtitle: 'Synthèse globale de l\'activité sur la plateforme',
+        title: 'Presto Dashboard',
+        subtitle: 'Global platform activity summary',
         kpis: kpis,
         chartImages: chartImages,
         tableHeaders: tableHeaders,
         tableRows: tableRows,
       );
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur d\'export: $e'), backgroundColor: Colors.red));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export error: $e'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
