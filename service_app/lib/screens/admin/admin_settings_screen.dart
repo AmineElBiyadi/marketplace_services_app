@@ -54,7 +54,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     final limit = int.tryParse(_freeLimitController.text);
     if (limit == null || limit < 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Veuillez entrer un nombre valide")),
+        const SnackBar(content: Text("Please enter a valid number")),
       );
       return;
     }
@@ -63,11 +63,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     try {
       await _adminService.updateFreePackLimit(limit);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Limite du pack free mise à jour avec succès")),
+        const SnackBar(content: Text("Free pack limit updated successfully")),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur : $e")),
+        SnackBar(content: Text("Error: $e")),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -78,7 +78,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     final limit = int.tryParse(_portfolioLimitController.text);
     if (limit == null || limit < 1) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Veuillez entrer un nombre valide")),
+        const SnackBar(content: Text("Please enter a valid number")),
       );
       return;
     }
@@ -87,11 +87,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     try {
       await _adminService.updateFreePortfolioLimit(limit);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Limite de photos portfolio mise à jour avec succès")),
+        const SnackBar(content: Text("Portfolio photos limit updated successfully")),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur : $e")),
+        SnackBar(content: Text("Error: $e")),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -121,7 +121,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
       final maint = await _adminService.getMaintenanceSettings();
       if (maint != null) {
         _isMaintenance = maint['is_maintenance'] ?? false;
-        _maintenanceMessageController.text = maint['maintenance_message'] ?? "L'application est en maintenance. Nous serons bientôt de retour.";
+        _maintenanceMessageController.text = maint['maintenance_message'] ?? "The application is under maintenance. We will be back soon.";
         _freeLimitController.text = (maint['free_service_limit'] ?? 3).toString();
         _portfolioLimitController.text = (maint['free_portfolio_limit'] ?? 3).toString();
       } else {
@@ -141,7 +141,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
 
     if (content.isEmpty || version.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Veuillez remplir tous les champs")),
+        const SnackBar(content: Text("Please fill in all fields")),
       );
       return;
     }
@@ -150,12 +150,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     try {
       await _adminService.createNewCguVersion(type, content, version);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("CGU $type mis à jour avec succès (v$version)")),
+        SnackBar(content: Text("T&C $type updated successfully (v$version)")),
       );
       _loadSettings();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur lors de la mise à jour : $e")),
+        SnackBar(content: Text("Error during update: $e")),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -170,12 +170,12 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
         _maintenanceMessageController.text,
       );
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Paramètres de maintenance mis à jour")),
+        const SnackBar(content: Text("Maintenance settings updated")),
       );
       _loadSettings();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur : $e")),
+        SnackBar(content: Text("Error: $e")),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -265,8 +265,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
 
   Widget _buildTopBar(bool isMobile) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      height: isMobile ? 48 : 64,
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
       decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: AppColors.border))),
       child: Row(
         children: [
@@ -277,7 +277,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          const Text('Paramètres', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.foreground)),
+          const Text('Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.foreground)),
           const Spacer(),
           IconButton(
             onPressed: () {
@@ -298,36 +298,40 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
       return const Center(child: CircularProgressIndicator(color: AppColors.primary));
     }
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 800),
-      child: Column(
-        children: [
-          _buildCguTypeSelector(),
-          const SizedBox(height: 24),
-          Expanded(
-            child: ListView(
-              children: [
-                if (_cguTypeView == "EXPERT")
-                  _buildCguSection(
-                    title: "CGU Experts",
-                    contentController: _expertCguController,
-                    versionController: _expertVersionController,
-                    history: _expertHistory,
-                    onSave: () => _saveCgu("EXPERT"),
-                  )
-                else
-                  _buildCguSection(
-                    title: "CGU Clients",
-                    contentController: _clientCguController,
-                    versionController: _clientVersionController,
-                    history: _clientHistory,
-                    onSave: () => _saveCgu("CLIENT"),
-                  ),
-                const SizedBox(height: 32),
-              ],
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1000),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildCguTypeSelector(),
+            const SizedBox(height: 24),
+            Expanded(
+              child: ListView(
+                children: [
+                  if (_cguTypeView == "EXPERT")
+                    _buildCguSection(
+                      title: "T&C Providers",
+                      contentController: _expertCguController,
+                      versionController: _expertVersionController,
+                      history: _expertHistory,
+                      onSave: () => _saveCgu("EXPERT"),
+                    )
+                  else
+                    _buildCguSection(
+                      title: "T&C Customers",
+                      contentController: _clientCguController,
+                      versionController: _clientVersionController,
+                      history: _clientHistory,
+                      onSave: () => _saveCgu("CLIENT"),
+                    ),
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -342,8 +346,8 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildSelectorButton("EXPERT", "Experts", LucideIcons.userCheck),
-          _buildSelectorButton("CLIENT", "Clients", LucideIcons.users),
+          _buildSelectorButton("EXPERT", "Providers", LucideIcons.userCheck),
+          _buildSelectorButton("CLIENT", "Customers", LucideIcons.users),
         ],
       ),
     );
@@ -387,44 +391,49 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     required List<Map<String, dynamic>> history,
     required VoidCallback onSave,
   }) {
-    return _buildCard(
-      title: title,
-      children: [
-        _buildInputFieldWithController(
-          label: 'Version',
-          controller: versionController,
-          width: 150,
-        ),
-        const SizedBox(height: 8),
-        _buildLabel('Contenu des CGU'),
-        TextField(
-          controller: contentController,
-          maxLines: 8,
-          style: const TextStyle(fontSize: 14, color: AppColors.foreground),
-          decoration: InputDecoration(
-            contentPadding: const EdgeInsets.all(16),
-            fillColor: AppColors.muted.withOpacity(0.1),
-            filled: true,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: _buildSaveButton(
-            label: 'Publier cette version',
-            onPressed: onSave,
-          ),
-        ),
-        const SizedBox(height: 32),
-        const Divider(),
-        const SizedBox(height: 16),
-        _buildLabel('Historique des versions'),
-        const SizedBox(height: 12),
-        _buildHistoryTable(history),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool isCompact = constraints.maxWidth < 650;
+        return _buildCard(
+          title: title,
+          children: [
+            _buildInputFieldWithController(
+              label: 'Version',
+              controller: versionController,
+              width: isCompact ? null : 220,
+            ),
+            const SizedBox(height: 8),
+            _buildLabel('T&C Content'),
+            TextField(
+              controller: contentController,
+              maxLines: 8,
+              style: const TextStyle(fontSize: 14, color: AppColors.foreground),
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.all(16),
+                fillColor: AppColors.muted.withOpacity(0.1),
+                filled: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
+                focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _buildSaveButton(
+                label: 'Publish this version',
+                onPressed: onSave,
+              ),
+            ),
+            const SizedBox(height: 32),
+            const Divider(),
+            const SizedBox(height: 16),
+            _buildLabel('Version history'),
+            const SizedBox(height: 12),
+            _buildHistoryTable(history),
+          ],
+        );
+      },
     );
   }
 
@@ -432,73 +441,84 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     if (history.isEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8.0),
-        child: Text("Aucun historique disponible", style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+        child: Text("No history available", style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.muted.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border.withOpacity(0.3)),
-      ),
-      child: Table(
-        columnWidths: const {
-          0: FixedColumnWidth(70),
-          1: FlexColumnWidth(),
-          2: FixedColumnWidth(100),
-          3: FixedColumnWidth(50),
-        },
-        children: [
-          TableRow(
-            decoration: BoxDecoration(
-              color: AppColors.muted.withOpacity(0.1),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            ),
-            children: const [
-              Padding(padding: EdgeInsets.all(12), child: Text("Version", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedForeground))),
-              Padding(padding: EdgeInsets.all(12), child: Text("Date", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedForeground))),
-              Padding(padding: EdgeInsets.all(12), child: Text("Statut", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedForeground))),
-              Padding(padding: EdgeInsets.all(12), child: Text("Voir", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedForeground))),
-            ],
-          ),
-          ...history.map((h) {
-            final date = (h['created_at'] as Timestamp?)?.toDate();
-            final dateStr = date != null ? "${date.day}/${date.month}/${date.year}" : "N/A";
-            final isActive = h['is_active'] == true;
-
-            return TableRow(
-              children: [
-                Padding(padding: const EdgeInsets.all(12), child: Text(h['version'] ?? "1.0", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                Padding(padding: const EdgeInsets.all(12), child: Text(dateStr, style: const TextStyle(fontSize: 12))),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double minTableWidth = constraints.maxWidth < 650 ? 550 : constraints.maxWidth;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: minTableWidth),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.muted.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border.withOpacity(0.3)),
+              ),
+              child: Table(
+                columnWidths: const {
+                  0: FixedColumnWidth(100),
+                  1: FlexColumnWidth(2),
+                  2: FixedColumnWidth(110),
+                  3: FixedColumnWidth(60),
+                },
+                children: [
+                  TableRow(
                     decoration: BoxDecoration(
-                      color: isActive ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
+                      color: AppColors.muted.withOpacity(0.1),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
                     ),
-                    child: Text(
-                      isActive ? "Actif" : "Archivé",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isActive ? Colors.green : Colors.grey),
-                    ),
+                    children: const [
+                      Padding(padding: EdgeInsets.all(12), child: Text("Version", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedForeground))),
+                      Padding(padding: EdgeInsets.all(12), child: Text("Date", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedForeground))),
+                      Padding(padding: EdgeInsets.all(12), child: Text("Status", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedForeground))),
+                      Padding(padding: EdgeInsets.all(12), child: Text("View", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedForeground))),
+                    ],
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(4),
-                  child: IconButton(
-                    icon: const Icon(LucideIcons.eye, size: 14),
-                    onPressed: () => _viewOldCgu(h),
-                    padding: EdgeInsets.zero,
-                  ),
-                ),
-              ],
-            );
-          }),
-        ],
-      ),
+                  ...history.map((h) {
+                    final date = (h['created_at'] as Timestamp?)?.toDate();
+                    final dateStr = date != null ? "${date.day}/${date.month}/${date.year}" : "N/A";
+                    final isActive = h['is_active'] == true;
+
+                    return TableRow(
+                      children: [
+                        Padding(padding: const EdgeInsets.all(12), child: Text(h['version'] ?? "1.0", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
+                        Padding(padding: const EdgeInsets.all(12), child: Text(dateStr, style: const TextStyle(fontSize: 12))),
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isActive ? Colors.green.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              isActive ? "Active" : "Archived",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isActive ? Colors.green : Colors.grey),
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: IconButton(
+                            icon: const Icon(LucideIcons.eye, size: 14),
+                            onPressed: () => _viewOldCgu(h),
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -513,7 +533,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text("Fermer"),
+            child: const Text("Close"),
           ),
         ],
       ),
@@ -582,7 +602,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
         unselectedLabelColor: AppColors.mutedForeground,
         unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
         tabs: const [
-          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.fileText, size: 14), SizedBox(width: 8), Text("CGU")])),
+          Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.fileText, size: 14), SizedBox(width: 8), Text("T&C")])),
           Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.settings, size: 14), SizedBox(width: 8), Text("Maintenance")])),
           Tab(child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.layers, size: 14), SizedBox(width: 8), Text("Services")])),
         ],
@@ -600,7 +620,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
       child: ListView(
         children: [
           _buildCard(
-            title: 'Mode Maintenance',
+            title: 'Maintenance Mode',
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -610,11 +630,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          "Activer le mode maintenance",
+                          "Enable maintenance mode",
                           style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          "Bloque l'accès à l'application pour les utilisateurs",
+                          "Blocks application access for users",
                           style: TextStyle(fontSize: 12, color: AppColors.mutedForeground.withOpacity(0.7)),
                         ),
                       ],
@@ -629,13 +649,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                 ],
               ),
               const SizedBox(height: 24),
-              _buildLabel('Message de maintenance'),
+              _buildLabel('Maintenance message'),
               TextField(
                 controller: _maintenanceMessageController,
                 maxLines: 3,
                 style: const TextStyle(fontSize: 14, color: AppColors.foreground),
                 decoration: InputDecoration(
-                  hintText: "Expliquez pourquoi l'application est en maintenance...",
+                  hintText: "Explain why the application is under maintenance...",
                   contentPadding: const EdgeInsets.all(16),
                   fillColor: AppColors.muted.withOpacity(0.1),
                   filled: true,
@@ -648,7 +668,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
               Align(
                 alignment: Alignment.centerLeft,
                 child: _buildSaveButton(
-                  label: 'Mettre à jour la maintenance',
+                  label: 'Update maintenance',
                   onPressed: _saveMaintenance,
                 ),
               ),
@@ -670,7 +690,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        "Attention : Le mode maintenance est actuellement actif. Les utilisateurs ne pourront pas utiliser l'application.",
+                        "Warning: Maintenance mode is currently active. Users will not be able to use the application.",
                         style: TextStyle(fontSize: 12, color: Colors.orange, fontWeight: FontWeight.w600),
                       ),
                     ),
@@ -704,7 +724,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
             ),
             const SizedBox(height: 24),
             _selectedService == null
-                ? const Center(child: Padding(padding: EdgeInsets.all(48), child: Text("Sélectionnez un service pour voir les tâches")))
+                ? const Center(child: Padding(padding: EdgeInsets.all(48), child: Text("Select a service to view tasks")))
                 : _buildServiceDetailCard(_selectedService!),
           ],
         ),
@@ -722,7 +742,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
         // Right Column: Service Details & Tasks
         Expanded(
           child: _selectedService == null
-              ? const Center(child: Text("Sélectionnez un service pour voir les tâches"))
+              ? const Center(child: Text("Select a service to view tasks"))
               : _buildServiceDetailCard(_selectedService!),
         ),
       ],
@@ -740,7 +760,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
             IconButton(
               icon: const Icon(LucideIcons.plusCircle, size: 20, color: AppColors.primary),
               onPressed: () => _showServiceDialog(),
-              tooltip: "Ajouter un service",
+              tooltip: "Add a service",
             ),
           ],
         ),
@@ -800,7 +820,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                service['nom'] ?? "Sans nom",
+                service['nom'] ?? "Unnamed",
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
@@ -849,7 +869,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                       Text(service['nom'] ?? "", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
                       const SizedBox(height: 4),
                       Text(
-                        service['description'] ?? "Aucune description",
+                        service['description'] ?? "No description",
                         style: const TextStyle(color: AppColors.mutedForeground, fontSize: 13),
                       ),
                     ],
@@ -898,23 +918,23 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text("Tâches associées", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const Text("Associated Tasks", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             IconButton(
               icon: const Icon(LucideIcons.plusCircle, size: 20, color: AppColors.primary),
               onPressed: () => _showTaskDialog(serviceId: serviceId),
-              tooltip: "Ajouter une tâche",
+              tooltip: "Add a task",
             ),
           ],
         ),
         const SizedBox(height: 12),
         if (_tasks.isEmpty)
-          const Center(child: Padding(padding: EdgeInsets.all(32), child: Text("Aucune tâche pour ce service")))
+          const Center(child: Padding(padding: EdgeInsets.all(32), child: Text("No tasks for this service")))
         else
           _buildResponsiveTable(
             columns: const [
-              DataColumn(label: Text("Nom")),
+              DataColumn(label: Text("Name")),
               DataColumn(label: Text("Description")),
-              DataColumn(label: Text("Statut")),
+              DataColumn(label: Text("Status")),
               DataColumn(label: Text("Actions")),
             ],
             rows: _tasks.map((task) {
@@ -978,7 +998,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
       barrierDismissible: !isUploading,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(service == null ? "Ajouter un service" : "Modifier le service"),
+          title: Text(service == null ? "Add a service" : "Edit service"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1011,7 +1031,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                           children: [
                             Icon(LucideIcons.image, color: AppColors.mutedForeground),
                             SizedBox(height: 8),
-                            Text("Cliquer pour ajouter une image", style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
+                            Text("Click to add an image", style: TextStyle(fontSize: 12, color: AppColors.mutedForeground)),
                           ],
                         )
                       : isUploading 
@@ -1023,7 +1043,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
               TextField(
                 controller: nameController,
                 enabled: !isUploading,
-                decoration: const InputDecoration(labelText: "Nom du service"),
+                decoration: const InputDecoration(labelText: "Service name"),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -1037,7 +1057,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
           actions: [
             TextButton(
               onPressed: isUploading ? null : () => Navigator.pop(context), 
-              child: const Text("Annuler")
+              child: const Text("Cancel")
             ),
             ElevatedButton(
               onPressed: isUploading ? null : () async {
@@ -1057,7 +1077,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                       // Extract publicId from URL: https://res.cloudinary.com/cloud/image/upload/v123/public_id.jpg
                       publicId = uploadedUrl.split('/').last.split('.').first;
                     } else {
-                      throw Exception("Échec du téléchargement de l'image sur Cloudinary");
+                      throw Exception("Failed to upload image to Cloudinary");
                     }
                   }
 
@@ -1080,11 +1100,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                 } catch (e) {
                   setDialogState(() => isUploading = false);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Erreur : $e")),
+                    SnackBar(content: Text("Error: $e")),
                   );
                 }
               },
-              child: Text(isUploading ? "Enregistrement..." : "Enregistrer"),
+              child: Text(isUploading ? "Saving..." : "Save"),
             ),
           ],
         ),
@@ -1108,10 +1128,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Supprimer le service ?"),
-        content: Text("Cela supprimera également toutes les tâches associées au service '${service['nom']}'."),
+        title: const Text("Delete service?"),
+        content: Text("This will also delete all tasks associated with the service '${service['nom']}'."),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
           TextButton(
             onPressed: () async {
               await _adminService.deleteService(service['id']);
@@ -1119,7 +1139,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
               setState(() => _selectedService = null);
               _loadServices();
             },
-            child: const Text("Supprimer", style: TextStyle(color: Colors.red)),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -1135,13 +1155,13 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: Text(task == null ? "Ajouter une tâche" : "Modifier la tâche"),
+          title: Text(task == null ? "Add a task" : "Edit task"),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(labelText: "Nom de la tâche"),
+                decoration: const InputDecoration(labelText: "Task name"),
               ),
               const SizedBox(height: 16),
               TextField(
@@ -1158,7 +1178,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
             ElevatedButton(
               onPressed: () async {
                 final data = {
@@ -1175,7 +1195,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                 Navigator.pop(context);
                 _loadTasks(serviceId);
               },
-              child: const Text("Enregistrer"),
+              child: const Text("Save"),
             ),
           ],
         ),
@@ -1187,17 +1207,17 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Supprimer la tâche ?"),
-        content: Text("Voulez-vous vraiment supprimer la tâche '${task['nom']}' ?"),
+        title: const Text("Delete task?"),
+        content: Text("Are you sure you want to delete the task '${task['nom']}'?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
           TextButton(
             onPressed: () async {
               await _adminService.deleteTask(task['id']);
               Navigator.pop(context);
               _loadTasks(task['idService']);
             },
-            child: const Text("Supprimer", style: TextStyle(color: Colors.red)),
+            child: const Text("Delete", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -1295,11 +1315,11 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     );
   }
 
-  Widget _buildSaveButton({String label = 'Enregistrer', VoidCallback? onPressed}) {
+  Widget _buildSaveButton({String label = 'Save', VoidCallback? onPressed}) {
     return ElevatedButton.icon(
       onPressed: onPressed ?? () {},
       icon: const Icon(LucideIcons.save, size: 14),
-      label: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+      label: Text(label, style: const TextStyle(fontSize: 14)),
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.foreground,
         foregroundColor: Colors.white,
@@ -1338,31 +1358,31 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
   Widget _buildFreeLimitConfig() {
     final bool isMobile = MediaQuery.of(context).size.width < 1024;
     return _buildCard(
-      title: 'Gestion des Plans',
+      title: 'Plan Management',
       children: [
         if (isMobile)
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildInputFieldWithController(
-                label: 'Nombre max de services (Pack Free)',
+                label: 'Max services (Free Pack)',
                 controller: _freeLimitController,
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               _buildSaveButton(
-                label: 'Enregistrer la limite services',
+                label: 'Save services limit',
                 onPressed: _saveFreeLimit,
               ),
               const SizedBox(height: 24),
               _buildInputFieldWithController(
-                label: 'Nombre max de photos portfolio (Pack Free)',
+                label: 'Max portfolio photos (Free Pack)',
                 controller: _portfolioLimitController,
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 8),
               _buildSaveButton(
-                label: 'Enregistrer la limite photos',
+                label: 'Save photos limit',
                 onPressed: _savePortfolioLimit,
               ),
             ],
@@ -1375,7 +1395,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                 children: [
                   Expanded(
                     child: _buildInputFieldWithController(
-                      label: 'Nombre max de services (Pack Free)',
+                      label: 'Max services (Free Pack)',
                       controller: _freeLimitController,
                       keyboardType: TextInputType.number,
                     ),
@@ -1384,7 +1404,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                   Padding(
                     padding: const EdgeInsets.only(bottom: 20),
                     child: _buildSaveButton(
-                      label: 'Enregistrer la limite services',
+                      label: 'Save services limit',
                       onPressed: _saveFreeLimit,
                     ),
                   ),
@@ -1396,7 +1416,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                 children: [
                   Expanded(
                     child: _buildInputFieldWithController(
-                      label: 'Nombre max de photos portfolio (Pack Free)',
+                      label: 'Max portfolio photos (Free Pack)',
                       controller: _portfolioLimitController,
                       keyboardType: TextInputType.number,
                     ),
@@ -1405,7 +1425,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
                   Padding(
                     padding: const EdgeInsets.only(bottom: 20),
                     child: _buildSaveButton(
-                      label: 'Enregistrer la limite photos',
+                      label: 'Save photos limit',
                       onPressed: _savePortfolioLimit,
                     ),
                   ),

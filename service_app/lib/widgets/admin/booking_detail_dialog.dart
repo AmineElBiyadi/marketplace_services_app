@@ -20,6 +20,9 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
   final AdminDashboardService _service = AdminDashboardService();
   bool _loading = true;
   Map<String, dynamic>? _booking;
+  
+  bool get isMobile => MediaQuery.of(context).size.width < 768;
+
   @override
   void initState() {
     super.initState();
@@ -39,13 +42,19 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 1024;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isMobile = screenWidth < 768;
+    final isTablet = screenWidth < 1024;
     
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
-        width: isMobile ? screenWidth * 0.9 : 800,
-        height: isMobile ? MediaQuery.of(context).size.height * 0.8 : 600,
+        width: isMobile ? screenWidth * 0.95 : (isTablet ? screenWidth * 0.85 : 800),
+        height: isMobile ? screenHeight * 0.85 : (isTablet ? screenHeight * 0.8 : 600),
+        constraints: BoxConstraints(
+          maxWidth: isMobile ? screenWidth * 0.95 : 800.0,
+          maxHeight: isMobile ? screenHeight * 0.85 : 600.0,
+        ),
         decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(24)),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -54,7 +63,7 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                  : (_booking == null ? const Center(child: Text('Réservation introuvable')) : _buildContent(isMobile)),
+                  : (_booking == null ? const Center(child: Text('Booking not found')) : _buildContent(isMobile)),
             ),
           ],
         ),
@@ -66,41 +75,93 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: isMobile ? 20 : 32, vertical: 24),
       decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0)))),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-            child: const Icon(LucideIcons.calendarDays, color: AppColors.primary, size: 22),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
+      child: isMobile
+          ? Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Détails de Réservation', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                Text(
-                  '#${widget.bookingId.substring(0, 8).toUpperCase()}', 
-                  style: TextStyle(fontSize: isMobile ? 18 : 22, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                      child: const Icon(LucideIcons.calendarDays, color: AppColors.primary, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text('Booking Details',
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '#${widget.bookingId.substring(0, 8).toUpperCase()}',
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (_booking != null) ...[
+                      const SizedBox(width: 8),
+                      _buildStatusBadge(_booking!['status'] ?? 'N/A'),
+                    ],
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: () => Navigator.pop(context),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(color: Color(0xFFF1F5F9), shape: BoxShape.circle),
+                        child: const Icon(LucideIcons.x, size: 18, color: Color(0xFF64748B)),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(LucideIcons.calendarDays, color: AppColors.primary, size: 22),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Booking Details', style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                      Text(
+                        '#${widget.bookingId.substring(0, 8).toUpperCase()}',
+                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF0F172A)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                if (_booking != null) _buildStatusBadge(_booking!['status'] ?? 'N/A'),
+                const SizedBox(width: 16),
+                InkWell(
+                  onTap: () => Navigator.pop(context),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(color: Color(0xFFF1F5F9), shape: BoxShape.circle),
+                    child: const Icon(LucideIcons.x, size: 18, color: Color(0xFF64748B)),
+                  ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 16),
-          if (_booking != null) _buildStatusBadge(_booking!['status'] ?? 'N/A'),
-          const SizedBox(width: 16),
-          InkWell(
-            onTap: () => Navigator.pop(context),
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(color: Color(0xFFF1F5F9), shape: BoxShape.circle),
-              child: const Icon(LucideIcons.x, size: 18, color: Color(0xFF64748B)),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -138,9 +199,9 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
   }
 
   Widget _buildCancelBanner() {
-    if (_booking!['status'] != 'ANNULEE' || (_booking!['cancelCount'] ?? 0) <= 0) return const SizedBox.shrink();
+    if ((_booking!['status'] != 'ANNULEE' && _booking!['status'] != 'CANCELLED') || (_booking!['cancelCount'] ?? 0) <= 0) return const SizedBox.shrink();
     
-    final role = _booking!['cancelRole'] == 'expert' ? 'prestataire' : 'client';
+    final role = _booking!['cancelRole'] == 'expert' ? 'provider' : 'customer';
     final count = _booking!['cancelCount'];
     
     return Container(
@@ -158,7 +219,7 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
           const SizedBox(width: 16),
           Expanded(
             child: Text(
-              'Attention : Ce $role a annulé $count réservation${count > 1 ? 's' : ''} ce mois-ci.',
+              'Warning: This $role has canceled $count reservation${count > 1 ? 's' : ''} this month.',
               style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13),
             ),
           ),
@@ -178,7 +239,14 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
             children: [
               Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(8)), child: Icon(icon, size: 18, color: AppColors.primary)),
               const SizedBox(width: 12),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A))),
+              Expanded(
+                child: Text(
+                  title, 
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 24),
@@ -190,44 +258,60 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
 
   Widget _buildInfoCard() {
     return _cardWrapper(
-      title: 'Informations Générales',
+      title: 'General Information',
       icon: LucideIcons.info,
       child: Column(
         children: [
-          _modernInfoRow('Service', _booking!['service'] ?? 'N/A', LucideIcons.briefcase),
-          _modernInfoRow('Date & Heure', '${_booking!['date'] ?? 'N/A'} à ${_booking!['time'] ?? '--:--'}', LucideIcons.clock),
-          _modernInfoRow('Prix de la prestation', '${_booking!['amount'] ?? 0} DH', LucideIcons.creditCard, isBold: true, valueColor: Colors.green, isLarge: true),
-          _modernInfoRow('Urgence', (_booking!['isUrgent'] ?? false) ? 'URGENTE' : 'NORMALE', LucideIcons.alertCircle, valueColor: (_booking!['isUrgent'] ?? false) ? Colors.red : Colors.grey),
+          _modernInfoRow('Service', _booking!['service'] ?? 'N/A', LucideIcons.briefcase, isMobile: isMobile),
+          _modernInfoRow('Date & Time', '${_booking!['date'] ?? 'N/A'} at ${_booking!['time'] ?? '--:--'}', LucideIcons.clock, isMobile: isMobile),
+          _modernInfoRow('Service Price', '${_booking!['amount'] ?? 0} DH', LucideIcons.creditCard, isBold: true, valueColor: Colors.green, isLarge: true, isMobile: isMobile),
           if ((_booking!['status'] == 'ANNULEE' || _booking!['status'] == 'REFUSEE') && 
               (_booking!['motifAnnulation'] != null || _booking!['motifRefus'] != null))
             _modernInfoRow(
-              'Motif', 
+              'Reason', 
               _booking!['motifAnnulation'] ?? _booking!['motifRefus'] ?? 'N/A', 
               LucideIcons.fileWarning,
               valueColor: Colors.red,
+              isMobile: isMobile,
             ),
         ],
       ),
     );
   }
 
-  Widget _modernInfoRow(String label, String value, IconData icon, {bool isBold = false, Color? valueColor, bool isLarge = false}) {
+  Widget _modernInfoRow(String label, String value, IconData icon, {bool isBold = false, Color? valueColor, bool isLarge = false, bool isMobile = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.only(bottom: isMobile ? 12 : 16),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: const Color(0xFF64748B)),
-          const SizedBox(width: 12),
-          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-          const Spacer(),
-          Text(
-            value, 
-            style: TextStyle(
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w500, 
-              color: valueColor ?? const Color(0xFF0F172A), 
-              fontSize: isLarge ? 16 : 14,
+          Icon(icon, size: isMobile ? 14 : 16, color: const Color(0xFF64748B)),
+          SizedBox(width: isMobile ? 6 : 8),
+          Expanded(
+            flex: 2,
+            child: Text(
+              label, 
+              style: TextStyle(
+                color: const Color(0xFF64748B), 
+                fontSize: isMobile ? 10 : 12
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
-            textAlign: TextAlign.right,
+          ),
+          SizedBox(width: isMobile ? 6 : 8),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value, 
+              style: TextStyle(
+                fontWeight: isBold ? FontWeight.bold : FontWeight.w500, 
+                color: valueColor ?? const Color(0xFF0F172A), 
+                fontSize: isMobile ? (isLarge ? 13 : 11) : (isLarge ? 14 : 12),
+              ),
+              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
+              maxLines: isMobile ? 2 : 3,
+            ),
           ),
         ],
       ),
@@ -236,46 +320,67 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
 
   Widget _buildProfilesCard() {
     return _cardWrapper(
-      title: 'Intervenants',
+      title: 'Stakeholders',
       icon: LucideIcons.users,
       child: Column(
         children: [
-          _modernProfileItem('Client', _booking!['clientName'] ?? 'N/A', _booking!['idClient'], LucideIcons.user),
+          _modernProfileItem('Customer', _booking!['clientName'] ?? 'N/A', _booking!['idClient'], LucideIcons.user, isMobile: isMobile),
           const Padding(padding: EdgeInsets.symmetric(vertical: 16), child: Divider(height: 1, color: Color(0xFFE2E8F0))),
-          _modernProfileItem('Prestataire', _booking!['expertName'] ?? 'N/A', _booking!['idExpert'], LucideIcons.briefcase),
+          _modernProfileItem('Provider', _booking!['expertName'] ?? 'N/A', _booking!['idExpert'], LucideIcons.briefcase, isMobile: isMobile),
         ],
       ),
     );
   }
 
-  Widget _modernProfileItem(String role, String name, String? id, IconData icon) {
+  Widget _modernProfileItem(String role, String name, String? id, IconData icon, {bool isMobile = false}) {
     return InkWell(
-      onTap: id != null ? () => _showUserProfileModal(id, role == 'Client' ? 'Client' : 'Prestataire') : null,
+      onTap: id != null ? () => _showUserProfileModal(id, role == 'Customer' ? 'Customer' : 'Provider') : null,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        padding: EdgeInsets.symmetric(vertical: isMobile ? 6 : 8, horizontal: isMobile ? 6 : 8),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: EdgeInsets.all(isMobile ? 8 : 10),
               decoration: const BoxDecoration(color: Color(0xFFF1F5F9), shape: BoxShape.circle),
-              child: Icon(icon, size: 18, color: AppColors.primary),
+              child: Icon(icon, size: isMobile ? 16 : 18, color: AppColors.primary),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: isMobile ? 12 : 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(role, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                  const SizedBox(height: 2),
-                  Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)), overflow: TextOverflow.ellipsis),
+                  Text(
+                    role, 
+                    style: TextStyle(
+                      fontSize: isMobile ? 10 : 11, 
+                      color: const Color(0xFF64748B), 
+                      fontWeight: FontWeight.bold, 
+                      letterSpacing: 0.5
+                    )
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    name, 
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold, 
+                      fontSize: isMobile ? 13 : 15, 
+                      color: const Color(0xFF0F172A)
+                    ), 
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: isMobile ? 2 : 1,
+                  ),
                 ],
               ),
             ),
             Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(color: Colors.white, border: Border.all(color: const Color(0xFFE2E8F0)), shape: BoxShape.circle),
-              child: const Icon(LucideIcons.chevronRight, size: 14, color: Color(0xFF64748B)),
+              padding: EdgeInsets.all(isMobile ? 4 : 6),
+              decoration: BoxDecoration(
+                color: Colors.white, 
+                border: Border.all(color: const Color(0xFFE2E8F0)), 
+                shape: BoxShape.circle
+              ),
+              child: Icon(LucideIcons.chevronRight, size: isMobile ? 12 : 14, color: const Color(0xFF64748B)),
             ),
           ],
         ),
@@ -291,15 +396,34 @@ class _BookingDetailDialogState extends State<BookingDetailDialog> {
   }
 
   Widget _buildStatusBadge(String status) {
+    String label = status;
     Color color = Colors.grey;
-    if (status == 'ACCEPTEE') color = Colors.green;
-    else if (status == 'TERMINEE') color = Colors.blue;
-    else if (status == 'EN_ATTENTE') color = Colors.orange;
+
+    final s = status.toUpperCase();
+    if (s == 'ACCEPTED' || s == 'ACCEPTEE' || s == 'CONFIRMEE') {
+      label = 'ACCEPTED';
+      color = Colors.green;
+    } else if (s == 'COMPLETED' || s == 'TERMINEE') {
+      label = 'COMPLETED';
+      color = Colors.blue;
+    } else if (s == 'PENDING' || s == 'EN_ATTENTE' || s == 'EN ATTENTE') {
+      label = 'PENDING';
+      color = Colors.orange;
+    } else if (s == 'REJECTED' || s == 'REFUSEE') {
+      label = 'REJECTED';
+      color = Colors.red;
+    } else if (s == 'CANCELLED' || s == 'ANNULEE' || s == 'CANCELED') {
+      label = 'CANCELLED';
+      color = Colors.grey;
+    } else if (s == 'IN_PROGRESS' || s == 'EN_COURS') {
+      label = 'IN PROGRESS';
+      color = Colors.indigo;
+    }
     
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-      child: Text(status.replaceAll('_', ' '), style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+      child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
     );
   }
 }

@@ -51,108 +51,79 @@ class AdminDashboardService {
 
   // ─── Aggregate KPI Stats ───────────────────────────────────────────────────
   Future<AdminDashboardStats> getDashboardStats() async {
-    // Clients → collection 'clients'
-    final clientsSnap = await _db.collection('clients').get();
-    final totalClients = clientsSnap.docs.length;
+    // We use Future.wait to run all counts in parallel
+    final counts = await Future.wait([
+      _db.collection('clients').count().get(),
+      _db.collection('experts').count().get(),
+      _db.collection('utilisateurs').count().get(),
+      _db.collection('experts').where('etatCompte', whereIn: ['EN_ATTENTE', 'En attente']).count().get(),
+      _db.collection('reclamations').where('etatReclamation', whereIn: ['EN_ATTENTE', 'OUVERTE']).count().get(),
+      _db.collection('notifications').where('estLue', isEqualTo: false).count().get(),
+    ]);
 
-    // Experts → collection 'experts'
-    final expertsSnap = await _db.collection('experts').get();
-    final totalProviders = expertsSnap.docs.length;
+    final totalClients = counts[0].count ?? 0;
+    final totalProviders = counts[1].count ?? 0;
+    final totalUsers = counts[2].count ?? 0;
+    final pendingCount = counts[3].count ?? 0;
+    final openClaims = counts[4].count ?? 0;
+    final unreadCount = counts[5].count ?? 0;
 
-    // Total utilisateurs
-    final usersSnap = await _db.collection('utilisateurs').get();
-    final totalUsers = usersSnap.docs.length;
-
-    // Experts en attente de validation
-    final pendingSnap = await _db
-        .collection('experts')
-        .where('etatCompte', isEqualTo: 'EN_ATTENTE')
-        .get();
-    final pendingSnap2 = await _db
-        .collection('experts')
-        .where('etatCompte', isEqualTo: 'En attente')
-        .get();
-    final pendingCount =
-        pendingSnap.docs.length + pendingSnap2.docs.length;
-
-    // Interventions / Réservations
+    // For revenue and other statistics that require field values, we fetch docs but with limits or better filters
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
-    final interventionsSnap = await _db.collection('interventions').get();
-    final allInterv = interventionsSnap.docs;
+    final lastMonth = DateTime(now.year, now.month - 1, now.day);
 
-    int thisMonth = 0;
-    for (final doc in allInterv) {
-      final data = doc.data();
-      final ts = data['createdAt'];
-      if (ts is Timestamp && ts.toDate().isAfter(startOfMonth)) {
-        thisMonth++;
-      }
-    }
-
-    // Note moyenne depuis la collection 'evaluations' (plus précis)
-    final evalSnap = await _db.collection('evaluations').get();
-    double totalRating = 0;
-    if (evalSnap.docs.isNotEmpty) {
-      for (var doc in evalSnap.docs) {
-        totalRating += (doc.data()['note'] ?? 0.0);
-      }
-    }
-    final avgRating = evalSnap.docs.isNotEmpty ? totalRating / evalSnap.docs.length : 0.0;
-
-    // Réclamations ouvertes
-    final claimsSnap1 = await _db
-        .collection('reclamations')
-        .where('etatReclamation', isEqualTo: 'EN_ATTENTE')
-        .get();
-    final claimsSnap2 = await _db
-        .collection('reclamations')
-        .where('etatReclamation', isEqualTo: 'OUVERTE')
-        .get();
-    final openClaims = claimsSnap1.docs.length + claimsSnap2.docs.length;
-
-    // Revenue total + statuts premium
+    // Fetch abonnements for revenue calculation
     final abonnementsSnap = await _db.collection('abonnements').get();
     double totalRevenue = 0;
+    double revenueLastMonth = 0;
     int premiumCount = 0;
     final Set<String> premiumExpertIds = {};
 
     for (var doc in abonnementsSnap.docs) {
       final data = doc.data();
       final statut = (data['statut'] ?? '').toString().toUpperCase();
-      totalRevenue += (data['montant'] ?? 0.0);
+      final amount = (data['montant'] ?? data['prix'] ?? 0.0) as num;
+      totalRevenue += amount.toDouble();
+      
       if (statut == 'ACTIVE' || statut == 'GRACE') {
         premiumCount++;
-        premiumExpertIds.add(data['idExpert']);
+        premiumExpertIds.add(data['idExpert'] ?? '');
+      }
+
+      final ts = data['createdAt'];
+      if (ts is Timestamp && ts.toDate().isBefore(startOfMonth)) {
+        revenueLastMonth += amount.toDouble();
       }
     }
 
-    final freeCount =
-        expertsSnap.docs.where((d) => !premiumExpertIds.contains(d.id)).length;
+    // Interventions stats
+    final interventionsSnap = await _db.collection('interventions').get();
+    int thisMonthCount = 0;
+    int cancelledCount = 0;
+    int finishedCount = 0;
+    
+    for (final doc in interventionsSnap.docs) {
+      final data = doc.data();
+      final ts = data['createdAt'];
+      if (ts is Timestamp && ts.toDate().isAfter(startOfMonth)) {
+        thisMonthCount++;
+      }
+      final status = (data['statut'] ?? '').toString().toUpperCase();
+      if (status == 'ANNULEE' || status == 'CANCELLED') cancelledCount++;
+      if (status == 'TERMINEE' || status == 'FINISHED') finishedCount++;
+    }
 
-    // Notifications non lues
-    final notifSnap = await _db.collection('notifications').where('estLue', isEqualTo: false).get();
-    final unreadCount = notifSnap.docs.length;
-
-    // Calcul de la croissance (Clients)
-    final lastMonth = DateTime(now.year, now.month - 1, now.day);
-    final clientsLastMonthSnap = await _db.collection('clients').where('createdAt', isLessThan: Timestamp.fromDate(lastMonth)).get();
-    final clientsLastMonth = clientsLastMonthSnap.docs.length;
+    // Growth calculations using counts where possible
+    final clientsLastMonthSnap = await _db.collection('clients').where('createdAt', isLessThan: Timestamp.fromDate(lastMonth)).count().get();
+    final clientsLastMonth = clientsLastMonthSnap.count ?? 0;
+    
     String userGrowth = '';
     if (clientsLastMonth > 0) {
       double growth = ((totalClients - clientsLastMonth) / clientsLastMonth) * 100;
       userGrowth = '${growth >= 0 ? '+' : ''}${growth.toInt()}%';
     }
 
-    // Calcul de la croissance (Revenus)
-    double revenueLastMonth = 0;
-    for (var doc in abonnementsSnap.docs) {
-      final data = doc.data();
-      final ts = data['createdAt'];
-      if (ts is Timestamp && ts.toDate().isBefore(startOfMonth)) {
-        revenueLastMonth += (data['montant'] ?? 0.0);
-      }
-    }
     String revGrowth = '';
     double currentMonthRevenue = totalRevenue - revenueLastMonth;
     if (revenueLastMonth > 0) {
@@ -160,26 +131,26 @@ class AdminDashboardService {
       revGrowth = '${growth >= 0 ? '+' : ''}${growth.toInt()}%';
     }
 
-    int finishedCount = 0;
-    int cancelledCount = 0;
-    for (var doc in allInterv) {
-      final s = doc.data()['statut'];
-      if (s == 'TERMINEE') finishedCount++;
-      if (s == 'ANNULEE' || s == 'REFUSEE') cancelledCount++;
+    // Average Rating - might still need a fetch unless we have a summary doc
+    final evalSnap = await _db.collection('evaluations').get();
+    double totalRating = 0;
+    for (var doc in evalSnap.docs) {
+      totalRating += (doc.data()['note'] ?? 0.0);
     }
+    final avgRating = evalSnap.docs.isNotEmpty ? totalRating / evalSnap.docs.length : 0.0;
 
     return AdminDashboardStats(
       totalUsers: totalUsers,
       totalClients: totalClients,
       totalProviders: totalProviders,
       pendingProviders: pendingCount,
-      totalReservations: allInterv.length,
-      reservationsThisMonth: thisMonth,
+      totalReservations: interventionsSnap.docs.length,
+      reservationsThisMonth: thisMonthCount,
       openClaims: openClaims,
       averageRating: avgRating,
-      freeProviders: freeCount,
+      freeProviders: totalProviders - premiumExpertIds.length,
       premiumProviders: premiumCount,
-      totalRevenue: totalRevenue, // Sum of all subscription 'montant' only
+      totalRevenue: totalRevenue,
       unreadNotifications: unreadCount,
       userGrowth: userGrowth,
       revenueGrowth: revGrowth,
@@ -499,14 +470,12 @@ class AdminDashboardService {
       final userId = data['idUtilisateur'] as String?;
       String name = 'Expert';
       String? imageUrl;
+      final userDoc = userId != null ? await _db.collection('utilisateurs').doc(userId).get() : null;
       
-      if (userId != null) {
-        final userDoc = await _db.collection('utilisateurs').doc(userId).get();
-        if (userDoc.exists) {
-          final ud = userDoc.data()!;
-          name = ud['nom'] ?? ud['email'] ?? 'Expert';
-          imageUrl = ud['image_profile'];
-        }
+      if (userDoc?.exists == true) {
+        final ud = userDoc!.data()!;
+        name = ud['nom'] ?? ud['email'] ?? 'Expert';
+        imageUrl = ud['image_profile'];
       }
 
       // Services Join
@@ -550,6 +519,15 @@ class AdminDashboardService {
         rating = sum / evalSnap.docs.length;
       }
 
+      final userDocData = userDoc?.data();
+      final dynamic userCreatedAt = userDocData?['createdAt'] ?? userDocData?['created_At'];
+      final dynamic rawCreatedAt = data['createdAt'] ?? data['created_At'] ?? userCreatedAt;
+      final DateTime rawDate = rawCreatedAt is Timestamp
+          ? rawCreatedAt.toDate()
+          : rawCreatedAt is DateTime
+              ? rawCreatedAt
+              : DateTime(2000);
+
       result.add({
         'id': doc.id,
         'name': name,
@@ -560,10 +538,10 @@ class AdminDashboardService {
         'rating': rating,
         'interventionsCount': interventionsCount,
         'status': status, // Raw status for buttons: ACTIVE, DESACTIVE, SUSPENDUE
-        'date': _formatRelativeDate(data['createdAt']),
+        'date': rawDate == DateTime(2000) ? 'N/A' : _formatRelativeDate(rawDate),
         'avatar': name.length >= 2 ? name.substring(0, 2).toUpperCase() : '??',
         'imageUrl': imageUrl,
-        'rawDate': data['createdAt'] is Timestamp ? (data['createdAt'] as Timestamp).toDate() : DateTime(2000),
+        'rawDate': rawDate,
         'zone': (services.isNotEmpty ? services.first : (data['region'] ?? 'N/A')),
         // New detailed fields
         'CarteNationale': data['CarteNationale'] ?? 'Non fourni',
@@ -907,17 +885,34 @@ class AdminDashboardService {
 
   // ─── Financial Transactions (Abonnements) ────────────────────────────────
   Future<List<Map<String, dynamic>>> getFinancialTransactions() async {
-    final snap = await _db.collection('abonnements').orderBy('dateDebut', descending: true).get();
-    final List<Map<String, dynamic>> result = [];
+    final snap = await _db.collection('abonnements')
+        .orderBy('dateDebut', descending: true)
+        .limit(50)
+        .get();
     
-    for (final doc in snap.docs) {
-      final data = doc.data() as Map<String, dynamic>;
-      final expertDoc = await _db.collection('experts').doc(data['idExpert']).get();
+    // We cache expert names within this request to avoid repeated fetches
+    final Map<String, String> expertNameCache = {};
+
+    final results = await Future.wait(snap.docs.map((doc) async {
+      final data = doc.data();
+      final expertId = data['idExpert'] as String?;
       
       String expertName = 'Expert';
-      if (expertDoc.exists) {
-        final exUserDoc = await _db.collection('utilisateurs').doc(expertDoc.data()?['idUtilisateur']).get();
-        expertName = exUserDoc.data()?['nom'] ?? exUserDoc.data()?['email'] ?? 'Expert';
+      if (expertId != null) {
+        if (expertNameCache.containsKey(expertId)) {
+          expertName = expertNameCache[expertId]!;
+        } else {
+          try {
+            final expertDoc = await _db.collection('experts').doc(expertId).get();
+            if (expertDoc.exists) {
+              final exUserDoc = await _db.collection('utilisateurs').doc(expertDoc.data()?['idUtilisateur']).get();
+              expertName = exUserDoc.data()?['nom'] ?? exUserDoc.data()?['email'] ?? 'Expert';
+              expertNameCache[expertId] = expertName;
+            }
+          } catch (e) {
+            debugPrint("Error fetching expert name: $e");
+          }
+        }
       }
 
       final ts = data['dateDebut'] as Timestamp?;
@@ -929,40 +924,30 @@ class AdminDashboardService {
       final rawStatus = (data['statut'] ?? 'ACTIVE') as String;
       String statusLabel;
       switch (rawStatus.toUpperCase()) {
-        case 'ACTIVE':
-          statusLabel = 'Actif';
-          break;
-        case 'GRACE':
-          statusLabel = 'Grâce';
-          break;
-        case 'SUSPENDU':
-        case 'SUSPENDED':
-          statusLabel = 'Suspendu';
-          break;
+        case 'ACTIVE': statusLabel = 'Actif'; break;
+        case 'GRACE': statusLabel = 'Grâce'; break;
+        case 'SUSPENDU': 
+        case 'SUSPENDED': statusLabel = 'Suspendu'; break;
         case 'EXPIREE':
         case 'EXPIRE':
-        case 'EXPIRED':
-          statusLabel = 'Expiré';
-          break;
+        case 'EXPIRED': statusLabel = 'Expiré'; break;
         case 'ANNULE':
-        case 'CANCELLED':
-          statusLabel = 'Annulé';
-          break;
-        default:
-          statusLabel = rawStatus;
+        case 'CANCELLED': statusLabel = 'Annulé'; break;
+        default: statusLabel = rawStatus;
       }
 
-      result.add({
+      return {
         'id': doc.id,
         'expertName': expertName,
         'pack': data['packId'] ?? 'Premium',
-        'amount': data['montant'] ?? data['prix'] ?? 0,
+        'amount': (data['montant'] ?? data['prix'] ?? 0).toString(),
         'date': dateStr,
         'renewal': dateEndStr,
         'status': statusLabel,
-      });
-    }
-    return result;
+      };
+    }));
+
+    return results;
   }
 
   /// Fetches a single reservation by ID
