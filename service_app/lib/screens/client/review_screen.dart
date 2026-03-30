@@ -103,8 +103,13 @@ class _ReviewScreenState extends State<ReviewScreen> {
         }
       }
 
-      // Optionally update the intervention to mark it as reviewed if you have such a field
-      // await FirebaseFirestore.instance.collection('interventions').doc(widget.interventionId).update({'isReviewed': true});
+      // Notify all Admins about the new review
+      await _notificationService.notifyAdmins(
+        titre: "New Review",
+        corps: "A client left a $_rating star review for intervention ${widget.interventionId}.",
+        type: 'review',
+        relatedId: widget.interventionId,
+      );
 
       if (mounted) {
         showDialog(
