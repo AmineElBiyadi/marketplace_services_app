@@ -228,4 +228,23 @@ class NotificationService {
       print("Error updating user FCM token: $e");
     }
   }
+
+  /// Call this on LOGOUT to prevent the old account from receiving notifications
+  /// on this device after another account logs in.
+  static Future<void> deleteUserToken(String userId) async {
+    try {
+      // 1. Invalidate the FCM token on Firebase side (new token will be generated on next login)
+      await _firebaseMessaging.deleteToken();
+      print("FCM Token deleted from Firebase for user $userId");
+
+      // 2. Remove the token from Firestore so no one can send to this stale token
+      await FirebaseFirestore.instance.collection('utilisateurs').doc(userId).update({
+        'token': FieldValue.delete(),
+        'updated_At': FieldValue.serverTimestamp(),
+      });
+      print("FCM Token removed from Firestore for user $userId");
+    } catch (e) {
+      print("Error deleting user FCM token: $e");
+    }
+  }
 }
