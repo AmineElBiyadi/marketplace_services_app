@@ -67,7 +67,7 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
         color: _bg,
         child: Column(
           children: [
-            _buildPremiumHeader(isMobile),
+            _buildTopBar(isMobile),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator(color: _primary, strokeWidth: 3))
@@ -79,9 +79,10 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
     );
   }
 
-  Widget _buildPremiumHeader(bool isMobile) {
+  Widget _buildTopBar(bool isMobile) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: _border.withOpacity(0.5)))),
       child: Row(
         children: [
@@ -90,22 +91,43 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
               padding: const EdgeInsets.only(right: 16),
               child: IconButton(icon: const Icon(LucideIcons.menu), onPressed: () => Scaffold.of(context).openDrawer()),
             )),
-          const Text('Avis & Réclamations', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _textPrimary)),
-          const Spacer(),
-          ElevatedButton.icon(
-            onPressed: _exportData,
-            icon: const Icon(LucideIcons.fileText, size: 14),
-            label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _textPrimary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
+          Expanded(
+            child: Text(
+              'Avis & Réclamations', 
+              style: TextStyle(
+                fontSize: isMobile ? 18 : 22, 
+                fontWeight: FontWeight.bold, 
+                color: _textPrimary
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(width: 12),
-          IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 20)),
+          if (!isMobile) ...[
+            const SizedBox(width: 12),
+            SizedBox(
+              height: 36,
+              child: ElevatedButton.icon(
+                onPressed: _exportData,
+                icon: const Icon(LucideIcons.fileText, size: 14),
+                label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _textPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 20)),
+          ] else ...[
+            IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 20)),
+            IconButton(
+              onPressed: _exportData,
+              icon: const Icon(LucideIcons.fileText, size: 20, color: _textPrimary),
+            ),
+          ],
         ],
       ),
     );
@@ -270,8 +292,15 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
       children: [
         Icon(icon, size: 18, color: color),
         const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary)),
-        const Spacer(),
+        Expanded(
+          child: Text(
+            title, 
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _textPrimary),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
+        const SizedBox(width: 8),
         TextButton(onPressed: onSeeAll, child: const Text('Afficher tout', style: TextStyle(fontSize: 12))),
       ],
     );
@@ -626,51 +655,75 @@ class _BaseFullListModalState extends State<_BaseFullListModal> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 768;
+    final modalWidth = isMobile ? screenWidth * 0.95 : (screenWidth < 1024 ? 600.0 : 800.0);
+    final modalHeight = isMobile ? MediaQuery.of(context).size.height * 0.85 : 750.0;
+    
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
-        width: 800,
-        height: 750,
-        padding: const EdgeInsets.all(32),
+        width: modalWidth,
+        height: modalHeight,
+        padding: EdgeInsets.all(isMobile ? 20 : 32),
         child: Column(
           children: [
             // Header
             Row(
               children: [
-                Icon(widget.icon, color: widget.color),
-                const SizedBox(width: 12),
-                Text(widget.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                const Spacer(),
-                IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(LucideIcons.x)),
+                Icon(widget.icon, color: widget.color, size: isMobile ? 20 : 24),
+                SizedBox(width: isMobile ? 8 : 12),
+                Expanded(
+                  child: Text(
+                    widget.title, 
+                    style: TextStyle(
+                      fontSize: isMobile ? 16 : 20, 
+                      fontWeight: FontWeight.bold
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context), 
+                  icon: const Icon(LucideIcons.x),
+                  iconSize: isMobile ? 18 : 24,
+                ),
               ],
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: isMobile ? 16 : 24),
             
             // Search & Filters Row
             Row(
               children: [
                 Expanded(
-                  flex: 3,
+                  flex: isMobile ? 2 : 3,
                   child: TextField(
                     onChanged: (v) { _search = v; _applyFilter(); },
                     decoration: InputDecoration(
-                      hintText: 'Rechercher un mot-clé, client...',
+                      hintText: isMobile ? 'Rechercher...' : 'Rechercher un mot-clé, client...',
                       prefixIcon: const Icon(LucideIcons.search, size: 18),
                       filled: true,
                       fillColor: const Color(0xFFF8FAFC),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 12 : 16, 
+                        vertical: 0
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12), 
+                        borderSide: BorderSide.none
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: isMobile ? 8 : 16),
                 Expanded(
-                  flex: 2,
-                  child: _buildFilterDropdown(),
+                  flex: isMobile ? 1 : 2,
+                  child: _buildFilterDropdown(isMobile),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: isMobile ? 16 : 24),
             
             // List
             Expanded(
@@ -687,28 +740,76 @@ class _BaseFullListModalState extends State<_BaseFullListModal> {
     );
   }
 
-  Widget _buildFilterDropdown() {
+  Widget _buildFilterDropdown(bool isMobile) {
     List<DropdownMenuItem<String>> menuItems = [
-      const DropdownMenuItem(value: 'TOUT', child: Text('Tous les éléments')),
+      DropdownMenuItem(
+        value: 'TOUT', 
+        child: Text(
+          isMobile ? 'Tous' : 'Tous les éléments',
+          style: TextStyle(fontSize: isMobile ? 12 : 14),
+        ),
+      ),
     ];
 
     if (widget.filterType == 'REVIEW') {
       menuItems.addAll([
-        const DropdownMenuItem(value: '5', child: Text('⭐⭐⭐⭐⭐ (5)')),
-        const DropdownMenuItem(value: '4', child: Text('⭐⭐⭐⭐ (4)')),
-        const DropdownMenuItem(value: '3', child: Text('⭐⭐⭐ (3)')),
-        const DropdownMenuItem(value: '2', child: Text('⭐⭐ (2)')),
-        const DropdownMenuItem(value: '1', child: Text('⭐ (1)')),
+        DropdownMenuItem(
+          value: '5', 
+          child: Text(
+            isMobile ? '⭐⭐⭐⭐⭐' : '⭐⭐⭐⭐⭐ (5)',
+            style: TextStyle(fontSize: isMobile ? 12 : 14),
+          ),
+        ),
+        DropdownMenuItem(
+          value: '4', 
+          child: Text(
+            isMobile ? '⭐⭐⭐⭐' : '⭐⭐⭐⭐ (4)',
+            style: TextStyle(fontSize: isMobile ? 12 : 14),
+          ),
+        ),
+        DropdownMenuItem(
+          value: '3', 
+          child: Text(
+            isMobile ? '⭐⭐⭐' : '⭐⭐⭐ (3)',
+            style: TextStyle(fontSize: isMobile ? 12 : 14),
+          ),
+        ),
+        DropdownMenuItem(
+          value: '2', 
+          child: Text(
+            isMobile ? '⭐⭐' : '⭐⭐ (2)',
+            style: TextStyle(fontSize: isMobile ? 12 : 14),
+          ),
+        ),
+        DropdownMenuItem(
+          value: '1', 
+          child: Text(
+            isMobile ? '⭐' : '⭐ (1)',
+            style: TextStyle(fontSize: isMobile ? 12 : 14),
+          ),
+        ),
       ]);
     } else {
       menuItems.addAll([
-        const DropdownMenuItem(value: 'EN_ATTENTE', child: Text('En attente')),
-        const DropdownMenuItem(value: 'TRAITEE', child: Text('Traitées')),
+        DropdownMenuItem(
+          value: 'EN_ATTENTE', 
+          child: Text(
+            'En attente',
+            style: TextStyle(fontSize: isMobile ? 12 : 14),
+          ),
+        ),
+        DropdownMenuItem(
+          value: 'TRAITEE', 
+          child: Text(
+            'Traitées',
+            style: TextStyle(fontSize: isMobile ? 12 : 14),
+          ),
+        ),
       ]);
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12),
       decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(12)),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(

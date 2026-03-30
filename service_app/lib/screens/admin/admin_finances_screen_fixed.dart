@@ -6,6 +6,7 @@ import '../../layouts/admin_layout.dart';
 
 import '../../services/admin_dashboard_service.dart';
 import '../../utils/admin_export_util.dart';
+import 'package:intl/intl.dart';
 
 class AdminFinancesScreen extends StatefulWidget {
   const AdminFinancesScreen({super.key});
@@ -129,7 +130,6 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
           _subscriptions = allSubsMapped.where((s) => s['status'] == 'Actif').toList();
           _failedPayments = graceList; // This now contains GRACE and SUSPENDED from the service using whereIn
 
-          _failedPayments = graceList;
           _isLoading = false;
         });
       }
@@ -147,17 +147,15 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
 
   @override
   Widget build(BuildContext context) {
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final bool isMobile = screenWidth < 768;
-    final bool isTablet = screenWidth >= 768 && screenWidth < 1024;
-    final bool isDesktop = screenWidth >= 1024;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 768;    // Téléphone: < 768px
+    final bool isTablet = screenWidth >= 768 && screenWidth < 1024; // Tablette: 768-1023px
     
     // Debug pour voir les données et le type d'appareil
     debugPrint('=== FINANCE SCREEN DEBUG ===');
     debugPrint('screenWidth: $screenWidth');
     debugPrint('isMobile: $isMobile');
     debugPrint('isTablet: $isTablet');
-    debugPrint('isDesktop: $isDesktop');
     debugPrint('_isLoading: $_isLoading');
     debugPrint('_revenueData length: ${_revenueData.length}');
     debugPrint('_subscriptions length: ${_subscriptions.length}');
@@ -169,7 +167,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       activeRoute: '/admin/finances',
       child: Column(
         children: [
-          _buildTopBar(isMobile, isTablet),
+          _buildTopBar(isMobile),
           Expanded(
             child: _isLoading 
                 ? const Center(child: CircularProgressIndicator(color: AppColors.foreground))
@@ -183,7 +181,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                             Text(
                               'Aucune donnée disponible',
                               style: TextStyle(
-                                fontSize: 18,
+                                fontSize: isMobile ? 16 : 18,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.mutedForeground,
                               ),
@@ -192,7 +190,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                             Text(
                               'Veuillez vérifier votre connexion ou réessayer plus tard.',
                               style: TextStyle(
-                                fontSize: 14,
+                                fontSize: isMobile ? 13 : 14,
                                 color: AppColors.mutedForeground,
                               ),
                               textAlign: TextAlign.center,
@@ -201,11 +199,14 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                             ElevatedButton.icon(
                               onPressed: _loadData,
                               icon: const Icon(LucideIcons.refreshCw),
-                              label: const Text('Actualiser'),
+                              label: Text('Actualiser'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isMobile ? 16 : 24, 
+                                  vertical: isMobile ? 10 : 12
+                                ),
                               ),
                             ),
                           ],
@@ -213,20 +214,17 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                       )
                     : SingleChildScrollView(
                         child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isMobile ? 12.0 : isTablet ? 18.0 : 24.0,
-                            vertical: isMobile ? 12.0 : 18.0,
-                          ),
+                          padding: EdgeInsets.all(isMobile ? 12.0 : isTablet ? 16.0 : 24.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _buildKPIGrid(),
-                              const SizedBox(height: 32),
+                              SizedBox(height: isMobile ? 20 : isTablet ? 24 : 32),
                               _buildPremiumPricingCard(),
-                              const SizedBox(height: 32),
+                              SizedBox(height: isMobile ? 20 : isTablet ? 24 : 32),
                               if (_revenueData.isNotEmpty) ...[
                                 _buildChartCard(),
-                                const SizedBox(height: 32),
+                                SizedBox(height: isMobile ? 20 : isTablet ? 24 : 32),
                               ],
                               SingleChildScrollView(
                                 scrollDirection: Axis.horizontal,
@@ -256,15 +254,14 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
   }
 
   // ── HEADER ──────────────────────────────────────────────────────────────────
-  Widget _buildTopBar(bool isMobile, bool isTablet) {
-    final bool showDrawerButton = isMobile || isTablet;
+  Widget _buildTopBar(bool isMobile) {
     return Container(
       height: 64,
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: AppColors.border))),
       child: Row(
         children: [
-          if (showDrawerButton)
+          if (isMobile)
             Builder(
               builder: (context) => IconButton(
                 icon: const Icon(LucideIcons.menu, color: AppColors.foreground),
@@ -436,37 +433,26 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LayoutBuilder(builder: (context, headerConstraints) {
-            final screenWidth = MediaQuery.of(context).size.width;
-            final bool isMobile = screenWidth < 768;
-            return Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                SizedBox(
-                  width: isMobile ? headerConstraints.maxWidth * 0.55 : headerConstraints.maxWidth * 0.65,
-                  child: const Text('Performance Mensuelle',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.foreground,
-                          letterSpacing: -0.2)),
-                ),
-                _buildLegendRow(),
-              ],
-            );
-          }),
+          Row(
+            children: [
+              Expanded(
+                child: const Text('Performance Mensuelle',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.foreground,
+                        letterSpacing: -0.2)),
+              ),
+              const SizedBox(width: 10),
+              Flexible(child: _buildLegendRow()),
+            ],
+          ),
           const SizedBox(height: 32),
-          LayoutBuilder(builder: (context, chartConstraints) {
-            final screenWidth = MediaQuery.of(context).size.width;
-            final chartHeight = screenWidth < 768 ? 220.0 : screenWidth < 1024 ? 260.0 : 300.0;
-            return SizedBox(
-              height: chartHeight,
-              child: BarChart(
+          SizedBox(
+            height: 250,
+            child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
                 maxY: 10000,
@@ -562,8 +548,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                 }).toList(),
               ),
             ),
-          );
-        }),
+          ),
         ],
       ),
     );
@@ -596,7 +581,8 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
   // ── TAB BAR ──────────────────────────────────────────────────────────────────
   Widget _buildTabsIndicator() {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 768;
+    final bool isMobile = screenWidth < 768;    // Téléphone: < 768px
+    final bool isTablet = screenWidth >= 768 && screenWidth < 1024; // Tablette: 768-1023px
     
     return Row(
       children: [
@@ -605,7 +591,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
             index: 0,
             controller: _tabController,
             icon: LucideIcons.checkCircle,
-            label: isMobile ? 'Abonn.' : 'Abonnements',
+            label: isMobile ? 'Abonn.' : (isTablet ? 'Abonnements' : 'Abonnements'),
             count: _subscriptions.length,
             activeColor: AppColors.primary,
             activeBg: AppColors.primary.withOpacity(0.1),
@@ -618,7 +604,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
             index: 1,
             controller: _tabController,
             icon: LucideIcons.alertTriangle,
-            label: isMobile ? 'Suspendus' : 'Abonnements Suspendus',
+            label: isMobile ? 'Suspendus' : (isTablet ? 'Abonnements Suspendus' : 'Abonnements Suspendus'),
             count: _failedPayments.length,
             activeColor: Colors.orange,
             activeBg: Colors.orange.withOpacity(0.1),
@@ -629,10 +615,27 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
     );
   }
 
-  // ── SUBSCRIPTIONS TABLE ──────────────────────────────────────────────────────
   Widget _buildSubscriptionsTable() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 768;    // Téléphone: < 768px
+    final bool isTablet = screenWidth >= 768 && screenWidth < 1024; // Tablette: 768-1023px
+    
     return _TableShell(
-      columnWidths: const {
+      columnWidths: isMobile ? {
+        0: FlexColumnWidth(1.5),  // Prestataire plus petit
+        1: FlexColumnWidth(0.8),  // Pack plus petit
+        2: FlexColumnWidth(0.8),  // Début plus petit
+        3: FlexColumnWidth(1.0),  // Renouvellement plus petit
+        4: FlexColumnWidth(0.7),  // Montant plus petit
+        5: FlexColumnWidth(0.7),  // Statut plus petit
+      } : isTablet ? {
+        0: FlexColumnWidth(1.8),
+        1: FlexColumnWidth(1.0),
+        2: FlexColumnWidth(1.0),
+        3: FlexColumnWidth(1.2),
+        4: FlexColumnWidth(0.8),
+        5: FlexColumnWidth(0.8),
+      } : const {
         0: FlexColumnWidth(2.2),
         1: FlexColumnWidth(1.4),
         2: FlexColumnWidth(1.3),
@@ -649,67 +652,72 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
           isEven: e.key.isEven,
           cells: [
             Row(children: [
-              _Avatar(name: s['provider']),
-              const SizedBox(width: 10),
+              _Avatar(name: s['provider'], size: isMobile ? 24 : (isTablet ? 28 : 32)),
+              SizedBox(width: isMobile ? 6 : (isTablet ? 8 : 10)),
               Flexible(
                 child: Text(s['provider'],
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: AppColors.foreground,
-                        fontSize: 14)),
+                        fontSize: isMobile ? 12 : (isTablet ? 13 : 14))),
               ),
             ]),
-            _PackBadge(label: s['pack']),
+            _PackBadge(label: s['pack'], isMobile: isMobile),
             Text(s['start'],
-                style: const TextStyle(
-                    color: AppColors.mutedForeground, fontSize: 13)),
+                style: TextStyle(
+                    color: AppColors.mutedForeground, 
+                    fontSize: isMobile ? 11 : (isTablet ? 12 : 13))),
             Row(children: [
-              const Icon(LucideIcons.refreshCw,
-                  size: 12, color: AppColors.mutedForeground),
-              const SizedBox(width: 5),
+              Icon(LucideIcons.refreshCw,
+                  size: isMobile ? 10 : (isTablet ? 11 : 12), color: AppColors.mutedForeground),
+              SizedBox(width: isMobile ? 3 : (isTablet ? 4 : 5)),
               Flexible(
                 child: Text(s['renewal'],
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: AppColors.mutedForeground, fontSize: 13)),
+                    style: TextStyle(
+                        color: AppColors.mutedForeground, 
+                        fontSize: isMobile ? 11 : (isTablet ? 12 : 13))),
               ),
             ]),
             Text(s['amount'],
-                style: const TextStyle(
+                style: TextStyle(
                     fontWeight: FontWeight.w800,
                     color: AppColors.foreground,
-                    fontSize: 14)),
-            _StatusChip(status: s['status']),
+                    fontSize: isMobile ? 12 : (isTablet ? 13 : 14))),
+            _StatusChip(status: s['status'], isMobile: isMobile),
           ],
         );
       }).toList(),
     );
   }
 
-  // ── FAILED PAYMENTS TABLE ────────────────────────────────────────────────────
   Widget _buildFailedPaymentsTable() {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isMobile = screenWidth < 768;    // Téléphone: < 768px
+    final bool isTablet = screenWidth >= 768 && screenWidth < 1024; // Tablette: 768-1023px
+    
     if (_failedPayments.isEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 40.0),
+          padding: EdgeInsets.symmetric(vertical: isMobile ? 30 : 40.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 56,
-                height: 56,
+                width: isMobile ? 48 : 56,
+                height: isMobile ? 48 : 56,
                 decoration: BoxDecoration(
                     color: const Color(0xFFF0FDF4),
                     borderRadius: BorderRadius.circular(16)),
-                child: const Icon(LucideIcons.checkCircle2,
-                    color: Color(0xFF16A34A), size: 28),
+                child: Icon(LucideIcons.checkCircle2,
+                    color: Color(0xFF16A34A), size: isMobile ? 24 : 28),
               ),
-              const SizedBox(height: 12),
-              const Text('Aucun paiement échoué',
+              SizedBox(height: isMobile ? 10 : 12),
+              Text('Aucun paiement échoué',
                   style: TextStyle(
                       color: AppColors.mutedForeground,
-                      fontSize: 15,
+                      fontSize: isMobile ? 14 : 15,
                       fontWeight: FontWeight.w600)),
             ],
           ),
@@ -718,7 +726,19 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
     }
 
     return _TableShell(
-      columnWidths: const {
+      columnWidths: isMobile ? {
+        0: FlexColumnWidth(1.4),  // Prestataire plus petit
+        1: FlexColumnWidth(0.8),  // Montant plus petit
+        2: FlexColumnWidth(0.9),  // Date plus petit
+        3: FlexColumnWidth(0.7),  // Tentatives plus petit
+        4: FlexColumnWidth(1.2),  // Actions plus petit
+      } : isTablet ? {
+        0: FlexColumnWidth(1.6),
+        1: FlexColumnWidth(1.0),
+        2: FlexColumnWidth(1.1),
+        3: FlexColumnWidth(0.8),
+        4: FlexColumnWidth(1.5),
+      } : const {
         0: FlexColumnWidth(2.0),
         1: FlexColumnWidth(1.2),
         2: FlexColumnWidth(1.3),
@@ -735,54 +755,79 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
           isEven: e.key.isEven,
           cells: [
             Row(children: [
-              _Avatar(name: f['provider'] ?? 'Expert', danger: true),
-              const SizedBox(width: 10),
+              _Avatar(name: f['provider'] ?? 'Expert', danger: true, size: isMobile ? 24 : (isTablet ? 28 : 32)),
+              SizedBox(width: isMobile ? 6 : (isTablet ? 8 : 10)),
               Flexible(
                 child: Text(f['provider'] ?? 'Expert',
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: AppColors.foreground,
-                        fontSize: 14)),
+                        fontSize: isMobile ? 12 : (isTablet ? 13 : 14))),
               ),
             ]),
             Text(f['amount'] ?? '--',
-                style: const TextStyle(
+                style: TextStyle(
                     fontWeight: FontWeight.w800,
                     color: AppColors.foreground,
-                    fontSize: 14)),
+                    fontSize: isMobile ? 12 : (isTablet ? 13 : 14))),
             Text(f['date'] ?? '--',
-                style: const TextStyle(
-                    color: AppColors.mutedForeground, fontSize: 13)),
-            _AttemptsIndicator(count: (f['attempts'] as int?) ?? 1),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Row(children: [
-                _ActionButton(
-                  label: 'Relancer',
-                  icon: LucideIcons.refreshCw,
-                  color: AppColors.primary,
-                  bg: const Color(0xFFEFF6FF),
-                  onTap: () => _confirmReactivate(subId),
-                ),
-                const SizedBox(width: 8),
-                _ActionButton(
-                  label: 'Suspendre',
-                  icon: LucideIcons.ban,
-                  color: AppColors.destructive,
-                  bg: const Color(0xFFFEF2F2),
-                  onTap: () => _confirmSuspend(subId),
-                ),
-              ]),
-            ),
+                style: TextStyle(
+                    color: AppColors.mutedForeground, 
+                    fontSize: isMobile ? 11 : (isTablet ? 12 : 13))),
+            _AttemptsIndicator(count: (f['attempts'] as int?) ?? 1, isMobile: isMobile),
+            if (isMobile)
+              // Mobile: Boutons verticaux pour économiser de l'espace
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _ActionButton(
+                    label: 'Relancer',
+                    icon: LucideIcons.refreshCw,
+                    color: AppColors.primary,
+                    bg: const Color(0xFFEFF6FF),
+                    onTap: () => _confirmReactivate(subId),
+                    isMobile: true,
+                  ),
+                  SizedBox(height: 4),
+                  _ActionButton(
+                    label: 'Suspendre',
+                    icon: LucideIcons.ban,
+                    color: AppColors.destructive,
+                    bg: const Color(0xFFFEF2F2),
+                    onTap: () => _confirmSuspend(subId),
+                    isMobile: true,
+                  ),
+                ],
+              )
+            else
+              // Desktop: Boutons horizontaux
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(children: [
+                  _ActionButton(
+                    label: 'Relancer',
+                    icon: LucideIcons.refreshCw,
+                    color: AppColors.primary,
+                    bg: const Color(0xFFEFF6FF),
+                    onTap: () => _confirmReactivate(subId),
+                  ),
+                  SizedBox(width: 8),
+                  _ActionButton(
+                    label: 'Suspendre',
+                    icon: LucideIcons.ban,
+                    color: AppColors.destructive,
+                    bg: const Color(0xFFFEF2F2),
+                    onTap: () => _confirmSuspend(subId),
+                  ),
+                ]),
+              ),
           ],
         );
       }).toList(),
     );
   }
-
-
 
   Future<void> _confirmReactivate(String subscriptionId) async {
     final confirmed = await showDialog<bool>(
@@ -876,10 +921,8 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
   // ── PREMIUM PRICING SETTINGS ────────────────────────────────────────────────
 
   Widget _buildPremiumPricingCard() {
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final bool isMobile = screenWidth < 768;
     return Container(
-      padding: EdgeInsets.all(isMobile ? 18 : 24),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(20),
@@ -901,90 +944,41 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                   color: AppColors.foreground,
                   letterSpacing: -0.2)),
           const SizedBox(height: 24),
-          Builder(builder: (context) {
-            final double screenWidth = MediaQuery.of(context).size.width;
-            final bool isMobile = screenWidth < 768;
-            if (isMobile) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Prix Premium mensuel (DH)',
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.mutedForeground,
-                              letterSpacing: 0.5)),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        initialValue: _premiumPriceInput,
-                        keyboardType: TextInputType.number,
-                        onChanged: (v) => _premiumPriceInput = v,
-                        style: const TextStyle(fontSize: 14, color: AppColors.foreground),
-                        decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          fillColor: AppColors.muted.withOpacity(0.1),
-                          filled: true,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
-                        ),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Prix Premium mensuel (DH)',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.mutedForeground,
+                            letterSpacing: 0.5)),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      initialValue: _premiumPriceInput,
+                      keyboardType: TextInputType.number,
+                      onChanged: (v) => _premiumPriceInput = v,
+                      style: const TextStyle(fontSize: 14, color: AppColors.foreground),
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        fillColor: AppColors.muted.withOpacity(0.1),
+                        filled: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: _isUpdatingPrice ? null : _updatePremiumPrice,
-                    icon: _isUpdatingPrice 
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Icon(LucideIcons.save, size: 14),
-                    label: const Text('Sauvegarder et Appliquer', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.foreground,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      elevation: 0,
                     ),
-                  ),
-                ],
-              );
-            }
-            return Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Prix Premium mensuel (DH)',
-                          style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.mutedForeground,
-                              letterSpacing: 0.5)),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        initialValue: _premiumPriceInput,
-                        keyboardType: TextInputType.number,
-                        onChanged: (v) => _premiumPriceInput = v,
-                        style: const TextStyle(fontSize: 14, color: AppColors.foreground),
-                        decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                          fillColor: AppColors.muted.withOpacity(0.1),
-                          filled: true,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
-                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border.withOpacity(0.5))),
-                          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary, width: 2)),
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                SizedBox(
-                  width: 220,
+              ),
+              const SizedBox(width: 16),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 24.0),
                   child: ElevatedButton.icon(
                     onPressed: _isUpdatingPrice ? null : _updatePremiumPrice,
                     icon: _isUpdatingPrice 
@@ -1000,9 +994,9 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
                     ),
                   ),
                 ),
-              ],
-            );
-          }),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           const Text('Attention : la modification du prix mettra à jour le montant de tous les abonnements existants.',
               style: TextStyle(fontSize: 12, color: AppColors.mutedForeground, fontStyle: FontStyle.italic)),
@@ -1067,10 +1061,9 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
   }
 }
 
-
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
 // TABLE — Flutter native Table fills 100% width automatically via FlexColumnWidth
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 
 class _TableRowData {
   final List<Widget> cells;
@@ -1092,8 +1085,8 @@ class _TableShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final isMobile = screenWidth < 768;
-    final isTablet = screenWidth < 1024;
+    final bool isMobile = screenWidth < 768;
+    final bool isTablet = screenWidth >= 768 && screenWidth < 1024;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 24),
@@ -1219,29 +1212,31 @@ class _TableShell extends StatelessWidget {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
 // SMALL WIDGETS
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
 
 class _Avatar extends StatelessWidget {
   final String name;
   final bool danger;
-  const _Avatar({required this.name, this.danger = false});
+  final double size;
+  final bool isMobile;
+  const _Avatar({required this.name, this.danger = false, this.size = 32, this.isMobile = false});
 
   @override
   Widget build(BuildContext context) {
     final initial = name.isNotEmpty ? name[0].toUpperCase() : '?';
     return Container(
-      width: 32,
-      height: 32,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: danger ? const Color(0xFFFEE2E2) : const Color(0xFFEFF6FF),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(size * 0.3125),
       ),
       alignment: Alignment.center,
       child: Text(initial,
           style: TextStyle(
-              fontSize: 13,
+              fontSize: size * 0.40625,
               fontWeight: FontWeight.w800,
               color: danger ? const Color(0xFFDC2626) : const Color(0xFF2563EB))),
     );
@@ -1250,7 +1245,8 @@ class _Avatar extends StatelessWidget {
 
 class _PackBadge extends StatelessWidget {
   final String label;
-  const _PackBadge({required this.label});
+  final bool isMobile;
+  const _PackBadge({required this.label, this.isMobile = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1258,7 +1254,7 @@ class _PackBadge extends StatelessWidget {
       fit: BoxFit.scaleDown,
       alignment: Alignment.centerLeft,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 8 : 12, vertical: isMobile ? 4 : 6),
         decoration: BoxDecoration(
             color: const Color(0xFFFEF9C3).withOpacity(0.6),
             borderRadius: BorderRadius.circular(25),
@@ -1266,11 +1262,11 @@ class _PackBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.crown, size: 12, color: Color(0xFFCA8A04)),
-            const SizedBox(width: 6),
+            Icon(LucideIcons.crown, size: isMobile ? 10 : 12, color: Color(0xFFCA8A04)),
+            SizedBox(width: isMobile ? 4 : 6),
             Text(label,
-                style: const TextStyle(
-                    fontSize: 11,
+                style: TextStyle(
+                    fontSize: isMobile ? 9 : 11,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFFCA8A04),
                     letterSpacing: 0.5)),
@@ -1283,7 +1279,8 @@ class _PackBadge extends StatelessWidget {
 
 class _StatusChip extends StatelessWidget {
   final String status;
-  const _StatusChip({required this.status});
+  final bool isMobile;
+  const _StatusChip({required this.status, this.isMobile = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1310,20 +1307,22 @@ class _StatusChip extends StatelessWidget {
       fit: BoxFit.scaleDown,
       alignment: Alignment.centerLeft,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 10, vertical: isMobile ? 4 : 6),
         decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(25)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 6,
-              height: 6,
+              width: isMobile ? 4 : 6,
+              height: isMobile ? 4 : 6,
               decoration: BoxDecoration(shape: BoxShape.circle, color: dot),
             ),
-            const SizedBox(width: 6),
+            SizedBox(width: isMobile ? 4 : 6),
             Text(status,
                 style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w800, color: text)),
+                    fontSize: isMobile ? 9 : 11, 
+                    fontWeight: FontWeight.w800, 
+                    color: text)),
           ],
         ),
       ),
@@ -1333,7 +1332,8 @@ class _StatusChip extends StatelessWidget {
 
 class _AttemptsIndicator extends StatelessWidget {
   final int count;
-  const _AttemptsIndicator({required this.count});
+  final bool isMobile;
+  const _AttemptsIndicator({required this.count, this.isMobile = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1343,9 +1343,9 @@ class _AttemptsIndicator extends StatelessWidget {
         ...List.generate(
           3,
           (i) => Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(right: 4),
+            width: isMobile ? 6 : 10,
+            height: isMobile ? 6 : 10,
+            margin: EdgeInsets.only(right: isMobile ? 2 : 4),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: i < count
@@ -1354,10 +1354,10 @@ class _AttemptsIndicator extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 6),
+        SizedBox(width: isMobile ? 4 : 6),
         Text('$count/3',
-            style: const TextStyle(
-                fontSize: 12,
+            style: TextStyle(
+                fontSize: isMobile ? 10 : 12,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFFEF4444))),
       ],
@@ -1371,6 +1371,7 @@ class _ActionButton extends StatelessWidget {
   final Color color;
   final Color bg;
   final VoidCallback onTap;
+  final bool isMobile;
 
   const _ActionButton({
     required this.label,
@@ -1378,6 +1379,7 @@ class _ActionButton extends StatelessWidget {
     required this.color,
     required this.bg,
     required this.onTap,
+    this.isMobile = false,
   });
 
   @override
@@ -1385,17 +1387,19 @@ class _ActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: EdgeInsets.symmetric(horizontal: isMobile ? 6 : 10, vertical: isMobile ? 4 : 6),
         decoration:
             BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 12, color: color),
-            const SizedBox(width: 5),
+            Icon(icon, size: isMobile ? 10 : 12, color: color),
+            SizedBox(width: isMobile ? 3 : 5),
             Text(label,
                 style: TextStyle(
-                    fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+                    fontSize: isMobile ? 10 : 12, 
+                    fontWeight: FontWeight.w700, 
+                    color: color)),
           ],
         ),
       ),
@@ -1403,9 +1407,9 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
 // CUSTOM TAB BUTTON
-// ════════════════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════
 
 class _TabButton extends StatelessWidget {
   final int index;
