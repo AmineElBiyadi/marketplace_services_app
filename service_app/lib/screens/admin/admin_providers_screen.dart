@@ -125,22 +125,43 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          const Text('Gestion des Prestataires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary)),
-          const Spacer(),
-          ElevatedButton.icon(
-            onPressed: _exportProviders,
-            icon: const Icon(LucideIcons.fileText, size: 14),
-            label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _textPrimary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
+          Expanded(
+            child: Text(
+              'Gestion des Prestataires', 
+              style: TextStyle(
+                fontSize: isMobile ? 16 : 18, 
+                fontWeight: FontWeight.bold, 
+                color: _textPrimary
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(width: 12),
-          IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
+          if (!isMobile) ...[
+            const SizedBox(width: 12),
+            SizedBox(
+              height: 36,
+              child: ElevatedButton.icon(
+                onPressed: _exportProviders,
+                icon: const Icon(LucideIcons.fileText, size: 14),
+                label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _textPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
+          ] else ...[
+            IconButton(onPressed: _loadData, icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary)),
+            IconButton(
+              onPressed: _exportProviders,
+              icon: const Icon(LucideIcons.fileText, size: 18, color: _textPrimary),
+            ),
+          ],
         ],
       ),
     );

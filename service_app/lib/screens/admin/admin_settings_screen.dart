@@ -436,13 +436,16 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.muted.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border.withOpacity(0.3)),
-      ),
-      child: Table(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Container(
+        width: MediaQuery.of(context).size.width < 600 ? 500 : null,
+        decoration: BoxDecoration(
+          color: AppColors.muted.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border.withOpacity(0.3)),
+        ),
+        child: Table(
         columnWidths: const {
           0: FixedColumnWidth(70),
           1: FlexColumnWidth(),
@@ -499,8 +502,9 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
           }),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _viewOldCgu(Map<String, dynamic> cgu) {
     showDialog(
@@ -1299,7 +1303,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> with SingleTi
     return ElevatedButton.icon(
       onPressed: onPressed ?? () {},
       icon: const Icon(LucideIcons.save, size: 14),
-      label: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+      label: Text(label, style: const TextStyle(fontSize: 14)),
       style: ElevatedButton.styleFrom(
         backgroundColor: AppColors.foreground,
         foregroundColor: Colors.white,

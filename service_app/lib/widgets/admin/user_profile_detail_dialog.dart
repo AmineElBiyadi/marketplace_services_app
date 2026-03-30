@@ -58,110 +58,162 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 768;
+    final dialogWidth = isMobile ? screenWidth * 0.95 : 450.0;
+    final dialogPadding = isMobile ? 20.0 : 32.0;
+    
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Container(
-        width: 450,
-        padding: const EdgeInsets.all(32),
+        width: dialogWidth,
+        padding: EdgeInsets.all(dialogPadding),
+        constraints: BoxConstraints(
+          maxWidth: isMobile ? screenWidth * 0.95 : 450.0,
+          minWidth: isMobile ? screenWidth * 0.90 : 400.0,
+        ),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
         ),
         child: _loading 
-          ? const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()))
+          ? SizedBox(height: isMobile ? 150 : 200, child: Center(child: CircularProgressIndicator()))
           : _user == null 
             ? const Center(child: Text('Profil non trouvé'))
             : SingleChildScrollView(
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        _buildResilientAvatar(
+                        _buildAvatar(
                           _user!['imageUrl']?.toString(),
                           _user!['name']?.toString() ?? 'U',
                         ),
-                        const SizedBox(width: 20),
+                        SizedBox(width: isMobile ? 12 : 20),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(_user!['name'], style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _primary)),
-                              const SizedBox(height: 4),
+                              Text(
+                                _user!['name'], 
+                                style: TextStyle(
+                                  fontSize: isMobile ? 18 : 22, 
+                                  fontWeight: FontWeight.bold, 
+                                  color: _primary
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
+                              ),
+                              SizedBox(height: 4),
                               Row(
                                 children: [
-                                  Text(widget.role, style: const TextStyle(color: _textSecondary, fontSize: 13, fontWeight: FontWeight.w500)),
-                                  const SizedBox(width: 8),
+                                  Text(
+                                    widget.role, 
+                                    style: TextStyle(
+                                      color: _textSecondary, 
+                                      fontSize: isMobile ? 11 : 13, 
+                                      fontWeight: FontWeight.w500
+                                    )
+                                  ),
+                                  SizedBox(width: 8),
                                   _statusBadge(_user!['status'] ?? ''),
                                 ],
                               )
                             ],
                           ),
-                        ),
-                        IconButton(
-                          icon: const Icon(LucideIcons.x, color: Colors.grey),
-                          onPressed: () => Navigator.pop(context),
                         )
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(height: isMobile ? 16 : 24),
                     const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                    const SizedBox(height: 24),
+                    SizedBox(height: isMobile ? 16 : 24),
                     
-                    const Text('Informations Générales', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary, letterSpacing: 0.5)),
-                    const SizedBox(height: 16),
-                    _modernInfoTile(LucideIcons.mail, 'E-mail', _user!['email']),
-                    _modernInfoTile(LucideIcons.phone, 'Téléphone', _user!['phone']),
-                    if (_user!['region'] != null) _modernInfoTile(LucideIcons.mapPin, 'Région', _user!['region']),
+                    Text(
+                      'Informations Générales', 
+                      style: TextStyle(
+                        fontSize: isMobile ? 13 : 14, 
+                        fontWeight: FontWeight.bold, 
+                        color: _primary, 
+                        letterSpacing: 0.5
+                      )
+                    ),
+                    SizedBox(height: isMobile ? 12 : 16),
+                    _modernInfoTile(LucideIcons.mail, 'E-mail', _user!['email'], isMobile: isMobile),
+                    _modernInfoTile(LucideIcons.phone, 'Téléphone', _user!['phone'], isMobile: isMobile),
+                    if (_user!['region'] != null) _modernInfoTile(LucideIcons.mapPin, 'Région', _user!['region'], isMobile: isMobile),
                     
                     if (widget.role == 'Expert' || widget.role == 'Prestataire') ...[
-                      const SizedBox(height: 24),
-                      const Text('Profil Professionnel', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary, letterSpacing: 0.5)),
-                      const SizedBox(height: 16),
-                      _modernInfoTile(LucideIcons.briefcase, 'Expérience', _user!['Experience']?.toString() ?? 'Non précisée'),
-                      _modernInfoTile(LucideIcons.map, 'Zone (Texte)', _user!['zoneTexte']?.toString() ?? 'Non précisée'),
-                      _modernInfoTile(LucideIcons.navigation, 'Rayon d\'action', '${_user!['rayonTravaille']} km'),
+                      SizedBox(height: isMobile ? 16 : 24),
+                      Text(
+                        'Profil Professionnel', 
+                        style: TextStyle(
+                          fontSize: isMobile ? 13 : 14, 
+                          fontWeight: FontWeight.bold, 
+                          color: _primary, 
+                          letterSpacing: 0.5
+                        )
+                      ),
+                      SizedBox(height: isMobile ? 12 : 16),
+                      _modernInfoTile(LucideIcons.briefcase, 'Expérience', _user!['Experience']?.toString() ?? 'Non précisée', isMobile: isMobile),
+                      _modernInfoTile(LucideIcons.map, 'Zone (Texte)', _user!['zoneTexte']?.toString() ?? 'Non précisée', isMobile: isMobile),
+                      _modernInfoTile(LucideIcons.navigation, 'Rayon d\'action', '${_user!['rayonTravaille']} km', isMobile: isMobile),
                       if (_user!['services'] != null && (_user!['services'] as List).isNotEmpty)
-                        _modernInfoTile(LucideIcons.settings, 'Services', (_user!['services'] as List).map((s) => s.toString()).join(", ")),
+                        _modernInfoTile(LucideIcons.settings, 'Services', (_user!['services'] as List).map((s) => s.toString()).join(", "), isMobile: isMobile),
                       
-                      const SizedBox(height: 24),
-                      const Text('Documents & Justificatifs', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary, letterSpacing: 0.5)),
-                      const SizedBox(height: 16),
-                      _buildDocumentsGrid(),
+                      SizedBox(height: isMobile ? 16 : 24),
+                      Text(
+                        'Documents & Justificatifs', 
+                        style: TextStyle(
+                          fontSize: isMobile ? 13 : 14, 
+                          fontWeight: FontWeight.bold, 
+                          color: _primary, 
+                          letterSpacing: 0.5
+                        )
+                      ),
+                      SizedBox(height: isMobile ? 12 : 16),
+                      _buildDocumentsGrid(isMobile: isMobile),
                     ],
                     
-                    const SizedBox(height: 16),
-                    _modernInfoTile(LucideIcons.clock, 'Dernière mise à jour', _user!['updatedAt'] ?? 'N/A'),
+                    SizedBox(height: isMobile ? 12 : 16),
+                    _modernInfoTile(LucideIcons.clock, 'Dernière mise à jour', _user!['updatedAt'] ?? 'N/A', isMobile: isMobile),
                     
-                    const SizedBox(height: 24),
+                    SizedBox(height: isMobile ? 16 : 24),
                     const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                    const SizedBox(height: 24),
-                    const Text('Actions Administratives', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _primary, letterSpacing: 0.5)),
-                    const SizedBox(height: 16),
+                    SizedBox(height: isMobile ? 16 : 24),
+                    Text(
+                      'Actions Administratives', 
+                      style: TextStyle(
+                        fontSize: isMobile ? 13 : 14, 
+                        fontWeight: FontWeight.bold, 
+                        color: _primary, 
+                        letterSpacing: 0.5
+                      )
+                    ),
+                    SizedBox(height: isMobile ? 12 : 16),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: _user!['email'].isNotEmpty ? _showEmailComposer : null,
-                        icon: const Icon(LucideIcons.mail, size: 16),
-                        label: const Text('Composer un e-mail personnalisé'),
+                        icon: Icon(LucideIcons.mail, size: isMobile ? 14 : 16),
+                        label: Text(
+                          'Envoyer un e-mail',
+                          style: TextStyle(fontSize: isMobile ? 12 : 14),
+                        ),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: _primary,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          padding: EdgeInsets.symmetric(vertical: isMobile ? 10 : 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    SizedBox(height: isMobile ? 8 : 12),
                     Row(
                       children: [
-                        Expanded(child: _modernActionBtn('Activer', Colors.green, LucideIcons.checkCircle, () => _updateStatus('ACTIVE'), isActive: _user!['status'] == 'ACTIVE')),
-                        const SizedBox(width: 8),
-                        Expanded(child: _modernActionBtn('Suspendre', Colors.orange, LucideIcons.alertTriangle, () => _updateStatus('SUSPENDUE'), isActive: _user!['status'] == 'SUSPENDUE')),
-                        const SizedBox(width: 8),
-                        Expanded(child: _modernActionBtn('Désactiver', Colors.red, LucideIcons.xCircle, () => _updateStatus('DESACTIVE'), isActive: _user!['status'] == 'DESACTIVE')),
+                        Expanded(child: _modernActionBtn('Activer', Colors.green, LucideIcons.checkCircle, () => _updateStatus('ACTIVE'), isActive: _user!['status'] == 'ACTIVE', isMobile: isMobile)),
+                        SizedBox(width: isMobile ? 6 : 8),
+                        Expanded(child: _modernActionBtn('Suspendre', Colors.orange, LucideIcons.alertTriangle, () => _updateStatus('SUSPENDUE'), isActive: _user!['status'] == 'SUSPENDUE', isMobile: isMobile)),
+                        SizedBox(width: isMobile ? 6 : 8),
+                        Expanded(child: _modernActionBtn('Désactiver', Colors.red, LucideIcons.xCircle, () => _updateStatus('DESACTIVE'), isActive: _user!['status'] == 'DESACTIVE', isMobile: isMobile)),
                       ],
                     ),
                   ],
@@ -255,25 +307,34 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     );
   }
 
-  Widget _modernInfoTile(IconData icon, String label, String value) {
+  Widget _modernInfoTile(IconData icon, String label, String value, {bool isMobile = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: isMobile ? 8 : 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: EdgeInsets.all(isMobile ? 6 : 8),
             decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(8)),
-            child: Icon(icon, size: 16, color: _textSecondary),
+            child: Icon(icon, size: isMobile ? 14 : 16, color: _textSecondary),
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: isMobile ? 8 : 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11, color: _textSecondary, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 14, color: _primary, fontWeight: FontWeight.w500)),
+                Text(label, style: TextStyle(fontSize: isMobile ? 10 : 11, color: _textSecondary, fontWeight: FontWeight.bold)),
+                SizedBox(height: 2),
+                Text(
+                  value, 
+                  style: TextStyle(
+                    fontSize: isMobile ? 12 : 14, 
+                    color: _primary, 
+                    fontWeight: FontWeight.w500
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: isMobile ? 2 : 3,
+                ),
               ],
             ),
           ),
@@ -413,7 +474,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     }
   }
 
-  Widget _buildResilientAvatar(String? url, String name) {
+  Widget _buildAvatar(String? url, String name) {
     if (url == null || url.isEmpty) {
       return CircleAvatar(
         radius: 40,
@@ -454,18 +515,24 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     );
   }
 
-  Widget _modernActionBtn(String label, Color color, IconData icon, VoidCallback onTap, {bool isActive = false}) {
+  Widget _modernActionBtn(String label, Color color, IconData icon, VoidCallback onTap, {bool isActive = false, bool isMobile = false}) {
     return ElevatedButton.icon(
       onPressed: isActive ? null : onTap,
-      icon: Icon(icon, size: 14),
-      label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+      icon: Icon(icon, size: isMobile ? 12 : 14),
+      label: Text(
+        label, 
+        style: TextStyle(
+          fontSize: isMobile ? 9 : 11, 
+          fontWeight: FontWeight.bold
+        )
+      ),
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.white,
         foregroundColor: _textSecondary,
         disabledBackgroundColor: color.withOpacity(0.1),
         disabledForegroundColor: color,
         elevation: 0,
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: EdgeInsets.symmetric(vertical: isMobile ? 8 : 12),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
           side: BorderSide(color: isActive ? color : const Color(0xFFE2E8F0)),
@@ -474,13 +541,13 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     );
   }
 
-  Widget _buildDocumentsGrid() {
+  Widget _buildDocumentsGrid({bool isMobile = false}) {
     List<Widget> cards = [];
 
     void addCard(String label, dynamic value) {
       final String url = value?.toString() ?? '';
       if (url.isNotEmpty && url != 'N/A' && url != 'Non fourni') {
-        cards.add(_buildDocumentCard(label, url));
+        cards.add(_buildDocumentCard(label, url, isMobile: isMobile));
       }
     }
 
@@ -489,12 +556,30 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     addCard('Casier Judiciaire', _user!['CasierJudiciaire']);
 
     if (cards.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text('Aucun document fourni', style: TextStyle(color: _textSecondary, fontStyle: FontStyle.italic)),
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: isMobile ? 6 : 8),
+        child: Text(
+          'Aucun document fourni', 
+          style: TextStyle(
+            color: _textSecondary, 
+            fontStyle: FontStyle.italic,
+            fontSize: isMobile ? 12 : 14
+          )
+        ),
       );
     }
 
+    if (isMobile) {
+      // Mobile: Single column layout
+      return Column(
+        children: cards.map((card) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: card,
+        )).toList(),
+      );
+    }
+
+    // Desktop: Two column layout
     List<Widget> rows = [];
     for (int i = 0; i < cards.length; i += 2) {
       rows.add(
@@ -504,7 +589,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
             const SizedBox(width: 12),
             if (i + 1 < cards.length) 
               Expanded(child: cards[i + 1])
-            else 
+            else
               const Expanded(child: SizedBox()),
           ],
         ),
@@ -517,7 +602,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     return Column(children: rows);
   }
 
-  Widget _buildDocumentCard(String label, String url) {
+  Widget _buildDocumentCard(String label, String url, {bool isMobile = false}) {
     final bool isPdf = url.toLowerCase().endsWith('.pdf');
     final bool isCloudinary = url.contains('cloudinary.com');
     
@@ -532,7 +617,7 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(isMobile ? 8 : 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(16),
@@ -541,12 +626,19 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _textSecondary)),
-          const SizedBox(height: 8),
+          Text(
+            label, 
+            style: TextStyle(
+              fontSize: isMobile ? 10 : 11, 
+              fontWeight: FontWeight.bold, 
+              color: _textSecondary
+            )
+          ),
+          SizedBox(height: isMobile ? 6 : 8),
           GestureDetector(
             onTap: () => _showFullDocument(label, url),
             child: Container(
-              height: 80,
+              height: isMobile ? 60 : 80,
               width: double.infinity,
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -562,7 +654,13 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                           Image.network(
                             previewUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Center(child: Icon(isPdf ? LucideIcons.fileText : LucideIcons.image, color: Colors.grey)),
+                            errorBuilder: (context, error, stackTrace) => Center(
+                              child: Icon(
+                                isPdf ? LucideIcons.fileText : LucideIcons.image, 
+                                color: Colors.grey,
+                                size: isMobile ? 24 : 32,
+                              )
+                            ),
                           ),
                           if (isPdf)
                             Positioned(
@@ -571,7 +669,14 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                 decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(4)),
-                                child: const Text('PDF', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold)),
+                                child: const Text(
+                                  'PDF', 
+                                  style: TextStyle(
+                                    color: Colors.white, 
+                                    fontSize: 8, 
+                                    fontWeight: FontWeight.bold
+                                  )
+                                ),
                               ),
                             ),
                         ],
@@ -581,9 +686,22 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(isPdf ? LucideIcons.fileText : LucideIcons.file, color: isPdf ? Colors.red[400] : Colors.blue[400]),
-                          const SizedBox(height: 4),
-                          const Text('VOIR DOCUMENT', style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.blue)),
+                          Icon(
+                            isPdf ? LucideIcons.fileText : LucideIcons.file, 
+                            color: isPdf ? Colors.red[400] : Colors.blue[400],
+                            size: isMobile ? 24 : 32,
+                          ),
+                          if (!isMobile) ...[
+                            const SizedBox(height: 4),
+                            const Text(
+                              'VOIR DOCUMENT', 
+                              style: TextStyle(
+                                fontSize: 8, 
+                                fontWeight: FontWeight.bold, 
+                                color: Colors.blue
+                              )
+                            ),
+                          ],
                         ],
                       ),
                     ),

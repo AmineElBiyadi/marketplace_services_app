@@ -148,33 +148,59 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
                 onPressed: () => Scaffold.of(context).openDrawer(),
               ),
             ),
-          const Text(
-            'Gestion des Réservations',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _textPrimary),
-          ),
-          const Spacer(),
-          ElevatedButton.icon(
-            onPressed: _exportReservations,
-            icon: const Icon(LucideIcons.fileText, size: 14),
-            label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _textPrimary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              elevation: 0,
+          Expanded(
+            child: Text(
+              'Gestion des Réservations',
+              style: TextStyle(
+                fontSize: isMobile ? 16 : 18,
+                fontWeight: FontWeight.bold,
+                color: _textPrimary,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          const SizedBox(width: 12),
-          IconButton(
-            onPressed: () {
-              _searchController.clear();
-              _selectedStatus = 'TOUS';
-              _selectedDateRange = null;
-              _loadData();
-            },
-            icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary),
-          ),
+          if (!isMobile) ...[
+            const SizedBox(width: 12),
+            SizedBox(
+              height: 36,
+              child: ElevatedButton.icon(
+                onPressed: _exportReservations,
+                icon: const Icon(LucideIcons.fileText, size: 14),
+                label: const Text('Exporter PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _textPrimary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            IconButton(
+              onPressed: () {
+                _searchController.clear();
+                _selectedStatus = 'TOUS';
+                _selectedDateRange = null;
+                _loadData();
+              },
+              icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary),
+            ),
+          ] else ...[
+            IconButton(
+              onPressed: () {
+                _searchController.clear();
+                _selectedStatus = 'TOUS';
+                _selectedDateRange = null;
+                _loadData();
+              },
+              icon: const Icon(LucideIcons.refreshCw, size: 18, color: _textSecondary),
+            ),
+            IconButton(
+              onPressed: _exportReservations,
+              icon: const Icon(LucideIcons.fileText, size: 18, color: _textPrimary),
+            ),
+          ],
         ],
       ),
     );
@@ -224,52 +250,75 @@ class _AdminReservationsScreenState extends State<AdminReservationsScreen> {
             child: Row(
               children: [
                 Expanded(
-                  flex: 2,
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: (v) => _applyFilters(),
-                    onSubmitted: (_) => _applyFilters(),
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher un client, expert ou service...',
-                      prefixIcon: const Icon(LucideIcons.search, size: 18),
-                      suffixIcon: _searchController.text.isNotEmpty 
-                        ? IconButton(
-                            icon: const Icon(LucideIcons.x, size: 16),
-                            onPressed: () {
-                              _searchController.clear();
-                              _applyFilters();
-                            },
-                          )
-                        : null,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
-                    ),
+                  flex: isMobile ? 1 : 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: _searchController,
+                        onChanged: (v) => _applyFilters(),
+                        onSubmitted: (_) => _applyFilters(),
+                        decoration: InputDecoration(
+                          hintText: 'Rechercher par client, expert, service ou ID...',
+                          prefixIcon: const Icon(LucideIcons.search, size: 18),
+                          suffixIcon: _searchController.text.isNotEmpty 
+                            ? IconButton(
+                                icon: const Icon(LucideIcons.x, size: 16),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  _applyFilters();
+                                },
+                              )
+                            : null,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                          filled: true,
+                          fillColor: const Color(0xFFF8FAFC),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                        ),
+                      ),
+                      if (isMobile) const SizedBox(height: 12),
+                      if (isMobile) Row(
+                        children: [
+                          Expanded(
+                            child: _buildDropdownFilter(
+                              value: _selectedStatus,
+                              items: _statuses,
+                              label: 'Statut',
+                              onChanged: (v) {
+                                if (v != null) {
+                                  setState(() => _selectedStatus = v);
+                                  _applyFilters();
+                                }
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            onPressed: _selectDateRange,
+                            icon: Icon(LucideIcons.calendar, color: _selectedDateRange == null ? _textSecondary : _primary),
+                            style: IconButton.styleFrom(
+                              backgroundColor: const Color(0xFFF1F5F9),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildDropdownFilter(
-                    value: _selectedStatus,
-                    items: _statuses,
-                    label: 'Statut',
-                    onChanged: (v) {
-                      if (v != null) {
-                        setState(() => _selectedStatus = v);
-                        _applyFilters();
-                      }
-                    },
-                  ),
-                ),
-                if (isMobile) ...[
+                if (!isMobile) ...[
                   const SizedBox(width: 12),
-                  IconButton(
-                    onPressed: _selectDateRange,
-                    icon: Icon(LucideIcons.calendar, color: _selectedDateRange == null ? _textSecondary : _primary),
-                    style: IconButton.styleFrom(
-                      backgroundColor: const Color(0xFFF1F5F9),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  Expanded(
+                    child: _buildDropdownFilter(
+                      value: _selectedStatus,
+                      items: _statuses,
+                      label: 'Statut',
+                      onChanged: (v) {
+                        if (v != null) {
+                          setState(() => _selectedStatus = v);
+                          _applyFilters();
+                        }
+                      },
                     ),
                   ),
                 ],

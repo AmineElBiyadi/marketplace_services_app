@@ -243,11 +243,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _kpiItem(String label, String value, IconData icon, Color bg, Color color, String change) {
-    final width = (MediaQuery.of(context).size.width - (MediaQuery.of(context).size.width < 1024 ? 80 : 340)) / 6;
-    final minWidth = 160.0;
+    final bool isMobile = MediaQuery.of(context).size.width < 1024;
+    final bool isSmallMobile = MediaQuery.of(context).size.width < 600;
+    
+    double width;
+    if (isSmallMobile) {
+      width = MediaQuery.of(context).size.width - 48; // Full width - padding
+    } else if (isMobile) {
+      width = (MediaQuery.of(context).size.width - 64) / 2; // 2 per row
+    } else {
+      // On desktop, try to fit 3 or more based on available space
+      width = (MediaQuery.of(context).size.width - 340) / 4;
+      if (width < 200) width = 200;
+      if (width > 300) width = 300;
+    }
 
     return Container(
-      width: width < minWidth ? (MediaQuery.of(context).size.width < 600 ? 160 : 180) : width,
+      width: width,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _card,
@@ -528,12 +540,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _textPrimary)),
-              TextButton(
-                onPressed: () => context.go(path),
-                child: const Text('Voir tout →', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _primary))
+              Expanded(
+                child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _textPrimary)),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: () => context.go(path),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: const Text('Voir tout →', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: _primary)),
+                ),
               ),
             ],
           ),
