@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -41,6 +42,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Position? _userPosition;
 
   List<Map<String, dynamic>> _categories = [];
+  final ScrollController _servicesScrollController = ScrollController();
+  double _indicatorOffset = 0.0;
+  final double _trackWidth = 120.0;
+  final double _indicatorWidth = 40.0;
 
   // Map of category names to their assets/icons (for hardcoded ones)
   final Map<String, Map<String, dynamic>> _categoryAssets = {
@@ -55,6 +60,27 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _servicesScrollController.addListener(_updateIndicator);
+  }
+
+  @override
+  void dispose() {
+    _servicesScrollController.removeListener(_updateIndicator);
+    _servicesScrollController.dispose();
+    super.dispose();
+  }
+
+  void _updateIndicator() {
+    if (_servicesScrollController.hasClients &&
+        _servicesScrollController.position.maxScrollExtent > 0) {
+      final maxScroll = _servicesScrollController.position.maxScrollExtent;
+      final currentScroll = _servicesScrollController.offset;
+      final scrollRatio = (currentScroll / maxScroll).clamp(0.0, 1.0);
+      
+      setState(() {
+        _indicatorOffset = scrollRatio * (_trackWidth - _indicatorWidth);
+      });
+    }
   }
 
   // ── Chargement des données ──────────────────
@@ -387,44 +413,57 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        SizedBox(
-                          height: 150,
-                          child: ListView.separated(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            scrollDirection: Axis.horizontal,
-                            itemCount: _categories.length,
-                            separatorBuilder: (context, index) => const SizedBox(width: 20),
-                            itemBuilder: (context, index) {
-                              final cat = _categories[index];
-                              final isSelected = _selectedCategory == cat['label'];
-                              return CategoryCard(
-                                label: cat['label'],
-                                icon: cat['icon'],
-                                imagePath: cat['image'],
-                                isSelected: isSelected,
-                                onTap: () => _selectCategory(cat['label']),
-                              );
+                        ScrollConfiguration(
+                          behavior: const ScrollBehavior().copyWith(
+                            dragDevices: {
+                              PointerDeviceKind.touch,
+                              PointerDeviceKind.mouse,
                             },
+                          ),
+                          child: SizedBox(
+                            height: 150,
+                            child: ListView.separated(
+                              controller: _servicesScrollController,
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _categories.length,
+                              separatorBuilder: (context, index) => const SizedBox(width: 20),
+                              itemBuilder: (context, index) {
+                                final cat = _categories[index];
+                                final isSelected = _selectedCategory == cat['label'];
+                                return CategoryCard(
+                                  label: cat['label'],
+                                  icon: cat['icon'],
+                                  imagePath: cat['image'],
+                                  isSelected: isSelected,
+                                  onTap: () => _selectCategory(cat['label']),
+                                );
+                              },
+                            ),
                           ),
                         ),
                         
                         // Scroll Indicator Placeholder
                         Center(
                           child: Container(
-                            width: 120,
+                            width: _trackWidth,
                             height: 4,
                             margin: const EdgeInsets.only(top: 12),
                             decoration: BoxDecoration(
                               color: Colors.grey.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(2),
                             ),
-                            child: Row(
+                            child: Stack(
                               children: [
-                                Container(
-                                  width: 40,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF4A69B1),
-                                    borderRadius: BorderRadius.circular(2),
+                                Positioned(
+                                  left: _indicatorOffset,
+                                  child: Container(
+                                    width: _indicatorWidth,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF4A69B1),
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
                                   ),
                                 ),
                               ],
