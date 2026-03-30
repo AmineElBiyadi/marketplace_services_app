@@ -838,21 +838,63 @@ class AdminDashboardService {
     
     await _db.collection('reclamations').doc(id).update(updates);
 
-    // Notify the user who made the claim
+    // Notify the users involved in the claim
     final claimDoc = await _db.collection('reclamations').doc(id).get();
     if (claimDoc.exists) {
       final claimData = claimDoc.data()!;
       final bool isClientUser = (claimData['typeReclamateur'] ?? 'CLIENT') == 'CLIENT';
-      final String userId = isClientUser ? claimData['idClient'] : claimData['idExpert'];
-      
-      if (userId != null) {
+      final String? idClient = claimData['idClient'];
+      final String? idExpert = claimData['idExpert'];
+
+      String? clientAuthId;
+      String? expertAuthId;
+
+      // Resolve actual idUtilisateur for client
+      if (idClient != null && idClient.isNotEmpty) {
+        final clientDoc = await _db.collection('clients').doc(idClient).get();
+        if (clientDoc.exists) {
+          clientAuthId = clientDoc.data()?['idUtilisateur'];
+        } else {
+          clientAuthId = idClient; // Fallback
+        }
+      }
+
+      // Resolve actual idUtilisateur for expert
+      if (idExpert != null && idExpert.isNotEmpty) {
+        final expertDoc = await _db.collection('experts').doc(idExpert).get();
+        if (expertDoc.exists) {
+          expertAuthId = expertDoc.data()?['idUtilisateur'];
+        } else {
+          expertAuthId = idExpert; // Fallback
+        }
+      }
+
+      // Prepare notification content
+      final notifTitle = "Response to your complaint";
+      final notifBody = status == 'REGLEE' 
+          ? "The complaint has been processed by the administration."
+          : (response != null ? "The admin responded to the complaint: $response" : "The complaint has been updated by the admin.");
+
+      // Notify caller (the one who created the claim)
+      final String? callerAuthId = isClientUser ? clientAuthId : expertAuthId;
+      if (callerAuthId != null) {
         await _notificationService.sendNotification(
-          idUtilisateur: userId,
-          titre: "Response to your complaint",
-          corps: status == 'REGLEE' 
-              ? "Your complaint has been processed by the administration."
-              : (response != null ? "The admin responded to your complaint: $response" : "Your complaint has been updated by the admin."),
+          idUtilisateur: callerAuthId,
+          titre: notifTitle,
+          corps: notifBody,
           type: 'claim_response',
+          relatedId: id,
+        );
+      }
+
+      // Optional: Notify the other party as well if it's resolved or if admin responded
+      final String? otherAuthId = isClientUser ? expertAuthId : clientAuthId;
+      if (otherAuthId != null) {
+        await _notificationService.sendNotification(
+          idUtilisateur: otherAuthId,
+          titre: "Update on a complaint",
+          corps: notifBody,
+          type: 'claim_update',
           relatedId: id,
         );
       }
