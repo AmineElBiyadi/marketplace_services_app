@@ -1302,6 +1302,7 @@ class FirestoreService {
           'etat': data['etatReclamation'] ?? 'EN_ATTENTE',
           'date': data['createdAt'],
           'idIntervention': data['idIntervention'] ?? '',
+          'adminResponse': data['adminResponse'] ?? '',
         };
       }).toList());
 
