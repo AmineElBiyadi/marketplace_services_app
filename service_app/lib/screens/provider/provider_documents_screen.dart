@@ -46,7 +46,7 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
     }
   }
 
-  void _showImageDialog(BuildContext context, String title, String imageUrl) {
+  void _showImageDialog(BuildContext context, String title, String imageUrl, {String? originalPdfUrl}) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -100,6 +100,32 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
                   ),
                 ),
               ),
+              if (originalPdfUrl != null)
+                Container(
+                  width: double.infinity,
+                  color: Colors.white,
+                  padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final uri = Uri.parse(originalPdfUrl);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } else {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Could not open PDF file")));
+                        }
+                      }
+                    },
+                    icon: const Icon(LucideIcons.externalLink, size: 16, color: Colors.white),
+                    label: const Text("Open original PDF", style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.all(Radius.circular(8)),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         );
@@ -145,81 +171,99 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
             ),
           ),
           const Divider(height: 1),
-          if (imageUrl != null && imageUrl.isNotEmpty)
-            if (imageUrl.toLowerCase().contains('.pdf'))
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 30),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(LucideIcons.fileText, size: 48, color: AppColors.primary),
-                    const SizedBox(height: 12),
-                    const Text("PDF File", style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        final uri = Uri.parse(imageUrl);
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                        } else {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Could not open PDF file")));
-                          }
-                        }
-                      },
-                      icon: const Icon(LucideIcons.externalLink, size: 16, color: Colors.white),
-                      label: const Text("Open PDF", style: TextStyle(color: Colors.white)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          if (imageUrl != null && imageUrl.isNotEmpty) ...[
+            Builder(
+              builder: (context) {
+                final bool isPdf = imageUrl.toLowerCase().contains('.pdf');
+                final bool isCloudinary = imageUrl.contains('cloudinary.com');
+                
+                String previewUrl = imageUrl;
+                bool showAsImage = !isPdf;
+                
+                if (isCloudinary && isPdf) {
+                  previewUrl = imageUrl.substring(0, imageUrl.length - 4) + '.jpg';
+                  showAsImage = true;
+                }
+
+                if (!showAsImage) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 30),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(16),
+                        bottomRight: Radius.circular(16),
                       ),
                     ),
-                  ],
-                ),
-              )
-            else
-              GestureDetector(
-                onTap: () => _showImageDialog(context, title, imageUrl),
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(16),
-                    bottomRight: Radius.circular(16),
-                  ),
-                  child: CachedNetworkImage(
-                    imageUrl: imageUrl,
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => const SizedBox(
-                      height: 200,
-                      child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(LucideIcons.fileText, size: 48, color: AppColors.primary),
+                        const SizedBox(height: 12),
+                        const Text("PDF File", style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            final uri = Uri.parse(imageUrl);
+                            if (await canLaunchUrl(uri)) {
+                              await launchUrl(uri, mode: LaunchMode.externalApplication);
+                            } else {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Could not open PDF file")));
+                              }
+                            }
+                          },
+                          icon: const Icon(LucideIcons.externalLink, size: 16, color: Colors.white),
+                          label: const Text("Open PDF", style: TextStyle(color: Colors.white)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ],
                     ),
-                    errorWidget: (context, url, error) => Container(
-                      height: 200,
-                      color: const Color(0xFFF1F5F9),
-                      child: const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(LucideIcons.imageOff, size: 40, color: Color(0xFF94A3B8)),
-                            SizedBox(height: 8),
-                            Text("Image not available", style: TextStyle(color: Color(0xFF94A3B8))),
-                          ],
+                  );
+                } else {
+                  return GestureDetector(
+                    onTap: () {
+                      _showImageDialog(context, title, previewUrl, originalPdfUrl: (isPdf && isCloudinary) ? imageUrl : null);
+                    },
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(16),
+                        bottomRight: Radius.circular(16),
+                      ),
+                      child: CachedNetworkImage(
+                        imageUrl: previewUrl,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const SizedBox(
+                          height: 200,
+                          child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          height: 200,
+                          color: const Color(0xFFF1F5F9),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(LucideIcons.imageOff, size: 40, color: Color(0xFF94A3B8)),
+                                SizedBox(height: 8),
+                                Text("Image not available", style: TextStyle(color: Color(0xFF94A3B8))),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ),
-              )
-          else
+                  );
+                }
+              },
+            ),
+          ] else
             Container(
               height: 100,
               width: double.infinity,
@@ -291,10 +335,6 @@ class _ProviderDocumentsScreenState extends State<ProviderDocumentsScreen> {
                   _buildDocumentCard(
                     "Criminal Record",
                     _expertModel?.casierJudiciaireUrl,
-                  ),
-                  _buildDocumentCard(
-                    "Certificate / Diploma",
-                    _expertModel?.certificatDocs,
                   ),
                   
                   const SizedBox(height: 40),

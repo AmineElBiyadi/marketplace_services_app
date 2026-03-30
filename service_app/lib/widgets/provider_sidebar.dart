@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/app_colors.dart';
 import '../screens/chat/chat_list_screen.dart';
 import '../services/firestore_service.dart';
+import '../services/notification_service.dart';
+import '../services/auth_service.dart';
 
 class ProviderSidebar extends StatefulWidget {
   final String activeRoute;
@@ -37,6 +41,18 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
         .listen((premium) {
           if (mounted) setState(() => _isPremium = premium);
         });
+  }
+
+  Future<void> _handleExpertLogout(BuildContext context) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // Delete FCM token so this device stops receiving notifications for this expert account
+      await NotificationService.deleteUserToken(user.uid);
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    await AuthService().signOut();
+    if (context.mounted) context.go('/welcome');
   }
 
   @override
@@ -123,9 +139,9 @@ class _ProviderSidebarState extends State<ProviderSidebar> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {
+        onTap: () async {
           if (route == '/logout') {
-            context.go('/login');
+            await _handleExpertLogout(context);
             return;
           }
           if (route.contains('/messages')) {
