@@ -1,143 +1,125 @@
 @echo off
-REM ============================================================
-REM  setup_presto.bat — Installation automatique de Presto
-REM  Marketplace des Services Locaux (Flutter / Dart / Firebase)
-REM  Nécessite : Windows 10/11, PowerShell 5+, droits Administrateur
-REM ============================================================
+:: ============================================================
+::  setup_presto.bat - Version de Debug Robustee
+:: ============================================================
+
+setlocal EnableDelayedExpansion
 
 echo.
-echo ============================================================
-echo    PRESTO ^— Script d'installation automatique (Windows)
-echo ============================================================
+echo ############################################################
+echo #       PRESTO - Script d'installation (Windows)       #
+echo ############################################################
 echo.
 
-REM ════════════════════════════════════════════════════════════
-REM  [1/8] WINGET — Vérification
-REM ════════════════════════════════════════════════════════════
-echo -- [1/8] Verification de winget...
+:: 1. Verifier les droits Administrateur
+net session >nul 2>&1
+if %errorLevel% neq 0 (
+    echo [ERREUR] Ce script doit etre lance en tant qu'ADMINISTRATEUR.
+    echo Clic droit sur le fichier -> "Executer en tant qu'administrateur"
+    echo.
+    pause
+    exit /b 1
+)
+echo [OK] Droits administrateur confirmes.
+
+:: 2. Verifier winget
+echo [1/8] Verification de winget...
 winget --version >nul 2>&1
 if %errorlevel% neq 0 (
-  echo   ERREUR : winget non disponible.
-  echo   Installez "App Installer" depuis le Microsoft Store,
-  echo   puis relancez ce script en tant qu'Administrateur.
-  pause
-  exit /b 1
+    echo [ERREUR] 'winget' est introuvable.
+    echo Installation de 'App Installer' requise depuis le Microsoft Store.
+    pause
+    exit /b 1
 )
-echo   OK winget present.
-echo.
+echo [OK] winget est present.
 
-REM ════════════════════════════════════════════════════════════
-REM  [2/8] GIT
-REM ════════════════════════════════════════════════════════════
-echo -- [2/8] Git...
-git --version >nul 2>&1
+:: 3. Installer Git
+echo [2/8] Verification de Git...
+where git >nul 2>&1
 if %errorlevel% neq 0 (
-  echo   Installation de Git...
-  winget install --id Git.Git -e --source winget --silent
-  echo   Git installe.
+    echo Installation de Git...
+    winget install --id Git.Git -e --source winget --silent --accept-source-agreements --accept-package-agreements
+    if %errorlevel% neq 0 (echo Erreur installation Git. & pause)
 ) else (
-  echo   OK Git deja present.
+    echo [OK] Git est deja present.
 )
-echo.
 
-REM ════════════════════════════════════════════════════════════
-REM  [3/8] JAVA JDK 17
-REM ════════════════════════════════════════════════════════════
-echo -- [3/8] Java JDK 17...
-java -version 2>&1 | findstr /i "version" | findstr "17" >nul 2>&1
+:: 4. Installer Java JDK 17
+echo [3/8] Verification de Java JDK 17...
+:: On teste si java existe Et si c'est la version 17
+java -version 2>&1 | findstr "17" >nul 2>&1
 if %errorlevel% neq 0 (
-  echo   Installation de Java JDK 17...
-  winget install --id Microsoft.OpenJDK.17 -e --source winget --silent
-  echo   Java JDK 17 installe.
+    echo [INFO] Java 17 non detecte. Tentative d'installation...
+    winget install --id Microsoft.OpenJDK.17 -e --source winget --accept-source-agreements --accept-package-agreements
+    if %errorlevel% neq 0 (
+        echo [ATTENTION] L'installation auto a echoue. 
+        echo Vous devrez peut-etre l'installer manuellement.
+    ) else (
+        echo [OK] Java JDK 17 installe.
+    )
 ) else (
-  echo   OK Java JDK 17 deja present.
+    echo [OK] Java JDK 17 est deja present.
 )
-echo.
 
-REM ════════════════════════════════════════════════════════════
-REM  [4/8] NODE.JS (v18+)
-REM ════════════════════════════════════════════════════════════
-echo -- [4/8] Node.js...
-node --version >nul 2>&1
+:: 5. Installer Node.js
+echo [4/8] Verification de Node.js...
+where node >nul 2>&1
 if %errorlevel% neq 0 (
-  echo   Installation de Node.js 18...
-  winget install --id OpenJS.NodeJS.LTS -e --source winget --silent
-  echo   Node.js installe.
+    echo [INFO] Node.js non detecte. Installation...
+    winget install --id OpenJS.NodeJS.LTS -e --source winget --silent --accept-source-agreements --accept-package-agreements
 ) else (
-  echo   OK Node.js deja present.
+    echo [OK] Node.js deja present.
 )
-echo.
 
-REM ════════════════════════════════════════════════════════════
-REM  [5/8] FLUTTER SDK
-REM ════════════════════════════════════════════════════════════
-echo -- [5/8] Flutter SDK...
-flutter --version >nul 2>&1
+:: 6. Installer Flutter
+echo [5/8] Verification de Flutter...
+where flutter >nul 2>&1
 if %errorlevel% neq 0 (
-  echo   Telechargement du Flutter SDK...
-  PowerShell -Command "Invoke-WebRequest -Uri 'https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_latest.zip' -OutFile '%TEMP%\flutter.zip'"
-  echo   Extraction...
-  PowerShell -Command "Expand-Archive -Path '%TEMP%\flutter.zip' -DestinationPath '%USERPROFILE%' -Force"
-  echo   Ajout au PATH systeme...
-  setx PATH "%PATH%;%USERPROFILE%\flutter\bin" /M
-  set PATH=%PATH%;%USERPROFILE%\flutter\bin
-  echo   Flutter SDK installe dans %USERPROFILE%\flutter
-  echo   IMPORTANT : Fermez et rouvrez le terminal pour recharger le PATH.
+    echo [INFO] Flutter non detecte dans le PATH.
+    if exist "%USERPROFILE%\flutter\bin\flutter.bat" (
+        echo [INFO] Flutter trouve dans %USERPROFILE%\flutter. Ajout au PATH...
+        setx PATH "%PATH%;%USERPROFILE%\flutter\bin" /M
+        set "PATH=%PATH%;%USERPROFILE%\flutter\bin"
+    ) else (
+        echo Telechargement de Flutter (veuillez patienter)...
+        powershell -Command "Invoke-WebRequest -Uri 'https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_latest.zip' -OutFile '%TEMP%\flutter.zip'"
+        echo Extraction vers %USERPROFILE%\flutter...
+        powershell -Command "Expand-Archive -Path '%TEMP%\flutter.zip' -DestinationPath '%USERPROFILE%' -Force"
+        setx PATH "%PATH%;%USERPROFILE%\flutter\bin" /M
+        set "PATH=%PATH%;%USERPROFILE%\flutter\bin"
+    )
 ) else (
-  echo   OK Flutter deja present.
+    echo [OK] Flutter est deja present.
 )
-echo.
 
-REM ════════════════════════════════════════════════════════════
-REM  [6/8] LICENCES ANDROID
-REM ════════════════════════════════════════════════════════════
-echo -- [6/8] Licences Android (repondez y a chaque invite)...
-flutter doctor --android-licenses
-echo.
+:: 7. Licences Android
+echo [6/8] Licences Android...
+echo Tapez 'y' a chaque question si demande.
+call flutter doctor --android-licenses
 
-REM ════════════════════════════════════════════════════════════
-REM  [7/8] PROJET PRESTO — Clone & dépendances
-REM ════════════════════════════════════════════════════════════
-echo -- [7/8] Clonage du projet Presto...
+:: 8. Projet Presto
+echo [7/8] Configuration du projet...
 set REPO_DIR=%USERPROFILE%\marketplace_services_app
-
-if exist "%REPO_DIR%\.git" (
-  echo   Depot deja present. Mise a jour (git pull)...
-  git -C "%REPO_DIR%" pull
+if not exist "%REPO_DIR%" (
+    echo Clonage du projet...
+    git clone https://github.com/AmineElBiyadi/marketplace_services_app.git "%REPO_DIR%"
 ) else (
-  echo   Clonage du depot...
-  git clone https://github.com/AmineElBiyadi/marketplace_services_app.git "%REPO_DIR%"
-  echo   Depot clone dans %REPO_DIR%
+    echo Dossier projet deja present.
 )
-echo.
 
-REM ════════════════════════════════════════════════════════════
-REM  [8/8] PACKAGES FLUTTER & .ENV
-REM ════════════════════════════════════════════════════════════
-echo -- [8/8] Installation des packages Flutter...
-flutter pub get --directory="%REPO_DIR%\service_app"
-echo   Packages installes.
-
-if not exist "%REPO_DIR%\service_app\.env" (
-  copy "%REPO_DIR%\service_app\.env.example" "%REPO_DIR%\service_app\.env"
-  echo   Fichier .env cree a partir de .env.example.
-) else (
-  echo   Fichier .env deja present.
+:: 9. Dependances
+echo [8/8] Installation des dependances...
+if exist "%REPO_DIR%\service_app" (
+    cd /d "%REPO_DIR%\service_app"
+    call flutter pub get
+    if not exist ".env" (copy ".env.example" ".env")
 )
 
 echo.
-echo ============================================================
-echo    Installation terminee avec succes !
+echo ############################################################
+echo #        INSTALLATION TERMINEE !                       #
+echo ############################################################
 echo.
-echo    ETAPE MANUELLE REQUISE :
-echo    Installer Android Studio depuis :
-echo    https://developer.android.com/studio
-echo    Puis relancer : flutter doctor --android-licenses
+echo IMPORTANT : Fermez cette fenetre et ouvrez un NOUVEAU terminal.
 echo.
-echo    Prochaine etape pour lancer l'application :
-echo    cd %USERPROFILE%\marketplace_services_app\service_app
-echo    flutter run
-echo.
-echo    La base de donnees Firebase est deja connectee.
-echo ============================================================
 pause
