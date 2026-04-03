@@ -159,7 +159,6 @@ class _ProviderLoginScreenState extends State<ProviderLoginScreen> {
                       color: Color(0xFF1A237E),
                     ),
                   ),
-                  Text('🔧', style: TextStyle(fontSize: 20)),
                 ],
               ),
               const SizedBox(height: 4),

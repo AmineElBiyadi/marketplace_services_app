@@ -780,7 +780,7 @@ class _ProviderSignupScreenState extends State<ProviderSignupScreen> {
             icon: _detectingLoc
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.my_location, size: 18),
-            label: Text(_detectingLoc ? 'Detecting...' : '📍 Detect city and country auto'),
+            label: Text(_detectingLoc ? 'Detecting...' : 'Detect city and country auto'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
               side: const BorderSide(color: AppColors.primary),

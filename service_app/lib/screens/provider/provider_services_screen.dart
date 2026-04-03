@@ -104,8 +104,10 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
       await _firestoreService.toggleServiceExpertsActive(id, !currentStatus);
       _loadData();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+      String errorMessage = e.toString().replaceAll("Exception: ", "");
+      _showBlockedDialog(
+        title: "Action Impossible",
+        message: errorMessage,
       );
     }
   }
@@ -227,8 +229,10 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
           const SnackBar(content: Text("Service deleted successfully")),
         );
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error deleting: $e")),
+        String errorMessage = e.toString().replaceAll("Exception: ", "");
+        _showBlockedDialog(
+          title: "Action Impossible",
+          message: errorMessage,
         );
       }
     }
