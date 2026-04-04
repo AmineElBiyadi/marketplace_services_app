@@ -126,7 +126,10 @@ class FirestoreService {
   Stream<List<InterventionModel>> getExpertInterventionsByMonth(String expertId, DateTime month) {
     final firstDay = DateTime(month.year, month.month, 1);
     final lastDay = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
+    return getExpertInterventionsByRange(expertId, firstDay, lastDay);
+  }
 
+  Stream<List<InterventionModel>> getExpertInterventionsByRange(String expertId, DateTime start, DateTime end) {
     return _firestore
         .collection('interventions')
         .where('idExpert', isEqualTo: expertId)
@@ -134,17 +137,11 @@ class FirestoreService {
         .map((snapshot) {
           final list = snapshot.docs.map((doc) => InterventionModel.fromFirestore(doc)).toList();
           
-          // Filter by date range – check if scheduled start OR actual end falls in this month
           return list.where((interv) {
-            final start = interv.dateDebutIntervention;
-            final end = interv.dateFinIntervention ?? start;
-            final created = interv.createdAt;
-
-            // Priority logic: 1. Start date (scheduled), 2. End date (completed), 3. Creation date
-            final date = start ?? end ?? created;
+            final date = interv.dateDebutIntervention ?? interv.dateFinIntervention ?? interv.createdAt;
             if (date == null) return false;
             
-            return !date.isBefore(firstDay) && !date.isAfter(lastDay);
+            return !date.isBefore(start) && !date.isAfter(end);
           }).toList();
         });
   }

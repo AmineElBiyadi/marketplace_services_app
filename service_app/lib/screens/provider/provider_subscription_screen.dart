@@ -633,39 +633,43 @@ class _ProviderSubscriptionScreenState extends State<ProviderSubscriptionScreen>
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: accent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    "Current plan",
+                    style: TextStyle(
+                        color: accent, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                  ),
                 ),
-                child: Text(
-                  "Current plan",
-                  style: TextStyle(
-                      color: accent, fontSize: 10, fontWeight: FontWeight.bold),
+                const SizedBox(height: 8),
+                Text(
+                  planLabel,
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF1E293B),
+                      height: 1.2),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                planLabel,
-                style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF1E293B)),
-              ),
-              Text(
-                price,
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  price,
+                  style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
           ),
-          Text(emoji, style: const TextStyle(fontSize: 40)),
+          const SizedBox(width: 12),
+          Text(emoji, style: const TextStyle(fontSize: 36)),
         ],
       ),
     );

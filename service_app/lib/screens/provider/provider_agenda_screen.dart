@@ -8,6 +8,8 @@ import '../../layouts/provider_layout.dart';
 import '../../services/firestore_service.dart';
 import '../../models/booking.dart';
 
+enum AgendaViewMode { month, week, day }
+
 class ProviderAgendaScreen extends StatefulWidget {
   final String expertId;
   const ProviderAgendaScreen({Key? key, required this.expertId}) : super(key: key);
@@ -23,6 +25,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
 
   DateTime _gridDate = DateTime.now();
   DateTime _queryDate = DateTime.now();
+  AgendaViewMode _viewMode = AgendaViewMode.month;
   Stream<List<InterventionModel>>? _interventionsStream;
   List<InterventionModel> _cachedInterventions = [];
   // Track which month the cache belongs to — prevents stale cross-month data
@@ -57,48 +60,88 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
 
   void _subscribeToStream() {
     if (_resolvedExpertId == null) return;
-    final newMonthKey = '${_queryDate.year}-${_queryDate.month}';
-    // Clear cache immediately when switching to a different month
+    
+    DateTime start;
+    DateTime end;
+    
+    if (_viewMode == AgendaViewMode.week) {
+      start = _startOfWeek;
+      end = _endOfWeek;
+    } else if (_viewMode == AgendaViewMode.day) {
+      start = DateTime(_gridDate.year, _gridDate.month, _gridDate.day);
+      end = DateTime(_gridDate.year, _gridDate.month, _gridDate.day, 23, 59, 59);
+    } else {
+      // Month mode: visible range should cover all days in the 5-6 weeks shown
+      start = _startOfVisibleMonth;
+      end = _endOfVisibleMonth;
+    }
+
+    // Use a slightly larger range for the stream to avoid issues with timezones or small overlaps
+    // For the list below the grid, we use the whole month of the current selected date
+    final firstOfMonth = DateTime(_gridDate.year, _gridDate.month, 1);
+    final lastOfMonth = DateTime(_gridDate.year, _gridDate.month + 1, 0, 23, 59, 59);
+    
+    final newMonthKey = '${_gridDate.year}-${_gridDate.month}';
     if (_cacheMonth != newMonthKey) {
       _cachedInterventions = [];
       _cacheMonth = newMonthKey;
     }
-    _interventionsStream = _firestoreService.getExpertInterventionsByMonth(_resolvedExpertId!, _queryDate);
+    
+    // We fetch for the whole month to populate the "All interventions of the month" list
+    // This also fixes the boundary issue because _cachedInterventions will contain 
+    // all interventions for the month of the currently viewed week/day.
+    // However, if a week spans TWO months, we need both months.
+    // To keep it simple and fix the boundary bug: fetch from start of visible range to end of visible range PLUS the month.
+    
+    final fetchStart = start.isBefore(firstOfMonth) ? start : firstOfMonth;
+    final fetchEnd = end.isAfter(lastOfMonth) ? end : lastOfMonth;
+
+    _interventionsStream = _firestoreService.getExpertInterventionsByRange(_resolvedExpertId!, fetchStart, fetchEnd);
   }
 
   void _previousMonth() {
-    _queryDate = DateTime(_queryDate.year, _queryDate.month - 1, 1);
-    _gridDate = _queryDate;
+    _gridDate = DateTime(_gridDate.year, _gridDate.month - 1, _gridDate.day);
     _subscribeToStream();
     setState(() {});
   }
 
   void _nextMonth() {
-    _queryDate = DateTime(_queryDate.year, _queryDate.month + 1, 1);
-    _gridDate = _queryDate;
+    _gridDate = DateTime(_gridDate.year, _gridDate.month + 1, _gridDate.day);
     _subscribeToStream();
     setState(() {});
   }
 
-  void _previousWeek() {
-    _gridDate = _gridDate.subtract(const Duration(days: 7));
-    if (_gridDate.month != _queryDate.month || _gridDate.year != _queryDate.year) {
-      _queryDate = DateTime(_gridDate.year, _gridDate.month, 1);
-      _cachedInterventions = [];
-      _subscribeToStream();
+  void _navigatePrevious() {
+    if (_viewMode == AgendaViewMode.month) {
+      _gridDate = DateTime(_gridDate.year, _gridDate.month - 1, 1);
+    } else if (_viewMode == AgendaViewMode.week) {
+      _gridDate = _gridDate.subtract(const Duration(days: 7));
+    } else {
+      _gridDate = _gridDate.subtract(const Duration(days: 1));
     }
+    _subscribeToStream();
     setState(() {});
   }
 
-  void _nextWeek() {
-    _gridDate = _gridDate.add(const Duration(days: 7));
-    if (_gridDate.month != _queryDate.month || _gridDate.year != _queryDate.year) {
-      _queryDate = DateTime(_gridDate.year, _gridDate.month, 1);
-      _cachedInterventions = [];
-      _subscribeToStream();
+  void _navigateNext() {
+    if (_viewMode == AgendaViewMode.month) {
+      _gridDate = DateTime(_gridDate.year, _gridDate.month + 1, 1);
+    } else if (_viewMode == AgendaViewMode.week) {
+      _gridDate = _gridDate.add(const Duration(days: 7));
+    } else {
+      _gridDate = _gridDate.add(const Duration(days: 1));
     }
+    _subscribeToStream();
     setState(() {});
   }
+
+  DateTime get _startOfVisibleMonth {
+    final first = DateTime(_gridDate.year, _gridDate.month, 1);
+    int daysToSubtract = first.weekday - 1;
+    return first.subtract(Duration(days: daysToSubtract));
+  }
+
+  DateTime get _endOfVisibleMonth => _startOfVisibleMonth.add(const Duration(days: 41, hours: 23, minutes: 59));
 
   DateTime get _startOfWeek {
     int daysToSubtract = _gridDate.weekday - 1;
@@ -136,12 +179,9 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                           return Center(child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.red)));
                         }
                         
-                        // Only update cache if the data belongs to the current query month
+                        // Only update cache if the data belongs to the current query range
                         if (snapshot.hasData) {
-                          final newMonthKey = '${_queryDate.year}-${_queryDate.month}';
-                          if (_cacheMonth == newMonthKey) {
-                            _cachedInterventions = snapshot.data!;
-                          }
+                          _cachedInterventions = snapshot.data!;
                         }
         
                         final bool isWaiting = snapshot.connectionState == ConnectionState.waiting;
@@ -153,20 +193,35 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                           return const Center(child: CircularProgressIndicator(color: AppColors.primary));
                         }
 
-                        final weekInterventions = allInterventions.where((i) {
+                        final visibleInterventions = allInterventions.where((i) {
                           if (i.dateDebutIntervention == null) return false;
-                          final start = _startOfWeek.subtract(const Duration(seconds: 1));
-                          final end = _endOfWeek.add(const Duration(seconds: 1));
-                          return i.dateDebutIntervention!.isAfter(start) &&
-                                 i.dateDebutIntervention!.isBefore(end);
+                          DateTime startRange;
+                          DateTime endRange;
+                          
+                          if (_viewMode == AgendaViewMode.week) {
+                            startRange = _startOfWeek;
+                            endRange = _endOfWeek;
+                          } else if (_viewMode == AgendaViewMode.day) {
+                            startRange = DateTime(_gridDate.year, _gridDate.month, _gridDate.day);
+                            endRange = DateTime(_gridDate.year, _gridDate.month, _gridDate.day, 23, 59, 59);
+                          } else {
+                            // Month mode, we show everything for the currently fetched range
+                            return true;
+                          }
+                          
+                          return i.dateDebutIntervention!.isAfter(startRange.subtract(const Duration(seconds: 1))) &&
+                                 i.dateDebutIntervention!.isBefore(endRange.add(const Duration(seconds: 1)));
                         }).toList();
-                        debugPrint("[ProviderAgendaScreen] UI Render - Week: ${weekInterventions.length}");
+                        debugPrint("[ProviderAgendaScreen] UI Render - Visible: ${visibleInterventions.length}");
         
                         return SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           child: Column(
                             children: [
-                              _buildCalendarGrid(weekInterventions),
+                              if (_viewMode == AgendaViewMode.month)
+                                _buildMonthGrid(visibleInterventions)
+                              else
+                                _buildCalendarGrid(visibleInterventions),
                               const SizedBox(height: 24),
                               _buildSummaryList(allInterventions),
                               if (isWaiting)
@@ -241,43 +296,103 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Color(0xFFF1F5F9))),
       ),
-      child: Row(
+      child: Column(
         children: [
-          const Text(
-            "My Agenda",
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
+          Row(
+            children: [
+              const Text(
+                "My Agenda",
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Color(0xFF1E293B)),
+              ),
+              const Spacer(),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                padding: const EdgeInsets.all(3),
+                child: Row(
+                  children: [
+                    _buildToggleButton("Day", _viewMode == AgendaViewMode.day, () {
+                      setState(() { _viewMode = AgendaViewMode.day; _subscribeToStream(); });
+                    }),
+                    _buildToggleButton("Week", _viewMode == AgendaViewMode.week, () {
+                      setState(() { _viewMode = AgendaViewMode.week; _subscribeToStream(); });
+                    }),
+                    _buildToggleButton("Month", _viewMode == AgendaViewMode.month, () {
+                      setState(() { _viewMode = AgendaViewMode.month; _subscribeToStream(); });
+                    }),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const Spacer(),
-          Text(
-            DateFormat('MMMM yyyy', 'en_US').format(_queryDate).toUpperCase(),
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            onPressed: _previousMonth,
-            icon: const Icon(LucideIcons.chevronLeft, size: 20, color: AppColors.primary),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-          ),
-          IconButton(
-            onPressed: _nextMonth,
-            icon: const Icon(LucideIcons.chevronRight, size: 20, color: AppColors.primary),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              IconButton(
+                onPressed: _navigatePrevious,
+                icon: const Icon(LucideIcons.chevronLeft, size: 20, color: AppColors.primary),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+              Text(
+                DateFormat('MMMM yyyy', 'en_US').format(_gridDate).toUpperCase(),
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.primary, letterSpacing: 1.1),
+              ),
+              IconButton(
+                onPressed: _navigateNext,
+                icon: const Icon(LucideIcons.chevronRight, size: 20, color: AppColors.primary),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
+  Widget _buildToggleButton(String label, bool isSelected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: isSelected ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))] : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            color: isSelected ? Colors.white : Colors.grey[600],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildWeekPicker() {
-    final start = DateFormat('dd MMM', 'en_US').format(_startOfWeek);
-    final end = DateFormat('dd MMM yyyy', 'en_US').format(_endOfWeek);
+    if (_viewMode == AgendaViewMode.month) return const SizedBox.shrink();
+    
+    final String label;
+    if (_viewMode == AgendaViewMode.week) {
+      final start = DateFormat('dd MMM', 'en_US').format(_startOfWeek);
+      final end = DateFormat('dd MMM yyyy', 'en_US').format(_endOfWeek);
+      label = "Week of $start to $end";
+    } else {
+      label = DateFormat('EEEE, dd MMMM yyyy', 'en_US').format(_gridDate);
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -285,12 +400,12 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(onPressed: _previousWeek, icon: const Icon(LucideIcons.arrowLeft, size: 16)),
+          IconButton(onPressed: _navigatePrevious, icon: const Icon(LucideIcons.arrowLeft, size: 16)),
           Text(
-            "Week of $start to $end",
+            label,
             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey),
           ),
-          IconButton(onPressed: _nextWeek, icon: const Icon(LucideIcons.arrowRight, size: 16)),
+          IconButton(onPressed: _navigateNext, icon: const Icon(LucideIcons.arrowRight, size: 16)),
         ],
       ),
     );
@@ -312,27 +427,55 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
             child: Row(
               children: [
                 const SizedBox(width: 44),
-                ...List.generate(7, (index) {
-                  final dayDate = _startOfWeek.add(Duration(days: index));
-                  final isToday = dayDate.day == DateTime.now().day && dayDate.month == DateTime.now().month && dayDate.year == DateTime.now().year;
-                  return Expanded(
+                if (_viewMode == AgendaViewMode.week)
+                  ...List.generate(7, (index) {
+                    final dayDate = _startOfWeek.add(Duration(days: index));
+                    final isToday = dayDate.day == DateTime.now().day && dayDate.month == DateTime.now().month && dayDate.year == DateTime.now().year;
+                    return Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _gridDate = dayDate;
+                            _viewMode = AgendaViewMode.day;
+                            _subscribeToStream();
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Column(
+                            children: [
+                              Text(
+                                _weekDaysShort[index],
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isToday ? AppColors.primary : const Color(0xFF1E293B)),
+                              ),
+                              Text(
+                                "${dayDate.day}",
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: isToday ? AppColors.primary : Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  })
+                else
+                  Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                       child: Column(
                         children: [
                           Text(
-                            _weekDaysShort[index],
-                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isToday ? AppColors.primary : const Color(0xFF1E293B)),
+                            DateFormat('EEEE', 'en_US').format(_gridDate),
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
                           ),
                           Text(
-                            "${dayDate.day}",
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: isToday ? AppColors.primary : Colors.grey),
+                            "${_gridDate.day}",
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: AppColors.primary),
                           ),
                         ],
                       ),
                     ),
-                  );
-                }),
+                  ),
               ],
             ),
           ),
@@ -353,11 +496,18 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                           style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.w500),
                         ),
                       ),
-                      ...List.generate(7, (index) => Expanded(
-                        child: Container(
-                          decoration: const BoxDecoration(border: Border(left: BorderSide(color: Color(0xFFF1F5F9)))),
+                      if (_viewMode == AgendaViewMode.week)
+                        ...List.generate(7, (index) => Expanded(
+                          child: Container(
+                            decoration: const BoxDecoration(border: Border(left: BorderSide(color: Color(0xFFF1F5F9)))),
+                          ),
+                        ))
+                      else
+                        Expanded(
+                          child: Container(
+                            decoration: const BoxDecoration(border: Border(left: BorderSide(color: Color(0xFFF1F5F9)))),
+                          ),
                         ),
-                      )),
                     ],
                   ),
                 )).toList(),
@@ -368,32 +518,42 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                 final dayInWeek = date.weekday - 1; 
                 final startHour = date.hour;
                 final startMin = date.minute;
-                final endHour = interv.dateFinIntervention?.hour ?? (startHour + 1);
-                final endMin = interv.dateFinIntervention?.minute ?? 0;
+                
+                // Calculate duration, default to 1 hour if dateFinIntervention is missing
+                final startDateTime = date;
+                final endDateTime = interv.dateFinIntervention ?? startDateTime.add(const Duration(hours: 1));
+                
+                double durationInHours = endDateTime.difference(startDateTime).inMinutes / 60.0;
+                
+                // Visually ensure at least 1 hour for all blocks (fix for TERMINEE "line" issue)
+                if (durationInHours < 0.8) durationInHours = 1.0;
 
                 if (startHour < 7 || startHour >= 19) return const SizedBox.shrink();
 
                 final double top = (startHour - 7) * 60.0 + (startMin / 60.0 * 60.0);
-                final double durationInHours = (endHour + endMin / 60.0) - (startHour + startMin / 60.0);
                 final double height = (durationInHours * 60.0) - 4;
+
+                final double totalWidth = MediaQuery.of(context).size.width - 76;
+                final double itemWidth = (_viewMode == AgendaViewMode.week) ? (totalWidth / 7) : totalWidth;
+                final double leftOffset = 44 + ((_viewMode == AgendaViewMode.week) ? (dayInWeek * itemWidth) : 0);
 
                 return Positioned(
                   top: top + 2,
-                  left: 44 + (dayInWeek * (MediaQuery.of(context).size.width - 76) / 7),
-                  width: (MediaQuery.of(context).size.width - 76) / 7 - 4,
+                  left: leftOffset,
+                  width: itemWidth - 4,
                   height: height.isNegative ? 20 : height,
                   child: GestureDetector(
                     onTap: () => _showInterventionDetails(interv),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: _getStatusColor(interv.statut).withOpacity(0.1),
+                        color: _getStatusColor(interv.statut).withOpacity(0.12),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border(left: BorderSide(color: _getStatusColor(interv.statut), width: 3)),
+                        border: Border(left: BorderSide(color: _getStatusColor(interv.statut), width: 4)),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, offset: const Offset(0, 2)),
+                          BoxShadow(color: _getStatusColor(interv.statut).withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2)),
                         ],
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                       child: SingleChildScrollView(
                         physics: const NeverScrollableScrollPhysics(),
                         child: Column(
@@ -403,20 +563,21 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
                             Text(
                               interv.tacheSnapshot?['serviceNom'] ?? 'Intervention',
                               style: TextStyle(
-                                fontSize: height < 30 ? 8 : (height < 45 ? 10 : 12),
-                                fontWeight: FontWeight.w800,
+                                fontSize: height < 30 ? 7 : (height < 45 ? 9 : 11),
+                                fontWeight: FontWeight.w900,
                                 color: _getStatusColor(interv.statut),
+                                height: 1.1,
                               ),
-                              maxLines: 1,
+                              maxLines: height < 40 ? 1 : 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            if (height > 50) ...[
-                              const SizedBox(height: 1),
+                            if (height > 45) ...[
+                              const SizedBox(height: 2),
                               Text(
                                 interv.clientSnapshot?['nom'] ?? '',
                                 style: TextStyle(
-                                  fontSize: 9, 
-                                  color: _getStatusColor(interv.statut).withOpacity(0.9), 
+                                  fontSize: 8, 
+                                  color: _getStatusColor(interv.statut).withOpacity(0.8), 
                                   fontWeight: FontWeight.bold
                                 ),
                                 maxLines: 1,
@@ -432,6 +593,115 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
               }),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonthGrid(List<InterventionModel> interventions) {
+    final start = _startOfVisibleMonth;
+    
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // Month days header
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0)))),
+            child: Row(
+              children: List.generate(7, (index) => Expanded(
+                child: Center(
+                  child: Text(
+                    _weekDaysShort[index],
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Color(0xFF64748B)),
+                  ),
+                ),
+              )),
+            ),
+          ),
+          // Month grid
+          ...List.generate(6, (weekIndex) {
+            return Container(
+              height: (MediaQuery.of(context).size.width - 32) / 7,
+              decoration: BoxDecoration(
+                border: Border(bottom: weekIndex < 5 ? const BorderSide(color: Color(0xFFF1F5F9)) : BorderSide.none),
+              ),
+              child: Row(
+                children: List.generate(7, (dayIndex) {
+                  final dayDate = start.add(Duration(days: weekIndex * 7 + dayIndex));
+                  final isCurrentMonth = dayDate.month == _gridDate.month;
+                  final isToday = dayDate.day == DateTime.now().day && dayDate.month == DateTime.now().month && dayDate.year == DateTime.now().year;
+                  
+                  final dayInterventions = interventions.where((i) {
+                    final d = i.dateDebutIntervention ?? i.dateFinIntervention ?? i.createdAt;
+                    return d != null && d.year == dayDate.year && d.month == dayDate.month && d.day == dayDate.day;
+                  }).toList();
+
+                  return Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _gridDate = dayDate;
+                          _viewMode = AgendaViewMode.day;
+                          _subscribeToStream();
+                        });
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isToday ? AppColors.primary.withOpacity(0.05) : Colors.transparent,
+                          border: Border(left: dayIndex > 0 ? const BorderSide(color: Color(0xFFF1F5F9)) : BorderSide.none),
+                        ),
+                        child: Stack(
+                          children: [
+                            Center(
+                              child: Text(
+                                "${dayDate.day}",
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: isToday ? FontWeight.w900 : (isCurrentMonth ? FontWeight.bold : FontWeight.normal),
+                                  color: isToday ? AppColors.primary : (isCurrentMonth ? const Color(0xFF1E293B) : Colors.grey[300]),
+                                ),
+                              ),
+                            ),
+                            if (dayInterventions.isNotEmpty)
+                              Positioned(
+                                bottom: 8,
+                                left: 0,
+                                right: 0,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      width: 4,
+                                      height: 4,
+                                      decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                                    ),
+                                    if (dayInterventions.length > 1) ...[
+                                      const SizedBox(width: 2),
+                                      Container(
+                                        width: 4,
+                                        height: 4,
+                                        decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.5), shape: BoxShape.circle),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            );
+          }),
         ],
       ),
     );
