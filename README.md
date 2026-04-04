@@ -25,8 +25,7 @@
 - [Stack Technique](#-stack-technique)
 - [Architecture du Code](#-architecture-du-code)
 - [Prérequis](#-prérequis)
-- [Installation & Configuration](#️-installation--configuration)
-- [Screenshots](#-screenshots)
+- [Installation & Configuration](#️-installation--configuration)m
 
 ---
 
