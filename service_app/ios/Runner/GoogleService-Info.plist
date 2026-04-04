@@ -2,22 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CLIENT_ID</key>
-	<string>1003192210122-sqf8o7lf79djleht0sse5qctermktld8.apps.googleusercontent.com</string>
-	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.1003192210122-sqf8o7lf79djleht0sse5qctermktld8</string>
 	<key>API_KEY</key>
-	<string>AIzaSyBFOPmd2isSylxpGhfvJJ05UFfNcBjaFuE</string>
+	<string>AIzaSyCyqBoExILTymXGicsIvb6jJyyXpkkWscA</string>
 	<key>GCM_SENDER_ID</key>
-	<string>1003192210122</string>
+	<string>112121777645</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.example.serviceApp</string>
 	<key>PROJECT_ID</key>
-	<string>services-app-70555</string>
+	<string>presto-daaed</string>
 	<key>STORAGE_BUCKET</key>
-	<string>services-app-70555.firebasestorage.app</string>
+	<string>presto-daaed.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -29,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:1003192210122:ios:faf3ec0e96c1a5af73da33</string>
+	<string>1:112121777645:ios:cba93f527235d78a51ebe4</string>
 </dict>
 </plist>

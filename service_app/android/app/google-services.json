@@ -1,51 +1,26 @@
 {
   "project_info": {
-    "project_number": "1003192210122",
-    "project_id": "services-app-70555",
-    "storage_bucket": "services-app-70555.firebasestorage.app"
+    "project_number": "112121777645",
+    "project_id": "presto-daaed",
+    "storage_bucket": "presto-daaed.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1003192210122:android:134025e747ade37873da33",
+        "mobilesdk_app_id": "1:112121777645:android:560a0019cf58b83a51ebe4",
         "android_client_info": {
           "package_name": "com.example.service_app"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "1003192210122-alja58hgshav5ja205pnuagfu3ok5gfp.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.service_app",
-            "certificate_hash": "dde600dbf0390f125b63828028ab4228a39674fb"
-          }
-        },
-        {
-          "client_id": "1003192210122-9nku1g0edt0d27i3kj41dqtmtitbanf5.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC_aBQQc2N_Qge28tpso11rmEpTuty2FCY"
+          "current_key": "AIzaSyCd74o3jz8he4UpU0C5wOBiPVKYfhqjjqE"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "1003192210122-9nku1g0edt0d27i3kj41dqtmtitbanf5.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "1003192210122-o0q24e5g7ppce1q9k91l8kqav3jvnc58.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.serviceApp.RunnerTests"
-              }
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }
