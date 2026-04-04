@@ -113,14 +113,8 @@ Suivez ces étapes pour exécuter le projet localement :
    ```
 
 4. **Configuration Firebase**
-   - Créez un projet sur la console Firebase.
-   - Installez la [CLI Firebase](https://firebase.google.com/docs/cli) et connectez-vous (`firebase login`).
-   - Activez `flutterfire_cli` : `dart pub global activate flutterfire_cli`.
-   - Lancez la configuration : 
-     ```bash
-     flutterfire configure
-     ```
-   - *Alternative :* Ajoutez manuellement le fichier `google-services.json` pour Android (`android/app/`) et `GoogleService-Info.plist` pour iOS (`ios/Runner/`).
+   - Le projet est déjà configuré avec Firebase. Vous n'avez pas besoin d'exécuter la CLI (`flutterfire`).
+   - Si les fichiers de configuration ne sont pas inclus dans le dépôt, assurez-vous simplement d'ajouter le fichier `google-services.json` pour Android dans (`android/app/`) et `GoogleService-Info.plist` pour iOS dans (`ios/Runner/`).
 
 5. **Exécuter l'application**
    ```bash
