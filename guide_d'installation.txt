@@ -1,230 +1,47 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                                                                              ║
-║              GUIDE D'INSTALLATION — PRESTO                                   ║
+║              GUIDE D'INSTALLATION — PRESTO (WINDOWS)                         ║
 ║              Marketplace des Services Locaux                                 ║
 ║              Application Mobile Flutter / Dart / Firebase                    ║
-║                                 Windows                                      ║
 ║                                                                              ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
-Version : 1.0.0
+Version : 1.2.0 (Diagnostic + Manuel)
 Dernière mise à jour : Mars 2026
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SCRIPT D'INSTALLATION AUTOMATIQUE  (Windows)
+0. DIAGNOSTIC INITIAL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  Ce script vérifie chaque outil AVANT de l'installer.
-  S'il est déjà présent, il passe à l'étape suivante sans rien écraser.
-
-  PRÉREQUIS :
-    • Windows 10 ou 11 (64 bits)
-    • PowerShell 5.1 ou supérieur (inclus par défaut)
-    • "App Installer" installé depuis le Microsoft Store  → fournit winget
-    • Exécuter le script en tant qu'Administrateur
-      (clic droit sur le fichier → Exécuter en tant qu'administrateur)
+  Avant de commencer, lancez le fichier [setup_presto.bat](file:///d:/marketplace_services_app/setup_presto.bat).
+  Il vous indiquera précisément quels logiciels manquent sur votre PC.
 
   UTILISATION :
     1. Ouvrez votre dossier : marketplace_services_app
-    2. Faites un clic droit sur le fichier : setup_presto.bat
-    3. Sélectionnez "Exécuter en tant qu'administrateur"
-
-  ┌─────────────────────────────────────────────────────────────────────────┐
-  │  NOTE : Android Studio doit être installé manuellement (voir ci-bas).   │
-  │  Le script installe tous les autres outils automatiquement.             │
-  └─────────────────────────────────────────────────────────────────────────┘
-
-────────────────────────── DÉBUT DU SCRIPT ──────────────────────────────────
-
-@echo off
-REM ============================================================
-REM  setup_presto.bat — Installation automatique de Presto
-REM  Marketplace des Services Locaux (Flutter / Dart / Firebase)
-REM  Nécessite : Windows 10/11, PowerShell 5+, droits Administrateur
-REM ============================================================
-
-echo.
-echo ============================================================
-echo    PRESTO ^— Script d'installation automatique (Windows)
-echo ============================================================
-echo.
-
-REM ════════════════════════════════════════════════════════════
-REM  [1/8] WINGET — Vérification
-REM ════════════════════════════════════════════════════════════
-echo -- [1/8] Verification de winget...
-winget --version >nul 2>&1
-if %errorlevel% neq 0 (
-  echo   ERREUR : winget non disponible.
-  echo   Installez "App Installer" depuis le Microsoft Store,
-  echo   puis relancez ce script en tant qu'Administrateur.
-  pause
-  exit /b 1
-)
-echo   OK winget present.
-echo.
-
-REM ════════════════════════════════════════════════════════════
-REM  [2/8] GIT
-REM ════════════════════════════════════════════════════════════
-echo -- [2/8] Git...
-git --version >nul 2>&1
-if %errorlevel% neq 0 (
-  echo   Installation de Git...
-  winget install --id Git.Git -e --source winget --silent
-  echo   Git installe.
-) else (
-  echo   OK Git deja present.
-)
-echo.
-
-REM ════════════════════════════════════════════════════════════
-REM  [3/8] JAVA JDK 17
-REM ════════════════════════════════════════════════════════════
-echo -- [3/8] Java JDK 17...
-java -version 2>&1 | findstr /i "version" | findstr "17" >nul 2>&1
-if %errorlevel% neq 0 (
-  echo   Installation de Java JDK 17...
-  winget install --id Microsoft.OpenJDK.17 -e --source winget --silent
-  echo   Java JDK 17 installe.
-) else (
-  echo   OK Java JDK 17 deja present.
-)
-echo.
-
-REM ════════════════════════════════════════════════════════════
-REM  [4/8] NODE.JS (v18+)
-REM ════════════════════════════════════════════════════════════
-echo -- [4/8] Node.js...
-node --version >nul 2>&1
-if %errorlevel% neq 0 (
-  echo   Installation de Node.js 18...
-  winget install --id OpenJS.NodeJS.LTS -e --source winget --silent
-  echo   Node.js installe.
-) else (
-  echo   OK Node.js deja present.
-)
-echo.
-
-REM ════════════════════════════════════════════════════════════
-REM  [5/8] FLUTTER SDK
-REM ════════════════════════════════════════════════════════════
-echo -- [5/8] Flutter SDK...
-flutter --version >nul 2>&1
-if %errorlevel% neq 0 (
-  echo   Telechargement du Flutter SDK...
-  PowerShell -Command "Invoke-WebRequest -Uri 'https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_latest.zip' -OutFile '%TEMP%\flutter.zip'"
-  echo   Extraction...
-  PowerShell -Command "Expand-Archive -Path '%TEMP%\flutter.zip' -DestinationPath '%USERPROFILE%' -Force"
-  echo   Ajout au PATH systeme...
-  setx PATH "%PATH%;%USERPROFILE%\flutter\bin" /M
-  set PATH=%PATH%;%USERPROFILE%\flutter\bin
-  echo   Flutter SDK installe dans %USERPROFILE%\flutter
-  echo   IMPORTANT : Fermez et rouvrez le terminal pour recharger le PATH.
-) else (
-  echo   OK Flutter deja present.
-)
-echo.
-
-REM ════════════════════════════════════════════════════════════
-REM  [6/8] LICENCES ANDROID
-REM ════════════════════════════════════════════════════════════
-echo -- [6/8] Licences Android (repondez y a chaque invite)...
-flutter doctor --android-licenses
-echo.
-
-REM ════════════════════════════════════════════════════════════
-REM  [7/8] PROJET PRESTO — Clone & dépendances
-REM ════════════════════════════════════════════════════════════
-echo -- [7/8] Clonage du projet Presto...
-set REPO_DIR=%USERPROFILE%\marketplace_services_app
-
-if exist "%REPO_DIR%\.git" (
-  echo   Depot deja present. Mise a jour (git pull)...
-  git -C "%REPO_DIR%" pull
-) else (
-  echo   Clonage du depot...
-  git clone https://github.com/AmineElBiyadi/marketplace_services_app.git "%REPO_DIR%"
-  echo   Depot clone dans %REPO_DIR%
-)
-echo.
-
-REM ════════════════════════════════════════════════════════════
-REM  [8/8] PACKAGES FLUTTER & .ENV
-REM ════════════════════════════════════════════════════════════
-echo -- [8/8] Installation des packages Flutter...
-flutter pub get --directory="%REPO_DIR%\service_app"
-echo   Packages installes.
-
-if not exist "%REPO_DIR%\service_app\.env" (
-  copy "%REPO_DIR%\service_app\.env.example" "%REPO_DIR%\service_app\.env"
-  echo   Fichier .env cree a partir de .env.example.
-) else (
-  echo   Fichier .env deja present.
-)
-
-echo.
-echo ============================================================
-echo    Installation terminee avec succes !
-echo.
-echo    ETAPE MANUELLE REQUISE :
-echo    Installer Android Studio depuis :
-echo    https://developer.android.com/studio
-echo    Puis relancer : flutter doctor --android-licenses
-echo.
-echo    Prochaine etape pour lancer l'application :
-echo    cd %USERPROFILE%\marketplace_services_app\service_app
-echo    flutter run
-echo.
-echo    La base de donnees Firebase est deja connectee.
-echo ============================================================
-pause
-
-─────────────────────────── FIN DU SCRIPT ───────────────────────────────────
-
-  ⚠️  APRÈS avoir lancé le script, étapes manuelles requises :
-
-    1. Installer Android Studio (non automatisable sur Windows) :
-         https://developer.android.com/studio
-         → Choisir "Standard Installation"
-         → Le SDK Android sera téléchargé automatiquement
-
-    2. Accepter les licences Android :
-         > flutter doctor --android-licenses
-
-    3. Lancer l'application :
-         > cd %USERPROFILE%\marketplace_services_app\service_app
-         > flutter run
-
-   ⚠️ La base de données Firebase est déjà connectée au projet.
-    Aucune configuration supplémentaire n'est nécessaire.
+    2. Double-cliquez sur : setup_presto.bat
+    3. Notez les composants marqués [MANQUANT].
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TABLE DES MATIÈRES
+1. LOGICIELS REQUIS (À INSTALLER MANUELLEMENT)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  1. Logiciels requis
-  2. Installation de Flutter & Dart
-  3. Configuration de l'environnement de développement
-  4. Clonage du projet Presto (marketplace_services_app)
-  5. Configuration des variables d'environnement (.env)
-  6. Configuration Firebase (base de données hébergée)
-  7. Installation des dépendances
-  8. Lancement de l'application
-  9. Build de production (Android)
-  10. Résolution des problèmes courants
-  11. Contact & Support
+  Suivez les liens ci-dessous pour installer les outils manquants :
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. Logiciels requis
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ✔  GIT (version 2.x)
+     → Lien : https://git-scm.com/download/win
+     → Installation : Choisir les options par défaut ("Standard Installation").
 
-  • Flutter SDK     : version 3.19.0 ou supérieure
-  • Dart SDK        : version 3.3.0 ou supérieure (inclus avec Flutter)
-  • Git             : version 2.x
-  • Android Studio  : avec extensions Flutter et Dart
-  • Java JDK        : version 17
-  • Node.js         : version 18+ (pour Firebase CLI)
+  ✔  JAVA JDK (Version 17 de préférence)
+     → Lien : https://learn.microsoft.com/en-us/java/openjdk/download
+     → Installation : Téléchargez "Microsoft Build of OpenJDK 17" (.msi).
+
+  ✔  NODE.JS (Version LTS)
+     → Lien : https://nodejs.org/
+     → Installation : Installer la version "LTS" (recommandée).
+
+  ✔  ANDROID STUDIO (IDE + SDK)
+     → Lien : https://developer.android.com/studio
+     → Installation : Suivre l'étape 3 ci-dessous.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 2. INSTALLATION DE FLUTTER & DART
@@ -232,190 +49,78 @@ TABLE DES MATIÈRES
 
   ÉTAPE 1 — Télécharger Flutter SDK
   ───────────────────────────────────
-  Rendez-vous sur : https://flutter.dev/docs/get-started/install
-  Sélectionnez Windows et téléchargez le SDK.
+  Rendez-vous sur : https://docs.flutter.dev/get-started/install/windows/mobile
+  Téléchargez l'archive `.zip` du SDK.
 
   ÉTAPE 2 — Extraire et configurer le PATH
   ─────────────────────────────────────────
-    1. Extraire le dossier flutter dans C:\flutter
-    2. Ajouter C:\flutter\bin aux variables d'environnement PATH :
-         Panneau de configuration → Système → Paramètres système avancés
-         → Variables d'environnement → Path → Nouveau → C:\flutter\bin
-    3. Ouvrir un nouveau terminal et vérifier :
-         > flutter --version
+  1. Créez un dossier `C:\src` ou utilisez votre dossier utilisateur.
+  2. Extrayez le dossier `flutter` dans celui-ci (ex: `C:\src\flutter`).
+  3. Ajoutez le chemin vers le dossier `bin` dans vos variables d'environnement :
+     - Windows -> Chercher "Modifier les variables d'environnement système"
+     - Cliquer sur "Variables d'environnement"
+     - Dans "Variables utilisateur", sélectionner "Path" -> Modifier
+     - Cliquer sur "Nouveau" -> coller le chemin (ex: `C:\src\flutter\bin`)
+     - Cliquez sur OK partout.
 
-  ÉTAPE 3 — Vérifier l'installation complète
-  ────────────────────────────────────────────
-    Exécuter la commande de diagnostic :
-      > flutter doctor
-
-    Résoudre tous les avertissements (warnings) signalés avant de continuer.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-3. CONFIGURATION DE L'ENVIRONNEMENT DE DÉVELOPPEMENT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  Option A — Android Studio (recommandé)
-  ───────────────────────────────────────
-    1. Télécharger : https://developer.android.com/studio
-    2. Choisir "Standard Installation" lors de l'installation
-       (le SDK Android sera téléchargé automatiquement)
-    3. Installer les plugins Flutter et Dart depuis :
-         File > Settings > Plugins > Marketplace
-    4. Configurer un émulateur Android :
-         Tools > Device Manager > Create Device
-       (recommandé : Pixel 7, API 34)
-    5. Accepter les licences Android :
-         > flutter doctor --android-licenses
-
-  Option B — Visual Studio Code
-  ──────────────────────────────
-    1. Télécharger : https://code.visualstudio.com
-    2. Installer les extensions :
-       - Flutter (par Dart Code)
-       - Dart (par Dart Code)
-       - Firebase Explorer (optionnel)
-    3. Ouvrir la palette de commandes (Ctrl+Shift+P) :
-         > Flutter: New Project
+  ÉTAPE 3 — Vérifier
+  ───────────────────
+  Ouvrez un NOUVEAU terminal et tapez :
+  > flutter --version
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-4. CLONAGE DU PROJET PRESTO (REPO GITHUB)
+3. CONFIGURATION D'ANDROID STUDIO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  1. Cloner le dépôt Git du projet :
-       > git clone https://github.com/AmineElBiyadi/marketplace_services_app.git
-       > cd marketplace_services_app\service_app
-
-  2. Vérifier la branche de développement :
-       > git checkout main
-
-  3. Structure du projet :
-       service_app\
-       ├── android\             → Configuration Android native
-       ├── lib\                 → Code source Flutter (Dart)
-       │   ├── main.dart        → Point d'entrée de l'application
-       │   ├── screens\         → Écrans de l'application
-       │   ├── models\          → Modèles de données
-       │   ├── services\        → Services Firebase & API
-       │   ├── widgets\         → Composants réutilisables
-       │   └── utils\           → Utilitaires et helpers
-       ├── assets\              → Images, polices, icônes
-       ├── pubspec.yaml         → Dépendances Dart/Flutter
-       └── firebase.json        → Configuration Firebase
+  1. Lancez **Android Studio**.
+  2. Suivez l'assistant de configuration ("Standard Installation").
+  3. Il téléchargera les SDK et outils nécessaires automatiquement (1-2 Go).
+  4. Accepter les licences Android dans un terminal :
+     > flutter doctor --android-licenses
+     (Répondez 'y' à toutes les questions).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-5. CONFIGURATION DES VARIABLES D'ENVIRONNEMENT (.ENV)
+4. CLONAGE DU PROJET (GÉRER VOS FICHIERS)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  L'application utilise un fichier .env pour stocker les clés API et
-  les configurations sensibles (Mapbox, Cloudinary, etc.).
+  Une fois Git installé (voir Étape 1), vous devez récupérer le code source :
 
-  1. Dans le dossier racine du projet (service_app), copier le fichier exemple :
-       > copy .env.example .env
+  1. Ouvrez un terminal (CMD ou PowerShell).
+  2. Allez dans le dossier où vous voulez mettre le projet (ex: Documents).
+  3. Tapez la commande suivante :
+     > git clone https://github.com/AmineElBiyadi/marketplace_services_app.git
 
-  2. (Optionnel) Ouvrir le fichier .env et vérifier les valeurs.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-6. CONFIGURATION FIREBASE (BASE DE DONNÉES DÉJÀ CONNECTÉE)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  ✔  La base de données Firebase est déjà hébergée ET connectée au projet.
-     Aucune commande firebase login ou flutterfire configure n'est requise.
-
-  Vérifier simplement la présence des fichiers de configuration :
-  ──────────────────────────────────────────────────────────────
-    Android :  service_app\android\app\google-services.json       ← doit exister
-    Dart    :  service_app\lib\firebase_options.dart              ← doit exister
-
-  Services Firebase actifs dans Presto :
-  ───────────────────────────────────────
-    ✔ Firebase Authentication   → Connexion utilisateurs / prestataires
-    ✔ Cloud Firestore            → Stockage des services, offres, profils
-    ✔ Firebase Storage           → Photos de profil et galeries de services
-    ✔ Firebase Cloud Messaging   → Notifications push
-    ✔ Firebase Analytics         → Statistiques d'utilisation (optionnel)
+  4. Entrez dans le dossier créé :
+     > cd marketplace_services_app\service_app
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-7. INSTALLATION DES DÉPENDANCES
+5. LANCEMENT DE L'APPLICATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  1. Récupérer tous les packages Dart/Flutter :
-       > cd service_app
-       > flutter pub get
+  1. Installez les packages Flutter :
+     > flutter pub get
 
-  2. Vérifier qu'aucune erreur n'est signalée :
-       > flutter pub outdated   ← (optionnel, pour vérifier les mises à jour)
+  2. Créez le fichier de configuration environnement :
+     > copy .env.example .env
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-8. LANCEMENT DE L'APPLICATION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  1. Vérifier les appareils disponibles :
-       > flutter devices
-
-  2. Lancer sur émulateur ou appareil physique :
-       > flutter run                          ← appareil détecté automatiquement
-
-  3. Raccourcis utiles en mode débogage :
-    r   → Hot reload (rechargement rapide)
-    R   → Hot restart (redémarrage complet)
-    q   → Quitter
+  3. Lancez l'application :
+     > flutter run
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-9. BUILD DE PRODUCTION
+RÉSOLUTION DES PROBLÈMES COURANTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  BUILD ANDROID — Générer un APK
-  ───────────────────────────────
-    > flutter build apk --release
+  PROBLÈME : Une commande n'est pas reconnue
+  SOLUTION : Fermez tous vos terminaux et ouvrez-en un nouveau. Si le problème
+             persiste, vérifiez que le chemin est bien présent dans le "Path"
+             (Paramètres système avancés).
 
-    Fichier généré :
-      service_app\build\app\outputs\flutter-apk\app-release.apk
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-10. RÉSOLUTION DES PROBLÈMES COURANTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  PROBLÈME : Erreur "Gradle build failed"
-  ─────────────────────────────────────────
-  SOLUTION :
-    > cd service_app\android
-    > gradlew clean
-    > cd ..
-    > flutter clean
-    > flutter pub get
-    > flutter run
-
-  PROBLÈME : "flutter" n'est pas reconnu après installation
-  ──────────────────────────────────────────────────────────
-  SOLUTION :
-    Le PATH mis à jour nécessite l'ouverture d'un nouveau terminal.
-    1. Fermer et rouvrir le terminal (ou redémarrer Windows)
-    2. Vérifier que le dossier flutter\bin est bien dans le PATH :
-         > echo %PATH%
-    3. Si absent, l'ajouter manuellement :
-         Panneau de configuration → Système → Variables d'environnement
-         → Path → Nouveau → C:\Users\<votre-nom>\flutter\bin
-
-  PROBLÈME : "winget" n'est pas reconnu
-  ───────────────────────────────────────
-  SOLUTION :
-    winget est fourni par l'application "App Installer" du Microsoft Store.
-    1. Ouvrir le Microsoft Store
-    2. Rechercher "App Installer"
-    3. Installer ou mettre à jour l'application
-    4. Relancer le script en tant qu'Administrateur
-
-  PROBLÈME : Erreur lors de l'acceptation des licences Android
-  ──────────────────────────────────────────────────────────────
-  SOLUTION :
-    1. Vérifier qu'Android Studio est installé et que le SDK est configuré
-    2. Ouvrir Android Studio → SDK Manager et accepter les licences
-       via l'interface graphique
-    3. Relancer : flutter doctor --android-licenses
+  PROBLÈME : Erreur au lancement (Crash au build)
+  SOLUTION : Tapez ces commandes dans l'ordre :
+             > flutter clean
+             > flutter pub get
+             > flutter run
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
   © 2026 Presto — Marketplace des Services Locaux. Tous droits réservés.
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
