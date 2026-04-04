@@ -97,14 +97,62 @@ Dernière mise à jour : Mars 2026
 5. LANCEMENT DE L'APPLICATION
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+  PRÉPARATION (À FAIRE UNE FOIS)
+  ──────────────────────────────
   1. Installez les packages Flutter :
      > flutter pub get
 
   2. Créez le fichier de configuration environnement :
      > copy .env.example .env
 
-  3. Lancez l'application :
+  OPTION A : LANCER SUR UN ÉMULATEUR (RECOMMANDÉ : GOOGLE PIXEL avec PLAY STORE)
+  ──────────────────────────────────────────────────────────────────────────────
+  Note : L'émulateur Google Pixel est fortement recommandé pour cette application
+  afin d'assurer le bon fonctionnement des services Firebase (nécessite le Play Store).
+
+  Créer l'émulateur Pixel (La première fois) :
+  1. Ouvrez Android Studio.
+  2. Cliquez sur "Virtual Device Manager" (l'icône de téléphone en haut à droite).
+  3. Cliquez sur "Create Device" (Créer un appareil).
+  4. Dans la catégorie "Phone", choisissez "Pixel 7" ou "Pixel 6a". 
+     -> IMPORTANT : Ce modèle doit avoir l'icône "Play Store" dans sa ligne.
+  5. Cliquez sur "Next", et téléchargez l'image système recommandée (ex: API 34+).
+  6. Cliquez sur "Next" puis "Finish".
+
+  Lancer l'application :
+  7. Dans le Device Manager, démarrez votre nouvel émulateur (bouton Play).
+  8. Une fois qu'Android est affiché à l'écran, allez dans votre terminal et tapez :
      > flutter run
+
+  OPTION B : LANCER SUR UN TÉLÉPHONE ANDROID PHYSIQUE
+  ───────────────────────────────────────────────────
+  Cette procédure générale s'applique à tous les téléphones Android (Samsung, Xiaomi, etc.) :
+
+  1. Activez le mode Développeur sur votre téléphone :
+     - Allez dans [Paramètres] > [À propos du téléphone].
+     - (Sur Samsung : allez ensuite dans [Informations sur le logiciel]).
+     - Appuyez 7 fois de suite sur [Numéro de build] (ou [Version MIUI/HyperOS] sur Xiaomi/Redmi).
+
+  2. Activez le Débogage USB :
+     - Dans les Paramètres, cherchez le menu [Options pour les développeurs] (parfois caché dans [Système] ou [Paramètres supplémentaires]).
+     - Activez l'option [Débogage USB] (USB debugging).
+     - *Note Xiaomi/Poco : Activez également l'option [Installer via USB] juste en dessous.*
+     - *Note Samsung : Si le téléphone bloque la connexion, allez dans [Paramètres] > [Sécurité et confidentialité] et désactivez le [Bloqueur automatique] (Auto Blocker).*
+
+  3. Connectez votre téléphone à votre PC avec un câble USB.
+  4. Sur le téléphone, une alerte apparaît : acceptez le débogage ("Autoriser ce PC").
+  5. Dans votre terminal, tapez la commande suivante pour vérifier que le téléphone est reconnu :
+     > flutter devices
+  6. Lancez l'application sur le téléphone connecté :
+     > flutter run
+
+  OPTION C : LANCER DANS UN NAVIGATEUR WEB (CHROME / EDGE)
+  ────────────────────────────────────────────────────────
+  1. Assurez-vous d'avoir Google Chrome ou Microsoft Edge d'installé sur votre PC.
+  2. Dans votre terminal, lancez la commande suivante pour Chrome :
+     > flutter run -d chrome
+     (Ou tapez `flutter run -d edge` pour lancer avec Microsoft Edge).
+  3. L'application Web s'ouvrira automatiquement dans un nouvel onglet.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RÉSOLUTION DES PROBLÈMES COURANTS
