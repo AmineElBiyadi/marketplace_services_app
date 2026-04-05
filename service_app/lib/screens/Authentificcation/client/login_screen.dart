@@ -80,28 +80,15 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // Try provider
+      // Check if they are a provider trying to log into the client app
       final providerData = await _firestoreService.getProviderByUid(uid);
       if (providerData != null) {
-        final expertId = providerData['expertId'] ?? '';
-        final activeCgu = await _firestoreService.fetchActiveCGU('EXPERT');
-        final acceptedVersion = providerData['acceptedCguVersion'] ?? 'none';
-        final activeVersion = activeCgu?['version'] ?? '1.0';
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('logged_expert_id', expertId);
+        await _authService.signOut();
         if (mounted) {
-          if (acceptedVersion != activeVersion) {
-            context.go('/cgu_update', extra: {'role': 'EXPERT', 'uid': uid, 'cgu': activeCgu});
-            return;
-          }
-
-          final etatCompte = providerData['etatCompte'] ?? 'PENDING';
-          if (etatCompte == 'ACTIVE') {
-            context.go('/provider/$expertId/dashboard');
-          } else {
-            context.go('/provider/pending');
-          }
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('You are an expert. Please log in from the Provider Space.'),
+            backgroundColor: AppColors.destructive,
+          ));
         }
         return;
       }

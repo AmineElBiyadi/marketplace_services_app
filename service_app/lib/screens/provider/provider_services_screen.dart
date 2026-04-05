@@ -60,7 +60,7 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+    if (mounted) setState(() => _isLoading = true);
     try {
       // Load free limits from global config
       final dynamicLimit = await _firestoreService.getFreeServiceLimit();
@@ -74,12 +74,15 @@ class _ProviderServicesScreenState extends State<ProviderServicesScreen> {
 
       final services = await _firestoreService.getExpertServicesDetailed(widget.expertId);
       final categories = await _firestoreService.getServiceCategories();
+      
+      if (!mounted) return;
       setState(() {
         _expertServices = services;
         _categories = categories;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error loading data: $e")),
