@@ -2314,8 +2314,19 @@ class FirestoreService {
           
       if (snapshot.docs.isNotEmpty) {
         final data = snapshot.docs.first.data();
+        
+        String? content = data['content'] as String?;
+        if (content == null || content.isEmpty) {
+          for (var key in data.keys) {
+            if (key.length > 50) {
+              content = key;
+              break;
+            }
+          }
+        }
+        
         return {
-          'content': data['content'] as String? ?? '',
+          'content': content ?? '',
           'version': data['version'] as String? ?? '1.0',
         };
       }

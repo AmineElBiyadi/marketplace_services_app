@@ -44,8 +44,15 @@ class InterventionService {
 
       if (seSnap.docs.isEmpty) return [];
 
-      // 2. Fetch the service docs in parallel
-      final serviceIds = seSnap.docs.map((d) => d.data()['idService'] as String).toList();
+      // 2. Filter inactive services, then fetch the service docs in parallel
+      final activeDocs = seSnap.docs.where((d) {
+        final data = d.data();
+        return data['estActive'] == true && data['isVisibleByPlan'] != false;
+      }).toList();
+
+      if (activeDocs.isEmpty) return [];
+
+      final serviceIds = activeDocs.map((d) => d.data()['idService'] as String).toList();
       final serviceDocs = await Future.wait(
         serviceIds.map((id) => _db.collection('services').doc(id).get()),
       );
