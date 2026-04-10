@@ -230,82 +230,165 @@ class _UserProfileDetailDialogState extends State<UserProfileDetailDialog> {
 
     showDialog(
       context: context,
+      // isScrollControlled ensures the dialog resizes when keyboard appears
       builder: (context) => StatefulBuilder(
-        builder: (context, setLocalState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Container(
-            width: 500,
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('New Email', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                const SizedBox(height: 24),
-                TextField(
-                  controller: subjectController,
-                  decoration: InputDecoration(
-                    labelText: 'Subject',
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: bodyController,
-                  maxLines: 6,
-                  decoration: InputDecoration(
-                    labelText: 'Message',
-                    alignLabelWithHint: true,
-                    filled: true,
-                    fillColor: const Color(0xFFF8FAFC),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  ),
-                ),
-                const SizedBox(height: 32),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14)),
-                      child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: sending ? null : () async {
-                        if (bodyController.text.isEmpty) return;
-                        setLocalState(() => sending = true);
-                        await _service.sendAutomaticEmail(
-                          to: _user!['email'],
-                          subject: subjectController.text,
-                          html: "<div style='font-family: sans-serif; color: #333;'><p>${bodyController.text.replaceAll('\n', '<br>')}</p><br><p>Best regards,<br><strong>The Marketplace Team</strong></p></div>",
-                        );
-                        if (context.mounted) Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Email sent successfully!'), backgroundColor: Colors.green));
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
-                      ),
-                      child: sending 
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                        : const Text('Send', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                    ),
-                  ],
-                ),
-              ],
+        builder: (context, setLocalState) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          final isMobile = screenWidth < 768;
+          // Push the dialog up when the keyboard is shown
+          final keyboardInset = MediaQuery.of(context).viewInsets.bottom;
+
+          return Dialog(
+            insetPadding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 16 : 40,
+              vertical: isMobile ? 16 : 24,
             ),
-          ),
-        ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: AnimatedPadding(
+              duration: const Duration(milliseconds: 150),
+              padding: EdgeInsets.only(bottom: keyboardInset),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: isMobile ? screenWidth - 32 : 500,
+                  // Limit height so it doesn't overflow; dialog scrolls inside
+                  maxHeight: MediaQuery.of(context).size.height * (isMobile ? 0.85 : 0.90),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ── Scrollable body ──────────────────────────────────
+                      Flexible(
+                        child: SingleChildScrollView(
+                          padding: EdgeInsets.fromLTRB(
+                            isMobile ? 20 : 32,
+                            isMobile ? 20 : 32,
+                            isMobile ? 20 : 32,
+                            0,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'New Email',
+                                style: TextStyle(
+                                  fontSize: isMobile ? 18 : 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFF0F172A),
+                                ),
+                              ),
+                              SizedBox(height: isMobile ? 16 : 24),
+                              TextField(
+                                controller: subjectController,
+                                decoration: InputDecoration(
+                                  labelText: 'Subject',
+                                  filled: true,
+                                  fillColor: const Color(0xFFF8FAFC),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: isMobile ? 12 : 16),
+                              TextField(
+                                controller: bodyController,
+                                maxLines: isMobile ? 5 : 6,
+                                decoration: InputDecoration(
+                                  labelText: 'Message',
+                                  alignLabelWithHint: true,
+                                  filled: true,
+                                  fillColor: const Color(0xFFF8FAFC),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(height: isMobile ? 16 : 24),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // ── Sticky action buttons ────────────────────────────
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 20 : 32,
+                          vertical: isMobile ? 12 : 16,
+                        ),
+                        decoration: const BoxDecoration(
+                          border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isMobile ? 16 : 24,
+                                  vertical: isMobile ? 10 : 14,
+                                ),
+                              ),
+                              child: const Text(
+                                'Cancel',
+                                style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            SizedBox(width: isMobile ? 8 : 12),
+                            ElevatedButton(
+                              onPressed: sending ? null : () async {
+                                if (bodyController.text.isEmpty) return;
+                                setLocalState(() => sending = true);
+                                await _service.sendAutomaticEmail(
+                                  to: _user!['email'],
+                                  subject: subjectController.text,
+                                  html: "<div style='font-family: sans-serif; color: #333;'><p>${bodyController.text.replaceAll('\n', '<br>')}</p><br><p>Best regards,<br><strong>The Marketplace Team</strong></p></div>",
+                                );
+                                if (context.mounted) Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Email sent successfully!'), backgroundColor: Colors.green),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: isMobile ? 20 : 32,
+                                  vertical: isMobile ? 10 : 14,
+                                ),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                elevation: 0,
+                              ),
+                              child: sending
+                                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : Text(
+                                    'Send',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: isMobile ? 13 : 14,
+                                    ),
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
+
 
   Widget _modernInfoTile(IconData icon, String label, String value, {bool isMobile = false}) {
     return Padding(

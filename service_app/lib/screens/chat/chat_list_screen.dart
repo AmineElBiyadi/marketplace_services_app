@@ -5,6 +5,7 @@ import '../../services/chat_service.dart';
 import '../../models/chat_model.dart';
 import '../chat/chat_screen.dart';
 import '../../widgets/shared/client_header.dart';
+import '../../widgets/live_avatar.dart';
 
 class ChatListScreen extends StatelessWidget {
   final String currentUserRole; // "client" or "expert"
@@ -171,7 +172,7 @@ class ChatListScreen extends StatelessWidget {
                     return ListTile(
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 6),
-                      leading: _buildAvatar(otherPhoto, otherName, chat.estOuvert),
+                      leading: _buildAvatar(chat, otherPhoto, otherName, currentUserRole),
                       title: Row(
                         children: [
                           Expanded(
@@ -299,33 +300,19 @@ class ChatListScreen extends StatelessWidget {
     return DateFormat('MM/dd/yy').format(dt);
   }
 
-  Widget _buildAvatar(String photo, String name, bool isOpen) {
-    final initials = name.isNotEmpty ? name.split(' ').map((e) => e[0]).take(2).join().toUpperCase() : '?';
-    
-    Widget avatar = Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: _primaryBlue.withOpacity(0.1),
-        shape: BoxShape.circle,
-        image: photo.isNotEmpty && photo.startsWith('http')
-            ? DecorationImage(image: NetworkImage(photo), fit: BoxFit.cover)
-            : null,
-      ),
-      alignment: Alignment.center,
-      child: photo.isEmpty || !photo.startsWith('http')
-          ? Text(
-              initials,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: _primaryBlue,
-              ),
-            )
-          : null,
+  Widget _buildAvatar(ChatModel chat, String photo, String name, String role) {
+    final otherId = role == 'client' ? chat.idExpert : chat.idClient;
+    final otherType = role == 'client' ? 'expert' : 'client';
+
+    Widget avatar = LiveAvatar(
+      id: otherId,
+      fallbackPhoto: photo,
+      fallbackName: name,
+      radius: 24,
+      type: otherType,
     );
 
-    if (!isOpen) {
+    if (!chat.estOuvert) {
       return Stack(
         children: [
           avatar,
@@ -338,8 +325,7 @@ class ChatListScreen extends StatelessWidget {
                 color: Colors.white,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.lock,
-                  size: 12, color: Colors.grey),
+              child: const Icon(Icons.lock, size: 12, color: Colors.grey),
             ),
           ),
         ],
