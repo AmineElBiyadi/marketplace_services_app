@@ -91,6 +91,9 @@ class _SearchScreenState extends State<SearchScreen> {
     final q = _searchCtrl.text.toLowerCase().trim();
 
     List<Expert> res = _all.where((e) {
+      // Safety filter: only show available experts in Search
+      if (!e.estDisponible) return false;
+
       if (e.noteMoyenne < _minNote) return false;
       if (_selectedVille != null &&
           !e.ville.toLowerCase().contains(_selectedVille!.toLowerCase())) {

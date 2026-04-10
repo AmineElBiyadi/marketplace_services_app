@@ -168,6 +168,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void _applyFilters() {
     setState(() {
       _filteredExperts = _experts.where((e) {
+        // ALWAYS filter out unavailable experts in Client Home unless explicitly requested otherwise
+        // (Since getExperts(onlyAvailable: true) is used, e.estDisponible should already be true,
+        // but this adds a layer of safety).
+        if (!e.estDisponible) return false;
+
         if (_selectedCategory != null && !e.services.any((s) => s.toLowerCase().contains(_selectedCategory!.toLowerCase()))) {
           return false;
         }
