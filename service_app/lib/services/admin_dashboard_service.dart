@@ -1017,7 +1017,8 @@ class AdminDashboardService {
 
   /// Fetches a combined user profile (client or expert) for the admin management modal
   Future<Map<String, dynamic>?> getUserProfile(String id, String role) async {
-    final collection = (role == 'Expert' || role == 'Prestataire') ? 'experts' : 'clients';
+    final String r = role.toLowerCase();
+    final collection = (r.contains('expert') || r.contains('prestataire') || r.contains('provider')) ? 'experts' : 'clients';
     DocumentSnapshot<Map<String, dynamic>> doc = await _db.collection(collection).doc(id).get();
     
     // Fallback: If not found by direct ID, search by idUtilisateur

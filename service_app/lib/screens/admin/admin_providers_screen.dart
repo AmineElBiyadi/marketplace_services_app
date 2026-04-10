@@ -407,7 +407,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
         ),
       ),
       DataCell(Text('$services$moreServices', style: const TextStyle(fontSize: 12))),
-      DataCell(_badge(p['pack'] ?? 'Free', p['hasSubscription'] ? Colors.purple : _textSecondary)),
+      DataCell(_badge(_translatePack(p['pack'] ?? 'Free'), p['hasSubscription'] ? Colors.purple : _textSecondary)),
       DataCell(Center(child: Text(p['interventionsCount'].toString()))),
       DataCell(Row(
         children: [
@@ -578,7 +578,7 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text('Plan', style: TextStyle(fontSize: 10, color: _textSecondary)),
-                    _badge(p['pack'] ?? 'Free', p['hasSubscription'] ? Colors.purple : _textSecondary),
+                    _badge(_translatePack(p['pack'] ?? 'Free'), p['hasSubscription'] ? Colors.purple : _textSecondary),
                   ],
                 ),
                 Column(
@@ -627,11 +627,20 @@ class _AdminProvidersScreenState extends State<AdminProvidersScreen> {
     );
   }
 
+  /// Translates raw Firestore pack values to English at display time.
+  String _translatePack(String raw) {
+    switch (raw.toLowerCase()) {
+      case 'gratuit': return 'Free';
+      case 'premium': return 'Premium';
+      default:        return raw;
+    }
+  }
+
   void _exportProviders() async {
     final headers = ['Name', 'Plan', 'Ratings', 'Interventions', 'Status'];
     final rows = _filteredProviders.map((p) => [
       p['name'] ?? '',
-      p['pack'] ?? '',
+      _translatePack(p['pack'] ?? ''),
       p['rating']?.toStringAsFixed(1) ?? '0.0',
       p['interventionsCount']?.toString() ?? '0',
       p['status'] ?? '',

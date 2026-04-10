@@ -115,18 +115,18 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
             'abonnements': (e['revenue'] as num).toDouble(),
           }).toList();
 
-          // All subscriptions (ACTIVE) for the main table (Wait, the data comes mapped, I filter for 'Actif')
+          // All subscriptions (ACTIVE) for the main table
           final allSubsMapped = transactions.map((t) => {
             'id': t['id'] ?? '',
-            'provider': t['expertName'] ?? 'Prestataire',
+            'provider': t['expertName'] ?? 'Provider',
             'pack': t['pack'] ?? 'Premium',
             'start': t['date'] ?? 'N/A',
             'renewal': t['renewal'] ?? 'Auto',
             'amount': '${t['amount']} DH',
-            'status': t['status'] ?? 'Actif',
+            'status': t['status'] ?? 'Active',
           }).toList();
 
-          _subscriptions = allSubsMapped.where((s) => s['status'] == 'Actif').toList();
+          _subscriptions = allSubsMapped.where((s) => s['status'] == 'Active' || s['status'] == 'Actif').toList();
           _failedPayments = graceList; // This now contains GRACE and SUSPENDED from the service using whereIn
 
           _failedPayments = graceList;
@@ -152,7 +152,7 @@ class _AdminFinancesScreenState extends State<AdminFinancesScreen>
     final bool isTablet = screenWidth >= 768 && screenWidth < 1024;
     final bool isDesktop = screenWidth >= 1024;
     
-    // Debug pour voir les données et le type d'appareil
+    // Debug for finance screen
     debugPrint('=== FINANCE SCREEN DEBUG ===');
     debugPrint('screenWidth: $screenWidth');
     debugPrint('isMobile: $isMobile');
@@ -1404,25 +1404,46 @@ class _PackBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Translate French pack names to English at display time
+    final displayLabel = const {
+      'Gratuit':   'Free',
+      'GRATUIT':   'Free',
+      'gratuit':   'Free',
+      'Premium':   'Premium',
+      'PREMIUM':   'Premium',
+    }[label] ?? label;
+
+    final bool isFree = displayLabel.toUpperCase() == 'FREE';
+
     return FittedBox(
       fit: BoxFit.scaleDown,
       alignment: Alignment.centerLeft,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-            color: const Color(0xFFFEF9C3).withOpacity(0.6),
+            color: isFree
+                ? const Color(0xFFF1F5F9)
+                : const Color(0xFFFEF9C3).withOpacity(0.6),
             borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: const Color(0xFFFEF08A))),
+            border: Border.all(
+              color: isFree
+                  ? const Color(0xFFCBD5E1)
+                  : const Color(0xFFFEF08A),
+            )),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.crown, size: 12, color: Color(0xFFCA8A04)),
+            Icon(
+              isFree ? LucideIcons.package : LucideIcons.crown,
+              size: 12,
+              color: isFree ? const Color(0xFF64748B) : const Color(0xFFCA8A04),
+            ),
             const SizedBox(width: 6),
-            Text(label,
-                style: const TextStyle(
+            Text(displayLabel,
+                style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFFCA8A04),
+                    color: isFree ? const Color(0xFF475569) : const Color(0xFFCA8A04),
                     letterSpacing: 0.5)),
           ],
         ),
@@ -1437,23 +1458,29 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Determine color set based on status
+    // Normalise: accept both French (Actif, Grâce) and English (Active, Grace)
+    final normalised = status.toLowerCase().replaceAll('â', 'a').replaceAll('é', 'e');
     Color bg;
     Color dot;
     Color text;
-    if (status == 'Actif') {
+    String displayLabel;
+
+    if (normalised == 'actif' || normalised == 'active') {
       bg = const Color(0xFFDCFCE7);
       dot = const Color(0xFF16A34A);
       text = const Color(0xFF166534);
-    } else if (status == 'Grâce') {
+      displayLabel = 'Active';
+    } else if (normalised == 'grace' || normalised == 'grâce') {
       bg = const Color(0xFFFEF3C7);
       dot = const Color(0xFFD97706);
       text = const Color(0xFF92400E);
+      displayLabel = 'Grace Period';
     } else {
-      // Suspendu / Annulé / Expiré
+      // Suspended / Cancelled / Expired
       bg = const Color(0xFFFEE2E2);
       dot = const Color(0xFFDC2626);
       text = const Color(0xFF991B1B);
+      displayLabel = 'Suspended';
     }
 
     return FittedBox(
@@ -1471,7 +1498,7 @@ class _StatusChip extends StatelessWidget {
               decoration: BoxDecoration(shape: BoxShape.circle, color: dot),
             ),
             const SizedBox(width: 6),
-            Text(status,
+            Text(displayLabel,
                 style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w800, color: text)),
           ],
