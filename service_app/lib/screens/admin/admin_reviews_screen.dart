@@ -412,19 +412,42 @@ class _AdminReviewsScreenState extends State<AdminReviewsScreen> {
   }
 
   Widget _clickableName(String name, String? id, String role) {
+    // Standardize role for the dialog and display
+    String displayRole = role;
+    if (role.toLowerCase().contains('expert') || role.toLowerCase().contains('provider') || role.toLowerCase().contains('prestataire')) {
+      displayRole = 'Provider';
+    } else {
+      displayRole = 'Customer';
+    }
+
     return InkWell(
-      onTap: id == null ? null : () {
+      onTap: (id == null || id.isEmpty || id == 'N/A') ? null : () {
         showDialog(
           context: context,
-          builder: (ctx) => UserProfileDetailDialog(id: id, role: role),
+          builder: (ctx) => UserProfileDetailDialog(id: id, role: displayRole),
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(6)),
-        child: Text(
-          '$name ($role)',
-          style: const TextStyle(fontSize: 12, color: _primary, fontWeight: FontWeight.w600),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: _primary.withOpacity(0.08), 
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _primary.withOpacity(0.1)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              displayRole == 'Provider' ? LucideIcons.briefcase : LucideIcons.user, 
+              size: 12, 
+              color: _primary
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '$name ($displayRole)',
+              style: const TextStyle(fontSize: 12, color: _primary, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
       ),
     );
