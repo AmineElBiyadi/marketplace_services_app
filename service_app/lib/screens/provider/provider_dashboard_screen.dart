@@ -11,6 +11,7 @@ import '../../services/firestore_service.dart';
 import '../../models/booking.dart';
 import '../../models/expert.dart';
 import '../../widgets/notification_bell.dart';
+import '../../widgets/live_avatar.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
   final String expertId;
@@ -709,7 +710,14 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
       ),
       child: Row(
         children: [
-          _buildAvatar(req.clientSnapshot?['photo'] ?? '', clientName, size: 56),
+          LiveAvatar(
+            id: req.idClient,
+            fallbackPhoto: req.clientSnapshot?['photo'] ?? '',
+            fallbackName: clientName,
+            radius: 28,
+            type: 'client',
+          ),
+          // _buildAvatar(req.clientSnapshot?['photo'] ?? '', clientName, size: 56),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -791,7 +799,14 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         padding: const EdgeInsets.all(20),
         child: Row(
           children: [
-            _buildAvatar(booking.clientSnapshot?['photo'] ?? '', clientName, size: 48),
+            LiveAvatar(
+              id: booking.idClient,
+              fallbackPhoto: booking.clientSnapshot?['photo'] ?? '',
+              fallbackName: clientName,
+              radius: 24,
+              type: 'client',
+            ),
+            // _buildAvatar(booking.clientSnapshot?['photo'] ?? '', clientName, size: 48),
             const SizedBox(width: 16),
             Expanded(
               child: Column(

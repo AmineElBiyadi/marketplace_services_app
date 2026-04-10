@@ -7,6 +7,7 @@ import '../../theme/app_colors.dart';
 import '../../layouts/provider_layout.dart';
 import '../../services/firestore_service.dart';
 import '../../models/booking.dart';
+import '../../widgets/live_avatar.dart';
 
 enum AgendaViewMode { month, week, day }
 
@@ -744,7 +745,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
               ),
               child: Row(
                 children: [
-                  _buildClientAvatar(interv.clientSnapshot?['photo'] ?? '', interv.clientSnapshot?['nom'] ?? 'Client'),
+                  _buildClientAvatar(interv.idClient, interv.clientSnapshot?['photo'] ?? '', interv.clientSnapshot?['nom'] ?? 'Client'),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -827,7 +828,7 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
               const SizedBox(height: 12),
               const Text("CLIENT", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1.2)),
               const SizedBox(height: 8),
-              _clientCard(interv.clientSnapshot),
+              _clientCard(interv.idClient, interv.clientSnapshot),
               const SizedBox(height: 20),
               const Text("ADDRESS", style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11, color: Colors.grey, letterSpacing: 1.2)),
               const SizedBox(height: 8),
@@ -877,13 +878,13 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
     );
   }
 
-  Widget _clientCard(Map<String, dynamic>? client) {
+  Widget _clientCard(String? clientId, Map<String, dynamic>? client) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey[200]!)),
       child: Row(
         children: [
-          _buildClientAvatar(client?['photo'] ?? '', client?['nom'] ?? 'Client', size: 40),
+          _buildClientAvatar(clientId, client?['photo'] ?? '', client?['nom'] ?? 'Client', size: 40),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -936,29 +937,13 @@ class _ProviderAgendaScreenState extends State<ProviderAgendaScreen> {
     );
   }
 
-  Widget _buildClientAvatar(String photo, String name, {double size = 40}) {
-    final initials = name.isNotEmpty ? name.split(' ').map((e) => e[0]).take(2).join().toUpperCase() : '?';
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: AppColors.primary.withOpacity(0.1),
-        shape: BoxShape.circle,
-        image: photo.isNotEmpty && photo.startsWith('http')
-            ? DecorationImage(image: NetworkImage(photo), fit: BoxFit.cover)
-            : null,
-      ),
-      alignment: Alignment.center,
-      child: photo.isEmpty || !photo.startsWith('http')
-          ? Text(
-              initials,
-              style: TextStyle(
-                fontSize: size * 0.35,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            )
-          : null,
+  Widget _buildClientAvatar(String? clientId, String photo, String name, {double size = 40}) {
+    return LiveAvatar(
+      id: clientId,
+      fallbackPhoto: photo,
+      fallbackName: name,
+      radius: size / 2,
+      type: 'client',
     );
   }
 }

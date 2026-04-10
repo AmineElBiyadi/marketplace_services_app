@@ -10,6 +10,7 @@ import '../chat/chat_screen.dart';
 import '../client/complaint_screen.dart';
 import '../../services/notification_service.dart';
 import '../../models/user.dart';
+import '../../widgets/live_avatar.dart';
 
 const _tabs = ["Pending", "Confirmed", "Completed", "Cancelled", "Refused"];
 const _tabStatusMap = {
@@ -797,7 +798,14 @@ class _ProviderReservationsScreenState extends State<ProviderReservationsScreen>
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildAvatar(clientPhoto, clientName, size: 44),
+                LiveAvatar(
+                  id: intervention.idClient,
+                  fallbackPhoto: clientPhoto,
+                  fallbackName: clientName,
+                  radius: 22,
+                  type: 'client',
+                ),
+                // _buildAvatar(clientPhoto, clientName, size: 44),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
