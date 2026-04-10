@@ -80,11 +80,21 @@ class _OTPScreenState extends State<OTPScreen> {
     if (!_isFilled || widget.extraData == null) return;
     setState(() => _isLoading = true);
     try {
-      await _authService.linkPhoneCredential(
-        verificationId: widget.extraData!['verificationId'],
-        smsCode: _otp.join(),
-      );
-      await _finalizeRegistration();
+      if (widget.extraData?['method'] == 'reset_password') {
+        // For password reset, we sign them into their existing proxy account
+        await _authService.signInWithPhone(
+          verificationId: widget.extraData!['verificationId'],
+          smsCode: _otp.join(),
+        );
+        if (mounted) context.pushReplacement('/reset-password-form');
+      } else {
+        // For signup, we link the credential
+        await _authService.linkPhoneCredential(
+          verificationId: widget.extraData!['verificationId'],
+          smsCode: _otp.join(),
+        );
+        await _finalizeRegistration();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(

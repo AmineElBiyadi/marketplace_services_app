@@ -1461,6 +1461,75 @@ class FirestoreService {
     return null;
   }
 
+  /// Retrieves the contact methods available for a user given their input (phone or email).
+  /// Returns a map with 'email' and/or 'phone' if they exist and are valid.
+  Future<Map<String, String>?> getUserContactInfo(String input) async {
+    final isEmail = input.contains('@');
+    final queryField = isEmail ? 'email' : 'telephone';
+    dynamic queryValue = input;
+
+    if (!isEmail) {
+      String normalizedPhone = input;
+      if (input.startsWith('0')) {
+        normalizedPhone = '+212${input.substring(1)}';
+      } else if (!input.startsWith('+')) {
+        normalizedPhone = '+212$input';
+      }
+      queryValue = normalizedPhone;
+    }
+
+    final query = await _firestore
+        .collection('utilisateurs')
+        .where(queryField, isEqualTo: queryValue)
+        .limit(1)
+        .get();
+
+    // Fallback search for phone numbers to handle '0xxx' prefix if normalized failed to match
+    if (query.docs.isEmpty && !isEmail && queryValue is String && queryValue.startsWith('+212')) {
+      final localPhone = '0${queryValue.substring(4)}';
+      final fallbackQuery = await _firestore
+        .collection('utilisateurs')
+        .where('telephone', isEqualTo: localPhone)
+        .limit(1)
+        .get();
+      
+      if (fallbackQuery.docs.isNotEmpty) {
+        final data = fallbackQuery.docs.first.data();
+        return _extractContactInfo(data);
+      }
+    }
+
+    if (query.docs.isNotEmpty) {
+      final data = query.docs.first.data();
+      return _extractContactInfo(data);
+    }
+
+    return null;
+  }
+
+  Map<String, String> _extractContactInfo(Map<String, dynamic> data) {
+    final Map<String, String> info = {};
+    
+    final email = data['email'] as String?;
+    if (email != null && email.isNotEmpty && !email.endsWith('@proxy.marketplace.app')) {
+      info['email'] = email;
+    }
+
+    final phone = data['telephone'] as String?;
+    if (phone != null && phone.isNotEmpty) {
+      // Return normalized phone so auth verification works smoothly
+      String normalizedPhone = phone;
+      if (phone.startsWith('0')) {
+        normalizedPhone = '+212${phone.substring(1)}';
+      } else if (!phone.startsWith('+')) {
+        normalizedPhone = '+212$phone';
+      }
+      info['phone'] = normalizedPhone;
+    }
+
+    return info;
+  }
+
   // ─── Clients ───────────────────────────────────────────────
 
   /// Registers a new client in Firestore using the current Firebase Auth UID.
