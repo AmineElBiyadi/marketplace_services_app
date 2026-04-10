@@ -37,50 +37,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final isEmail = input.contains('@');
+      final info = await _firestoreService.getUserContactInfo(input);
 
-      if (isEmail) {
-        // Real Firebase password-reset email
-        await _authService.sendPasswordResetEmail(input);
-        setState(() {
-          _sentTo = input;
-          _step = 1;
-        });
-      } else {
-        // Phone-only user: verify the account exists in Firestore, then show next step
-        String normalized = input;
-        if (!normalized.startsWith('+')) {
-          if (normalized.startsWith('0')) {
-            normalized = '+212${normalized.substring(1)}';
-          } else {
-            normalized = '+$normalized';
-          }
+      if (info == null || info.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('No account found with this identifier.'),
+            backgroundColor: Color(0xFFEF4444),
+          ));
         }
-        final exists = await _firestoreService.checkUserExists(
-          phone: normalized,
-          email: '',
-        );
-        if (exists == null) {
-          // No account found
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('No account found with this number.'),
-              backgroundColor: Color(0xFFEF4444),
-            ));
-          }
-          return;
-        }
-        setState(() {
-          _sentTo = input;
-          _step = 1;
-        });
+        return;
       }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(_authService.getErrorMessage(e)),
-          backgroundColor: const Color(0xFFEF4444),
-        ));
+
+      final hasEmail = info.containsKey('email');
+      final hasPhone = info.containsKey('phone');
+
+      if (hasEmail && hasPhone) {
+        if (mounted) {
+          _showRecoveryOptionsModal(info['email']!, info['phone']!);
+        }
+      } else if (hasEmail) {
+        await _triggerEmailRecovery(info['email']!);
+      } else if (hasPhone) {
+        await _triggerPhoneRecovery(info['phone']!);
       }
     } catch (e) {
       if (mounted) {
@@ -92,6 +71,143 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showRecoveryOptionsModal(String email, String phone) {
+    // Obscure email (e.g. amine@gmail.com -> a***e@gmail.com)
+    final emailParts = email.split('@');
+    final obscuredEmail = emailParts[0].length > 2 
+      ? '${emailParts[0].substring(0, 1)}***${emailParts[0].substring(emailParts[0].length - 1)}@${emailParts[1]}'
+      : '***@${emailParts[1]}';
+      
+    // Obscure phone (e.g. +212612345678 -> +212 ***-**5678)
+    final obscuredPhone = phone.length > 5 
+      ? '${phone.substring(0, 4)} ***-**${phone.substring(phone.length - 4)}'
+      : '***';
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Choose recovery method',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1A237E),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Where should we send the reset instructions?',
+                style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 24),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEF2FF),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Icon(Icons.email_outlined, color: Color(0xFF3F64B5)),
+                ),
+                title: const Text('Send Email', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1A237E))),
+                subtitle: Text(obscuredEmail, style: const TextStyle(color: Color(0xFF64748B))),
+                onTap: () {
+                  Navigator.pop(context);
+                  _triggerEmailRecovery(email);
+                },
+              ),
+              const Divider(height: 32),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEF2FF),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Icon(Icons.phone_iphone_outlined, color: Color(0xFF3F64B5)),
+                ),
+                title: const Text('Send SMS Code', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1A237E))),
+                subtitle: Text(obscuredPhone, style: const TextStyle(color: Color(0xFF64748B))),
+                onTap: () {
+                  Navigator.pop(context);
+                  _triggerPhoneRecovery(phone);
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _triggerEmailRecovery(String email) async {
+    setState(() => _isLoading = true);
+    try {
+      await _authService.sendPasswordResetEmail(email);
+      if (mounted) {
+        setState(() {
+          _sentTo = email;
+          _step = 1;
+        });
+      }
+    } on FirebaseAuthException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_authService.getErrorMessage(e)),
+          backgroundColor: const Color(0xFFEF4444),
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _triggerPhoneRecovery(String phone) async {
+    setState(() => _isLoading = true);
+    await _authService.verifyPhoneNumber(
+      phoneNumber: phone,
+      onVerificationCompleted: (_) {
+        if (mounted) setState(() => _isLoading = false);
+      },
+      onVerificationFailed: (e) {
+        if (mounted) setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(_authService.getErrorMessage(e)),
+            backgroundColor: const Color(0xFFEF4444),
+          ));
+        }
+      },
+      onCodeSent: (verificationId, _) {
+        if (mounted) setState(() => _isLoading = false);
+        if (mounted) {
+          context.push('/otp', extra: {
+            'method': 'reset_password',
+            'verificationId': verificationId,
+            'phone': phone,
+          });
+        }
+      },
+      onCodeAutoRetrievalTimeout: (_) {
+        if (mounted) setState(() => _isLoading = false);
+      },
+    );
   }
 
   @override

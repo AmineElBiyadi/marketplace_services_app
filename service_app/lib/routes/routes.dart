@@ -1,4 +1,5 @@
 import 'package:go_router/go_router.dart';
+import '../screens/Authentificcation/client/reset_password_form_screen.dart' as reset_password_form;
 import '../screens/Authentificcation/client/login_screen.dart' as client_login;
 import '../screens/Authentificcation/client/forgot_password_screen.dart' as client_forgot_password;
 import '../screens/Authentificcation/client/signup_screen.dart' as client_signup;
@@ -54,6 +55,7 @@ class AppRoutes {
   static const String signup = '/signup';
   static const String otp = '/otp';
   static const String forgotPassword = '/forgot-password';
+  static const String resetPasswordForm = '/reset-password-form';
   static const String cguUpdate = '/cgu_update';
 
   static const String providerLogin = '/provider/login';
@@ -112,6 +114,7 @@ class AppRouter {
         AppRoutes.signup,
         AppRoutes.otp,
         AppRoutes.forgotPassword,
+        AppRoutes.resetPasswordForm,
         AppRoutes.providerLogin,
         AppRoutes.providerSignup,
         AppRoutes.providerPending,
@@ -193,6 +196,10 @@ class AppRouter {
       GoRoute(
         path: AppRoutes.forgotPassword,
         builder: (context, state) => const client_forgot_password.ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.resetPasswordForm,
+        builder: (context, state) => const reset_password_form.ResetPasswordFormScreen(),
       ),
       GoRoute(
         path: '/booking-detail/:bookingId',
