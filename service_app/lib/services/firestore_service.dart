@@ -955,7 +955,12 @@ class FirestoreService {
         return b.noteMoyenne.compareTo(a.noteMoyenne);
       });
 
-      return experts;
+      // Final Filter: Honor onlyAvailable and hide deactivated experts
+      return experts.where((e) {
+        if (onlyAvailable && !e.estDisponible) return false;
+        if (e.desactiveParAdmin) return false;
+        return true;
+      }).toList();
     } catch (e) {
       debugPrint("Error fetching experts: $e");
       return [];
