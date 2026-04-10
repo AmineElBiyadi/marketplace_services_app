@@ -7,6 +7,7 @@ import '../../models/chat_model.dart';
 import '../../models/message_model.dart';
 import '../../widgets/message_bubble.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/live_avatar.dart';
 
 class ChatScreen extends StatefulWidget {
   final ChatModel chat;
@@ -162,7 +163,13 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
         title: Row(
           children: [
-            _buildAvatar(otherPhoto, otherName, radius: 18),
+            LiveAvatar(
+              id: widget.currentUserRole == 'client' ? widget.chat.idExpert : widget.chat.idClient,
+              fallbackPhoto: otherPhoto,
+              fallbackName: otherName,
+              radius: 18,
+              type: widget.currentUserRole == 'client' ? 'expert' : 'client',
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Column(

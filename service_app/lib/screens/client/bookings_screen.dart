@@ -10,6 +10,7 @@ import '../chat/chat_screen.dart';
 import '../../routes/routes.dart';
 import '../../services/firestore_service.dart';
 import '../../widgets/shared/client_header.dart';
+import '../../widgets/live_avatar.dart';
 
 
 const _tabs = ["Pending", "Confirmed", "Completed", "Cancelled", "Refused"];
@@ -483,27 +484,12 @@ class _BookingsScreenState extends State<BookingsScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                    image: expertPhoto.isNotEmpty
-                        ? DecorationImage(image: NetworkImage(expertPhoto), fit: BoxFit.cover)
-                        : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: expertPhoto.isEmpty
-                      ? Text(
-                          avatarInitials,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        )
-                      : null,
+                LiveAvatar(
+                  id: intervention.idExpert,
+                  fallbackPhoto: expertPhoto,
+                  fallbackName: expertName,
+                  radius: 22,
+                  type: 'expert',
                 ),
                 const SizedBox(width: 12),
                 Expanded(
