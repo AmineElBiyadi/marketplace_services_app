@@ -155,6 +155,55 @@ Dernière mise à jour : Mars 2026
   3. L'application Web s'ouvrira automatiquement dans un nouvel onglet.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. ACCÈS FIREBASE (COLLABORATEURS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Cette section est destinée aux nouveaux collaborateurs qui rejoignent le projet.
+  Les fichiers de configuration Firebase (google-services.json) sont déjà inclus
+  dans le dépôt Git, donc le clonage suffit pour les obtenir.
+
+  ──────────────────────────────────────────────────────────────────────────────
+  ÉTAPE 1 — Créer un compte Google (si vous n'en avez pas)
+  ──────────────────────────────────────────────────────────────────────────────
+  1. Rendez-vous sur : https://accounts.google.com/signup
+  2. Créez un compte avec votre adresse email principale.
+     IMPORTANT : L'email utilisé ici est celui que vous donnerez au propriétaire
+     du projet pour recevoir l'invitation Firebase.
+
+  ──────────────────────────────────────────────────────────────────────────────
+  ÉTAPE 2 — Recevoir et accepter l'invitation Firebase
+  ──────────────────────────────────────────────────────────────────────────────
+  1. Communiquez votre adresse Google au propriétaire du projet.
+  2. Vous recevrez un email d'invitation de la part de Firebase / Google Cloud.
+  3. Cliquez sur le lien dans l'email pour accepter l'invitation.
+  4. Connectez-vous sur : https://console.firebase.google.com
+  5. Le projet "services-App" apparaîtra dans votre liste de projets.
+     → Vous avez maintenant accès à la base de données, aux logs, etc.
+
+  ──────────────────────────────────────────────────────────────────────────────
+  ÉTAPE 3 — Les fichiers de configuration (déjà inclus dans le dépôt)
+  ──────────────────────────────────────────────────────────────────────────────
+  Après avoir cloné le projet (voir Section 4), les fichiers Firebase sont déjà
+  présents aux bons endroits dans le projet :
+
+    → Android : service_app\android\app\google-services.json
+    → iOS     : service_app\ios\Runner\GoogleService-Info.plist
+
+  Vous n'avez RIEN à copier manuellement. Le clonage Git s'en charge.
+
+  ──────────────────────────────────────────────────────────────────────────────
+  ÉTAPE 4 — Vérifier la connexion Firebase
+  ──────────────────────────────────────────────────────────────────────────────
+  Après avoir lancé l'application (voir Section 5), connectez-vous avec un
+  compte de test. Si l'authentification et les données Firestore fonctionnent,
+  tout est correctement configuré.
+
+  En cas de problème de connexion Firebase, vérifiez que :
+    • Votre invitation a bien été acceptée (étape 2).
+    • Les fichiers google-services.json sont bien présents dans le projet.
+    • Vous utilisez la bonne version de Java JDK (voir Section 1).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RÉSOLUTION DES PROBLÈMES COURANTS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
